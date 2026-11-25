@@ -469,7 +469,7 @@ export function PlayerControls({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      showOsd(dict.osd.frameSaved);
+      showOsd(dict.osd.frameSaved, { icon: "screenshot" });
     } catch {
       showOsd(dict.osd.frameError, { isError: true });
     }
@@ -964,7 +964,7 @@ export function PlayerControls({
   const handleSetSpeed = useCallback(async (newSpeed: number) => {
     try {
       await invoke("set_speed", { speed: newSpeed });
-      showOsd(dict.osd.speed(formatSpeedValue(newSpeed)));
+      showOsd(dict.osd.speed(formatSpeedValue(newSpeed)), { icon: "speed" });
     } catch (e) {
       console.error("Ошибка при установке скорости воспроизведения:", e);
     }

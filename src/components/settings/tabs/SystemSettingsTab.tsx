@@ -21,7 +21,7 @@ import "../../../styles/settings-system.css";
  * установленных движков ИИ, файловых ассоциаций и контекстного меню Windows Explorer.
  */
 export function SystemSettingsTab(): React.ReactElement {
-  const { dict } = useTranslation();
+  const { dict, locale } = useTranslation();
   const cachedDiag = getCachedSystemDiagnostics();
   const [diag, setDiag] = useState<SystemDiagnosticsInfo | null>(cachedDiag);
   const [isLoadingDiag, setIsLoadingDiag] = useState<boolean>(!cachedDiag);
@@ -156,7 +156,7 @@ export function SystemSettingsTab(): React.ReactElement {
   const handleRegisterFileAssoc = useCallback(async () => {
     setIsRegistering(true);
     try {
-      const logs = await invoke<string[]>("register_file_associations");
+      const logs = await invoke<string[]>("register_file_associations", { locale });
       if (!isMountedRef.current) return;
       setIntegrationLogs(logs);
       await checkContextMenuStatus();
@@ -168,12 +168,12 @@ export function SystemSettingsTab(): React.ReactElement {
         setIsRegistering(false);
       }
     }
-  }, [checkContextMenuStatus, dict]);
+  }, [checkContextMenuStatus, dict, locale]);
 
   const handleUnregisterFileAssoc = useCallback(async () => {
     setIsUnregistering(true);
     try {
-      const logs = await invoke<string[]>("unregister_file_associations");
+      const logs = await invoke<string[]>("unregister_file_associations", { locale });
       if (!isMountedRef.current) return;
       setIntegrationLogs(logs);
       await checkContextMenuStatus();
@@ -185,7 +185,7 @@ export function SystemSettingsTab(): React.ReactElement {
         setIsUnregistering(false);
       }
     }
-  }, [checkContextMenuStatus, dict]);
+  }, [checkContextMenuStatus, dict, locale]);
 
   const handleOpenDefaultApps = useCallback(async () => {
     try {
@@ -207,7 +207,7 @@ export function SystemSettingsTab(): React.ReactElement {
   const handleRegisterContextMenu = useCallback(async () => {
     setIsContextMenuLoading(true);
     try {
-      const logs = await invoke<string[]>("register_explorer_context_menu");
+      const logs = await invoke<string[]>("register_explorer_context_menu", { locale });
       if (!isMountedRef.current) return;
       setIntegrationLogs(logs);
       await checkContextMenuStatus();
@@ -219,12 +219,12 @@ export function SystemSettingsTab(): React.ReactElement {
         setIsContextMenuLoading(false);
       }
     }
-  }, [checkContextMenuStatus, dict]);
+  }, [checkContextMenuStatus, dict, locale]);
 
   const handleUnregisterContextMenu = useCallback(async () => {
     setIsContextMenuLoading(true);
     try {
-      const logs = await invoke<string[]>("unregister_explorer_context_menu");
+      const logs = await invoke<string[]>("unregister_explorer_context_menu", { locale });
       if (!isMountedRef.current) return;
       setIntegrationLogs(logs);
       await checkContextMenuStatus();
@@ -236,7 +236,7 @@ export function SystemSettingsTab(): React.ReactElement {
         setIsContextMenuLoading(false);
       }
     }
-  }, [checkContextMenuStatus, dict]);
+  }, [checkContextMenuStatus, dict, locale]);
 
   const i = dict.settings.integrationFields;
   const f = dict.settings.systemFields;

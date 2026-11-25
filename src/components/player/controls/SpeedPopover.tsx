@@ -178,8 +178,8 @@ export const SpeedPopover: React.FC<SpeedPopoverProps> = ({
               e.stopPropagation();
               onClose();
             }}
-            title="Закрыть"
-            aria-label="Закрыть"
+            title={dict.titlebar.close}
+            aria-label={dict.titlebar.close}
           >
             <X size={14} />
           </button>

@@ -30,7 +30,7 @@ function DiagnosticRow({ icon, label, status, children, onOpenFolder, path }: {
     <dt><span className="system-diagnostics__dot" data-status={status} aria-hidden />{icon}<span>{label}</span></dt>
     <dd>
       <span className="system-diagnostics__value">{children}</span>
-      {path && path !== "Отсутствует" && path !== "Missing" && (
+      {path && path !== "missing" && path !== "Отсутствует" && path !== "Missing" && (
         <span className="system-diagnostics__actions">
           {onOpenFolder && <button type="button" className="system-diagnostics__mini-btn" onClick={() => void onOpenFolder().catch(error => showOsd(dict.settings.systemFields.pathActionError(String(error)), { isError: true }))} title={dict.settings.systemFields.btnOpenFolder} aria-label={`${dict.settings.systemFields.btnOpenFolder}: ${label}`}><FolderOpen size={12} aria-hidden /></button>}
           <button type="button" className="system-diagnostics__mini-btn" onClick={copyPath} title={dict.settings.systemFields.btnCopyPath} aria-label={`${dict.settings.systemFields.btnCopyPath}: ${label}`}><Copy size={12} aria-hidden /></button>
@@ -41,7 +41,7 @@ function DiagnosticRow({ icon, label, status, children, onOpenFolder, path }: {
 }
 
 function openFolder(path: string) {
-  if (!path || path === "Отсутствует" || path === "Missing") return Promise.resolve();
+  if (!path || path === "missing" || path === "Отсутствует" || path === "Missing") return Promise.resolve();
   // Открываем родительский каталог для файлов, сам каталог — для папок.
   return invoke<void>("open_path_in_explorer", { path });
 }
@@ -54,9 +54,19 @@ export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onC
     info.directml_available && "DirectML",
     info.aji_available && "aji v0.25.0",
   ].filter(Boolean) : [];
-  const ffmpeg = info?.ffmpeg_version.replace(/^ffmpeg\s+version\s+/i, "")
+  const ffmpegRaw = info?.ffmpeg_version === "installed_unknown"
+    ? f.ffmpegInstalledUnknown
+    : info?.ffmpeg_version === "missing"
+    ? f.statusMissing
+    : info?.ffmpeg_version ?? "";
+  const ffmpeg = ffmpegRaw.replace(/^ffmpeg\s+version\s+/i, "")
     .replace(/\s+Copyright\s*\(c\).*/i, "").replace(/-essentials_build/i, "")
     .replace(/-www\.gyan\.dev/i, " (gyan.dev)").trim();
+  const libmpvVersionText = info?.libmpv_version === "active_fallback"
+    ? f.libmpvActiveFallback
+    : info?.libmpv_version === "not_loaded"
+    ? f.libmpvNotLoaded
+    : info?.libmpv_version;
 
   return <section className={embedded ? "system-diagnostics system-diagnostics--embedded" : "glass-section settings-group-card system-diagnostics"} aria-busy={loading}>
     {!embedded && <div className="system-diagnostics__header"><h3><Cpu size={17} aria-hidden />{f.title}</h3></div>}
@@ -72,7 +82,7 @@ export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onC
       <DiagnosticRow icon={<HardDrive size={14} aria-hidden />} label={f.libmpvTitle}
         status={info.libmpv_available ? "ok" : "bad"}
         path={info.libmpv_path} onOpenFolder={() => openFolder(info.libmpv_path)}>
-        <span>{info.libmpv_available ? info.libmpv_version : f.libmpvMissing}</span>
+        <span>{info.libmpv_available ? libmpvVersionText : f.libmpvMissing}</span>
         {info.libmpv_has_animejanai && <span className="system-settings__badge" title={f.animejanaiCompiled}>
           <CheckCircle2 size={11} aria-hidden />vf_animejanai
         </span>}

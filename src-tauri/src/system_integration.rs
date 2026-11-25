@@ -59,7 +59,8 @@ pub fn get_windows_accent_color() -> Result<String, String> {
 
 /// Регистрация ассоциаций файлов в Windows (Portable и установленная версия).
 #[tauri::command]
-pub fn register_file_associations() -> Result<Vec<String>, String> {
+pub fn register_file_associations(locale: Option<String>) -> Result<Vec<String>, String> {
+    let is_ru = locale.as_deref().unwrap_or("ru").starts_with("ru");
     let mut logs = Vec::new();
     #[cfg(target_os = "windows")]
     {
@@ -68,35 +69,52 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
 
         let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe_path_str = exe_path.to_str().unwrap_or_default();
-        
-        logs.push(format!("[INFO] Путь к исполняемому файлу: {}", exe_path_str));
+
+        logs.push(if is_ru {
+            format!("[INFO] Путь к исполняемому файлу: {}", exe_path_str)
+        } else {
+            format!("[INFO] Executable path: {}", exe_path_str)
+        });
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let classes = match hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
             Ok(key) => key,
             Err(e) => {
-                logs.push(format!("[ERROR] Ошибка доступа к Software\\Classes: {}", e));
+                logs.push(if is_ru {
+                    format!("[ERROR] Ошибка доступа к Software\\Classes: {}", e)
+                } else {
+                    format!("[ERROR] Failed to access Software\\Classes: {}", e)
+                });
                 return Ok(logs);
             }
         };
 
         let video_prog_id = "L-MPV.Video";
         let audio_prog_id = "L-MPV.Audio";
-        
+
         // 1. Создаем ProgID для видео
         match classes.create_subkey(video_prog_id) {
             Ok((prog_key, _)) => {
-                let _ = prog_key.set_value("", &"Видеофайл L-MPV");
+                let video_desc = if is_ru { "Видеофайл L-MPV" } else { "L-MPV Video File" };
+                let _ = prog_key.set_value("", &video_desc);
                 if let Ok((icon_key, _)) = prog_key.create_subkey("DefaultIcon") {
                     let _ = icon_key.set_value("", &format!("{},0", exe_path_str));
                 }
                 if let Ok((cmd_key, _)) = prog_key.create_subkey("shell\\open\\command") {
                     let _ = cmd_key.set_value("", &format!("\"{}\" \"%1\"", exe_path_str));
                 }
-                logs.push(format!("[OK] Зарегистрирован ProgID видео: {}", video_prog_id));
+                logs.push(if is_ru {
+                    format!("[OK] Зарегистрирован ProgID видео: {}", video_prog_id)
+                } else {
+                    format!("[OK] Registered video ProgID: {}", video_prog_id)
+                });
             }
             Err(e) => {
-                logs.push(format!("[ERROR] Ошибка создания ProgID видео: {}", e));
+                logs.push(if is_ru {
+                    format!("[ERROR] Ошибка создания ProgID видео: {}", e)
+                } else {
+                    format!("[ERROR] Failed to create video ProgID: {}", e)
+                });
                 return Ok(logs);
             }
         }
@@ -104,17 +122,26 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
         // 2. Создаем ProgID для аудио
         match classes.create_subkey(audio_prog_id) {
             Ok((prog_key, _)) => {
-                let _ = prog_key.set_value("", &"Аудиофайл L-MPV");
+                let audio_desc = if is_ru { "Аудиофайл L-MPV" } else { "L-MPV Audio File" };
+                let _ = prog_key.set_value("", &audio_desc);
                 if let Ok((icon_key, _)) = prog_key.create_subkey("DefaultIcon") {
                     let _ = icon_key.set_value("", &format!("{},0", exe_path_str));
                 }
                 if let Ok((cmd_key, _)) = prog_key.create_subkey("shell\\open\\command") {
                     let _ = cmd_key.set_value("", &format!("\"{}\" \"%1\"", exe_path_str));
                 }
-                logs.push(format!("[OK] Зарегистрирован ProgID аудио: {}", audio_prog_id));
+                logs.push(if is_ru {
+                    format!("[OK] Зарегистрирован ProgID аудио: {}", audio_prog_id)
+                } else {
+                    format!("[OK] Registered audio ProgID: {}", audio_prog_id)
+                });
             }
             Err(e) => {
-                logs.push(format!("[ERROR] Ошибка создания ProgID аудио: {}", e));
+                logs.push(if is_ru {
+                    format!("[ERROR] Ошибка создания ProgID аудио: {}", e)
+                } else {
+                    format!("[ERROR] Failed to create audio ProgID: {}", e)
+                });
             }
         }
 
@@ -123,7 +150,12 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
             if let Ok((lmpv_key, _)) = software.create_subkey("L-MPV") {
                 if let Ok((cap_key, _)) = lmpv_key.create_subkey("Capabilities") {
                     let _ = cap_key.set_value("ApplicationName", &"L-MPV");
-                    let _ = cap_key.set_value("ApplicationDescription", &"Современный медиаплеер L-MPV");
+                    let app_desc = if is_ru {
+                        "Современный медиаплеер L-MPV"
+                    } else {
+                        "L-MPV Modern Media Player"
+                    };
+                    let _ = cap_key.set_value("ApplicationDescription", &app_desc);
                     if let Ok((assoc_key, _)) = cap_key.create_subkey("FileAssociations") {
                         for &ext in VIDEO_EXTENSIONS {
                             let _ = assoc_key.set_value(ext, &video_prog_id);
@@ -136,7 +168,11 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
             }
             if let Ok((reg_apps, _)) = software.create_subkey("RegisteredApplications") {
                 let _ = reg_apps.set_value("L-MPV", &"Software\\L-MPV\\Capabilities");
-                logs.push("[OK] Зарегистрировано в 'Приложениях по умолчанию' Windows".to_string());
+                logs.push(if is_ru {
+                    "[OK] Зарегистрировано в 'Приложениях по умолчанию' Windows".to_string()
+                } else {
+                    "[OK] Registered in Windows Default Apps".to_string()
+                });
             }
         }
 
@@ -148,10 +184,18 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
                     if let Ok((open_with, _)) = ext_key.create_subkey("OpenWithProgids") {
                         let _ = open_with.set_value(video_prog_id, &"");
                     }
-                    logs.push(format!("[OK] Привязано видео: {}", ext));
+                    logs.push(if is_ru {
+                        format!("[OK] Привязано видео: {}", ext)
+                    } else {
+                        format!("[OK] Associated video: {}", ext)
+                    });
                 }
                 Err(e) => {
-                    logs.push(format!("[WARN] Ошибка привязки {}: {}", ext, e));
+                    logs.push(if is_ru {
+                        format!("[WARN] Ошибка привязки {}: {}", ext, e)
+                    } else {
+                        format!("[WARN] Failed to associate {}: {}", ext, e)
+                    });
                 }
             }
         }
@@ -164,10 +208,18 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
                     if let Ok((open_with, _)) = ext_key.create_subkey("OpenWithProgids") {
                         let _ = open_with.set_value(audio_prog_id, &"");
                     }
-                    logs.push(format!("[OK] Привязано аудио: {}", ext));
+                    logs.push(if is_ru {
+                        format!("[OK] Привязано аудио: {}", ext)
+                    } else {
+                        format!("[OK] Associated audio: {}", ext)
+                    });
                 }
                 Err(e) => {
-                    logs.push(format!("[WARN] Ошибка привязки {}: {}", ext, e));
+                    logs.push(if is_ru {
+                        format!("[WARN] Ошибка привязки {}: {}", ext, e)
+                    } else {
+                        format!("[WARN] Failed to associate {}: {}", ext, e)
+                    });
                 }
             }
         }
@@ -179,18 +231,34 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
             if let Ok((cmd_key, _)) = shell_key.create_subkey("command") {
                 let _ = cmd_key.set_value("", &format!("\"{}\" --mediainfo \"%1\"", exe_path_str));
             }
-            logs.push("[OK] Зарегистрирован пункт контекстного меню Explorer: 'L-MPV MediaInfo'".to_string());
+            logs.push(if is_ru {
+                "[OK] Зарегистрирован пункт контекстного меню Explorer: 'L-MPV MediaInfo'".to_string()
+            } else {
+                "[OK] Registered Explorer context menu item: 'L-MPV MediaInfo'".to_string()
+            });
         }
 
         // 7. Оповещение Windows Shell об обновлении ассоциаций и иконок
         notify_shell_associations_changed();
-        logs.push("[OK] Кэш иконок Windows Explorer обновлен".to_string());
-        logs.push("[DONE] Все ассоциации файлов успешно зарегистрированы!".to_string());
+        logs.push(if is_ru {
+            "[OK] Кэш иконок Windows Explorer обновлен".to_string()
+        } else {
+            "[OK] Windows Explorer icon cache refreshed".to_string()
+        });
+        logs.push(if is_ru {
+            "[DONE] Все ассоциации файлов успешно зарегистрированы!".to_string()
+        } else {
+            "[DONE] All file associations registered successfully!".to_string()
+        });
     }
-    
+
     #[cfg(not(target_os = "windows"))]
     {
-        logs.push("[WARN] Ассоциации файлов поддерживаются только в Windows.".to_string());
+        logs.push(if is_ru {
+            "[WARN] Ассоциации файлов поддерживаются только в Windows.".to_string()
+        } else {
+            "[WARN] File associations are supported on Windows only.".to_string()
+        });
     }
 
     Ok(logs)
@@ -198,21 +266,30 @@ pub fn register_file_associations() -> Result<Vec<String>, String> {
 
 /// Удаление ассоциаций файлов в Windows (очистка реестра).
 #[tauri::command]
-pub fn unregister_file_associations() -> Result<Vec<String>, String> {
+pub fn unregister_file_associations(locale: Option<String>) -> Result<Vec<String>, String> {
+    let is_ru = locale.as_deref().unwrap_or("ru").starts_with("ru");
     let mut logs = Vec::new();
     #[cfg(target_os = "windows")]
     {
         use winreg::enums::*;
         use winreg::RegKey;
 
-        logs.push("[INFO] Начало процесса удаления ассоциаций файлов...".to_string());
+        logs.push(if is_ru {
+            "[INFO] Начало процесса удаления ассоциаций файлов...".to_string()
+        } else {
+            "[INFO] Starting file association removal...".to_string()
+        });
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         if let Ok(classes) = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
             let _ = classes.delete_subkey_all("L-MPV.Video");
             let _ = classes.delete_subkey_all("L-MPV.Audio");
             let _ = classes.delete_subkey_all("*\\shell\\LMPV.MediaInfo");
-            logs.push("[OK] ProgID L-MPV.Video, L-MPV.Audio и пункт меню MediaInfo удалены".to_string());
+            logs.push(if is_ru {
+                "[OK] ProgID L-MPV.Video, L-MPV.Audio и пункт меню MediaInfo удалены".to_string()
+            } else {
+                "[OK] Removed L-MPV.Video, L-MPV.Audio ProgIDs and MediaInfo menu item".to_string()
+            });
 
             for &ext in VIDEO_EXTENSIONS.iter().chain(AUDIO_EXTENSIONS.iter()) {
                 if let Ok(ext_key) = classes.open_subkey_with_flags(ext, KEY_ALL_ACCESS) {
@@ -225,7 +302,11 @@ pub fn unregister_file_associations() -> Result<Vec<String>, String> {
                         let _ = open_with.delete_value("L-MPV.Video");
                         let _ = open_with.delete_value("L-MPV.Audio");
                     }
-                    logs.push(format!("[OK] Очищено расширение: {}", ext));
+                    logs.push(if is_ru {
+                        format!("[OK] Очищено расширение: {}", ext)
+                    } else {
+                        format!("[OK] Cleared extension: {}", ext)
+                    });
                 }
             }
         }
@@ -235,18 +316,34 @@ pub fn unregister_file_associations() -> Result<Vec<String>, String> {
             if let Ok(reg_apps) = software.open_subkey_with_flags("RegisteredApplications", KEY_ALL_ACCESS) {
                 let _ = reg_apps.delete_value("L-MPV");
             }
-            logs.push("[OK] Записи RegisteredApplications удалены".to_string());
+            logs.push(if is_ru {
+                "[OK] Записи RegisteredApplications удалены".to_string()
+            } else {
+                "[OK] RegisteredApplications entries removed".to_string()
+            });
         }
 
         // Оповещение оболочки Windows
         notify_shell_associations_changed();
-        logs.push("[OK] Кэш иконок Windows Explorer обновлен".to_string());
-        logs.push("[DONE] Ассоциации файлов полностью удалены из системы!".to_string());
+        logs.push(if is_ru {
+            "[OK] Кэш иконок Windows Explorer обновлен".to_string()
+        } else {
+            "[OK] Windows Explorer icon cache refreshed".to_string()
+        });
+        logs.push(if is_ru {
+            "[DONE] Ассоциации файлов полностью удалены из системы!".to_string()
+        } else {
+            "[DONE] File associations completely removed from the system!".to_string()
+        });
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        logs.push("[WARN] Поддерживается только в Windows.".to_string());
+        logs.push(if is_ru {
+            "[WARN] Поддерживается только в Windows.".to_string()
+        } else {
+            "[WARN] Supported on Windows only.".to_string()
+        });
     }
 
     Ok(logs)
@@ -272,7 +369,8 @@ pub fn is_explorer_context_menu_registered() -> Result<bool, String> {
 
 /// Регистрация пункта «Открыть в L-MPV MediaInfo» в контекстном меню Windows Explorer.
 #[tauri::command]
-pub fn register_explorer_context_menu() -> Result<Vec<String>, String> {
+pub fn register_explorer_context_menu(locale: Option<String>) -> Result<Vec<String>, String> {
+    let is_ru = locale.as_deref().unwrap_or("ru").starts_with("ru");
     let mut logs = Vec::new();
     #[cfg(target_os = "windows")]
     {
@@ -281,40 +379,86 @@ pub fn register_explorer_context_menu() -> Result<Vec<String>, String> {
 
         let exe_path = std::env::current_exe().map_err(|e| e.to_string())?;
         let exe_path_str = exe_path.to_str().unwrap_or_default();
-        logs.push(format!("[INFO] Путь к исполняемому файлу: {}", exe_path_str));
+        logs.push(if is_ru {
+            format!("[INFO] Путь к исполняемому файлу: {}", exe_path_str)
+        } else {
+            format!("[INFO] Executable path: {}", exe_path_str)
+        });
 
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         let classes = hkcu
             .open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS)
-            .map_err(|e| format!("Не удалось открыть ветку Software\\Classes: {e}"))?;
+            .map_err(|e| {
+                if is_ru {
+                    format!("Не удалось открыть ветку Software\\Classes: {e}")
+                } else {
+                    format!("Failed to open Software\\Classes: {e}")
+                }
+            })?;
 
         let (shell_key, _) = classes
             .create_subkey("*\\shell\\LMPV.MediaInfo")
-            .map_err(|e| format!("Ошибка создания ключа *\\shell\\LMPV.MediaInfo: {e}"))?;
+            .map_err(|e| {
+                if is_ru {
+                    format!("Ошибка создания ключа *\\shell\\LMPV.MediaInfo: {e}")
+                } else {
+                    format!("Failed to create *\\shell\\LMPV.MediaInfo key: {e}")
+                }
+            })?;
 
         shell_key
             .set_value("", &"L-MPV MediaInfo")
-            .map_err(|e| format!("Ошибка установки названия пункта: {e}"))?;
+            .map_err(|e| {
+                if is_ru {
+                    format!("Ошибка установки названия пункта: {e}")
+                } else {
+                    format!("Failed to set menu item label: {e}")
+                }
+            })?;
 
         let _ = shell_key.set_value("Icon", &format!("\"{}\",0", exe_path_str));
 
         let (cmd_key, _) = shell_key
             .create_subkey("command")
-            .map_err(|e| format!("Ошибка создания subkey command: {e}"))?;
+            .map_err(|e| {
+                if is_ru {
+                    format!("Ошибка создания subkey command: {e}")
+                } else {
+                    format!("Failed to create command subkey: {e}")
+                }
+            })?;
 
         cmd_key
             .set_value("", &format!("\"{}\" --mediainfo \"%1\"", exe_path_str))
-            .map_err(|e| format!("Ошибка установки команды запуска: {e}"))?;
+            .map_err(|e| {
+                if is_ru {
+                    format!("Ошибка установки команды запуска: {e}")
+                } else {
+                    format!("Failed to set launch command: {e}")
+                }
+            })?;
 
-        logs.push("[OK] Пункт 'L-MPV MediaInfo' успешно зарегистрирован в контекстном меню Windows!".to_string());
+        logs.push(if is_ru {
+            "[OK] Пункт 'L-MPV MediaInfo' успешно зарегистрирован в контекстном меню Windows!".to_string()
+        } else {
+            "[OK] 'L-MPV MediaInfo' item registered in Windows context menu!".to_string()
+        });
 
         notify_shell_associations_changed();
-        logs.push("[OK] Кэш оболочки Windows Explorer обновлен.".to_string());
+        logs.push(if is_ru {
+            "[OK] Кэш оболочки Windows Explorer обновлен.".to_string()
+        } else {
+            "[OK] Windows Explorer shell cache refreshed.".to_string()
+        });
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        logs.push("[WARN] Контекстное меню Windows поддерживается только на ОС Windows.".to_string());
+        logs.push(if is_ru {
+            "[WARN] Контекстное меню Windows поддерживается только на ОС Windows.".to_string()
+        } else {
+            "[WARN] Windows context menu is supported on Windows only.".to_string()
+        });
     }
 
     Ok(logs)
@@ -322,7 +466,8 @@ pub fn register_explorer_context_menu() -> Result<Vec<String>, String> {
 
 /// Удаление пункта «Открыть в L-MPV MediaInfo» из контекстного меню Windows Explorer.
 #[tauri::command]
-pub fn unregister_explorer_context_menu() -> Result<Vec<String>, String> {
+pub fn unregister_explorer_context_menu(locale: Option<String>) -> Result<Vec<String>, String> {
+    let is_ru = locale.as_deref().unwrap_or("ru").starts_with("ru");
     let mut logs = Vec::new();
     #[cfg(target_os = "windows")]
     {
@@ -332,16 +477,28 @@ pub fn unregister_explorer_context_menu() -> Result<Vec<String>, String> {
         let hkcu = RegKey::predef(HKEY_CURRENT_USER);
         if let Ok(classes) = hkcu.open_subkey_with_flags("Software\\Classes", KEY_ALL_ACCESS) {
             let _ = classes.delete_subkey_all("*\\shell\\LMPV.MediaInfo");
-            logs.push("[OK] Пункт 'L-MPV MediaInfo' удален из реестра Windows.".to_string());
+            logs.push(if is_ru {
+                "[OK] Пункт 'L-MPV MediaInfo' удален из реестра Windows.".to_string()
+            } else {
+                "[OK] 'L-MPV MediaInfo' item removed from Windows registry.".to_string()
+            });
         }
 
         notify_shell_associations_changed();
-        logs.push("[OK] Кэш оболочки Windows Explorer обновлен.".to_string());
+        logs.push(if is_ru {
+            "[OK] Кэш оболочки Windows Explorer обновлен.".to_string()
+        } else {
+            "[OK] Windows Explorer shell cache refreshed.".to_string()
+        });
     }
 
     #[cfg(not(target_os = "windows"))]
     {
-        logs.push("[WARN] Поддерживается только в Windows.".to_string());
+        logs.push(if is_ru {
+            "[WARN] Поддерживается только в Windows.".to_string()
+        } else {
+            "[WARN] Supported on Windows only.".to_string()
+        });
     }
 
     Ok(logs)
@@ -520,15 +677,15 @@ fn collect_libmpv_diagnostics(
     let libmpv_path = libmpv_found
         .as_ref()
         .map(|p| p.display().to_string())
-        .unwrap_or_else(|| "Отсутствует".to_string());
+        .unwrap_or_else(|| "missing".to_string());
     let libmpv_has_animejanai = check_libmpv_has_animejanai(libmpv_found.as_deref());
     let libmpv_version = mpv
         .get_property_string("mpv-version")
         .unwrap_or_else(|_| {
             if libmpv_available {
-                "libmpv-2.dll (активен)".to_string()
+                "active_fallback".to_string()
             } else {
-                "Не загружен".to_string()
+                "not_loaded".to_string()
             }
         });
     (libmpv_available, libmpv_version, libmpv_has_animejanai, libmpv_path)
@@ -631,9 +788,9 @@ fn get_ffmpeg_diagnostics(root: &Path) -> (bool, String, String) {
     }
 
     if found_path.is_some() {
-        (true, "FFmpeg установлен (версия не определена)".to_string(), resolved_path)
+        (true, "installed_unknown".to_string(), resolved_path)
     } else {
-        (false, "Не найден".to_string(), "Отсутствует".to_string())
+        (false, "missing".to_string(), "missing".to_string())
     }
 }
 
@@ -669,7 +826,7 @@ fn collect_system_diagnostics(
                     .unwrap_or_else(|_| "MediaInfo v24.x (C-API)".to_string());
                 (true, ver, path.display().to_string())
             }
-            Err(_) => (false, "Не найдена".to_string(), "Отсутствует".to_string()),
+            Err(_) => (false, "missing".to_string(), "missing".to_string()),
         };
 
     let (

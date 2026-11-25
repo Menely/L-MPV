@@ -839,13 +839,13 @@ vec3 mzg_sample_glass(
     float l = dot(g, luma);
     g = clamp(mix(vec3(l), g, 1.36), 0.0, 1.0);
 
-    // Балансировка яркости: сдерживание пересветов на светлых сценах и мягкое ледяное осветление на тёмных (darkBoost)
+    // Балансировка яркости: сдерживание пересветов на светлых сценах и деликатный подъём глубоких теней (без белёсой дымки)
     float under = dot(blur_g, luma);
     float bright_norm = smoothstep(0.34, 0.96, under);
     float bright_damp = mzg_tone * mix(0.22, 0.30, frost_blend) * bright_norm;
-    float dark_boost = mzg_tone * (1.0 - smoothstep(0.08, 0.56, under)) * mix(0.11, 0.045, tint_a) * mix(1.0, 0.70, is_nested);
+    float dark_boost = mzg_tone * (1.0 - smoothstep(0.04, 0.45, under)) * mix(0.045, 0.02, tint_a) * mix(1.0, 0.65, is_nested);
     g = g * (1.0 - bright_damp);
-    g = mix(g, vec3(0.92, 0.96, 1.0), dark_boost);
+    g = mix(g, max(g * 1.6, vec3(0.10, 0.12, 0.15)), dark_boost);
     if (is_nested > 0.5) {
         g *= mix(0.96, 0.87, bright_norm);
     }
@@ -872,23 +872,26 @@ vec3 mzg_sample_glass(
         g = mix(g, vec3(0.12, 0.14, 0.17), clamp(neutral_smoke, 0.0, 0.16));
     }
 
-    // Двунаправленный спекулярный блик (верх-лево + отражённое эхо низ-право) и внутреннее свечение фаски (innerGlow)
+    // Двунаправленный спекулярный блик (верх-лево + отражённое эхо низ-право) и приглушённое свечение фаски,
+    // окрашенное цветами и яркостью сцены (scene_light_gain) вместо белого ореола на тёмном фоне.
     float light_dir = dot(n, normalize(vec2(-0.55, -0.83)));
     float fp = max(light_dir, 0.0);
     float fn = max(-light_dir, 0.0);
     float d_u = d_val / max(u, 0.5);
-    float rim_line = exp(-2.0 * (d_u + 0.75) * (d_u + 0.75));
-    float spec_top = pow(fp, 1.8) * 0.56;
-    float spec_bot = pow(fn, 2.2) * 0.28;
-    float rim_highlight = rim_line * (0.16 + spec_top + spec_bot);
-    float inner_glow = pow(rim_t, 2.2) * 0.085 * (0.50 + 0.50 * abs(light_dir));
-    float sheen = 0.055 * clamp(refract_scale, 0.0, 1.4) * (n_cos2 * bevel_smooth);
+    float rim_line = exp(-2.2 * (d_u + 0.75) * (d_u + 0.75));
+    float spec_top = pow(fp, 1.9) * 0.46;
+    float spec_bot = pow(fn, 2.2) * 0.22;
+    float rim_highlight = rim_line * (0.08 + spec_top + spec_bot);
+    float inner_glow = pow(rim_t, 2.4) * 0.032 * (0.45 + 0.55 * abs(light_dir));
+    float sheen = 0.032 * clamp(refract_scale, 0.0, 1.4) * (n_cos2 * bevel_smooth);
+    float scene_light_gain = mix(0.26, 1.0, smoothstep(0.03, 0.44, under));
     float bright_guard = mix(1.0, 0.62, smoothstep(0.45, 0.95, under));
+    vec3 scene_edge_tint = mix(clamp(g * 1.45 + vec3(0.16), 0.0, 1.0), vec3(1.0), 0.28);
     vec3 rim_tint = tint_a > 0.005
-        ? mix(vec3(1.0), clamp(tint_rgb * 1.50 + vec3(0.35), 0.0, 1.0), 0.35 * tint_a)
-        : vec3(1.0);
+        ? mix(scene_edge_tint, clamp(tint_rgb * 1.50 + vec3(0.28), 0.0, 1.0), 0.42 * tint_a)
+        : scene_edge_tint;
     float layer_gain = mix(1.0, 0.62, is_nested);
-    g += mzg_lens * layer_gain * bright_guard * rim_tint * (rim_highlight * 0.58 + inner_glow + sheen);
+    g += mzg_lens * layer_gain * scene_light_gain * bright_guard * rim_tint * (rim_highlight * 0.55 + inner_glow + sheen);
 
     return g;
 }

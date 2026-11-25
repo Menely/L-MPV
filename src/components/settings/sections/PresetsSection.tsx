@@ -1,5 +1,6 @@
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
+import { getIntlLocale } from "../../../i18n";
 import React, { useState, useEffect, useCallback, useRef, useId } from "react";
 import {
   Sparkles,
@@ -470,7 +471,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
   // Форматирование даты
   const formatDate = (timestamp: number): string => {
     try {
-      const dateLocale = locale === "en" ? "en-US" : "ru-RU";
+      const dateLocale = getIntlLocale(locale);
       return new Date(timestamp).toLocaleDateString(dateLocale, {
         day: "numeric",
         month: "short",

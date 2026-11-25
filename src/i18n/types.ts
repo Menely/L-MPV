@@ -837,10 +837,14 @@ export interface TranslationDict {
       libmpvDesc: string;
       libmpvActive: string;
       libmpvMissing: string;
+      libmpvNotLoaded: string;
+      libmpvActiveFallback: string;
       animejanaiCompiled: string;
       animejanaiNotDetected: string;
       ffmpegTitle: string;
       ffmpegDesc: string;
+      ffmpegInstalledUnknown: string;
+      statusUnknown: string;
       mediainfoTitle: string;
       mediainfoDesc: string;
       aiInferenceTitle: string;
@@ -1108,6 +1112,7 @@ export interface TranslationDict {
     kbps: string;
     ch: string;
     // Вкладки оверлея
+    tabsAriaLabel: string;
     tabSummary: string;
     tabRendering: string;
     tabTracks: string;
@@ -1241,6 +1246,7 @@ export interface TranslationDict {
     upscaleModelNotFound: (index: number) => string;
     upscaleNoFavorite: string;
     upscaleFavoriteNotFound: (name: string) => string;
+    upscaleFavoriteLabel: string;
     upscaleError: (err: string) => string;
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) => string;
     upscaleStatsOff: (gpuHint: string) => string;
@@ -1278,6 +1284,7 @@ export interface TranslationDict {
     changelogInfo: string;
     openGithub: string;
     downloadErrorFallback: string;
+    restartErrorFallback: string;
     installerStarting: string;
     downloadProgress: (pct: number) => string;
     restartHint: string;

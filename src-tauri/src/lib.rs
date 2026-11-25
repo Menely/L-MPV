@@ -60,7 +60,7 @@ pub fn parse_cli_args<I: IntoIterator<Item = String>>(args: I) -> ParsedCliArgs 
 pub fn run() {
     let raw_args: Vec<String> = std::env::args().collect();
     if raw_args.iter().any(|a| a == "--register-context-menu") {
-        match system_integration::register_explorer_context_menu() {
+        match system_integration::register_explorer_context_menu(None) {
             Ok(logs) => {
                 for log in logs {
                     println!("{}", log);
@@ -71,7 +71,7 @@ pub fn run() {
         std::process::exit(0);
     }
     if raw_args.iter().any(|a| a == "--unregister-context-menu") {
-        match system_integration::unregister_explorer_context_menu() {
+        match system_integration::unregister_explorer_context_menu(None) {
             Ok(logs) => {
                 for log in logs {
                     println!("{}", log);

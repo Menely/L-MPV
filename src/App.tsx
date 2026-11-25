@@ -124,7 +124,7 @@ function App() {
       setShowUpdateToast(true);
     }
   }, [appUpdater.phase, showUpdateModal]);
-  const { osdText, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
+  const { osdText, osdIcon, isOsdClosing, isOsdError, triggerOsd, clearOsd, getOsdText } = useOsd();
   const [isCursorInUpperHalf, setIsCursorInUpperHalf] = useState(false);
   const [hideControlsInUpperHalf, setHideControlsInUpperHalf] = useState<boolean>(() => {
     try {
@@ -216,7 +216,7 @@ function App() {
     hasMedia ? mediaInfo?.path : undefined,
     (zoom) => {
       const { osd } = getDict(getEffectiveLocale());
-      triggerOsd(zoom === 0 ? osd.zoomReset : osd.zoomLevel(Math.round(2 ** zoom * 100)), 1100);
+      triggerOsd(zoom === 0 ? osd.zoomReset : osd.zoomLevel(Math.round(2 ** zoom * 100)), 1100, false, "zoom");
     },
   );
 
@@ -622,7 +622,7 @@ function App() {
       await new Promise(r => setTimeout(r, 60));
       const frame = await invoke<number>("get_frame_number");
       const count = await invoke<number>("get_frame_count");
-      triggerOsd(`${frame} / ${count}`, 2000);
+      triggerOsd(`${frame} / ${count}`, 2000, false, "frame");
     } catch (e) {
       console.error(e);
     }
@@ -806,7 +806,7 @@ function App() {
       case "copyFrame":
         try {
           await invoke("copy_frame_to_clipboard");
-          triggerOsd(dict.osd.frameCopied, 2000);
+          triggerOsd(dict.osd.frameCopied, 2000, false, "screenshot");
         } catch (err) {
           console.error(err);
         }
@@ -814,7 +814,7 @@ function App() {
       case "screenshot":
         try {
           await invoke("take_screenshot");
-          triggerOsd(dict.osd.frameSaved, 2000);
+          triggerOsd(dict.osd.frameSaved, 2000, false, "screenshot");
         } catch (err) {
           console.error(err);
         }
@@ -863,7 +863,7 @@ function App() {
         const cfg = getVisualizerConfig();
         const nextEnabled = !cfg.enabled;
         saveVisualizerConfig({ ...cfg, enabled: nextEnabled });
-        triggerOsd(dict.osd.visualizerStatus(nextEnabled), 1500);
+        triggerOsd(dict.osd.visualizerStatus(nextEnabled), 1500, false, "visualizer");
         break;
       }
       case "cycleVisualizerMode": {
@@ -872,7 +872,7 @@ function App() {
         const nextIdx = (modes.indexOf(cfg.mode) + 1) % modes.length;
         const nextMode = modes[nextIdx];
         saveVisualizerConfig({ ...cfg, enabled: true, mode: nextMode });
-        triggerOsd(dict.osd.visualizerMode(nextMode), 1500);
+        triggerOsd(dict.osd.visualizerMode(nextMode), 1500, false, "visualizer");
         break;
       }
       case "rotateVideo": {
@@ -881,7 +881,7 @@ function App() {
           const nextRot = (curRot + 90) % 360;
           await invoke("set_rotation", { degrees: nextRot });
           window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
-          triggerOsd(dict.osd.rotation(nextRot), 1500);
+          triggerOsd(dict.osd.rotation(nextRot), 1500, false, "rotate");
         } catch (e) {
           console.error(e);
         }
@@ -893,7 +893,7 @@ function App() {
         const langName = nextLocale === "ru" ? "Русский" : "English";
         const nextDict = getDict(nextLocale);
         const osdMsg = nextDict.osd.languageSwitched(langName);
-        triggerOsd(osdMsg, 1500);
+        triggerOsd(osdMsg, 1500, false, "language");
         break;
       }
       case "resetZoom":
@@ -933,19 +933,19 @@ function App() {
         if (curMediaInfo) {
           const newSpeed = Math.min(4.0, (curMediaInfo.speed || 1.0) + 0.25);
           invoke("set_speed", { speed: newSpeed }).catch(console.error);
-          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400);
+          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400, false, "speed");
         }
         break;
       case "speedDown":
         if (curMediaInfo) {
           const newSpeed = Math.max(0.25, (curMediaInfo.speed || 1.0) - 0.25);
           invoke("set_speed", { speed: newSpeed }).catch(console.error);
-          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400);
+          triggerOsd(dict.osd.speed(formatSpeedValue(newSpeed)), 1400, false, "speed");
         }
         break;
       case "speedReset":
         invoke("set_speed", { speed: 1.0 }).catch(console.error);
-        triggerOsd(dict.osd.speed(formatSpeedValue(1.0)), 1400);
+        triggerOsd(dict.osd.speed(formatSpeedValue(1.0)), 1400, false, "speed");
         break;
       case "toggleShuffle":
         invoke("toggle_shuffle").catch(console.error);
@@ -968,7 +968,7 @@ function App() {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,
           };
-          triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000);
+          triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000, false, "ambient");
           window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) {
@@ -1022,14 +1022,14 @@ function App() {
             }
 
             const message = dict.osd.upscaleStatsAi(slot, modelName, backendDesc, videoStats);
-            triggerOsd(message, 3500);
+            triggerOsd(message, 3500, false, "sparkles");
           } else {
             let gpuHint = "";
             if (status?.gpu_info?.name) {
               gpuHint = `\nGPU: ${status.gpu_info.name} (${status.gpu_info.recommended_backend})`;
             }
             const message = dict.osd.upscaleStatsOff(gpuHint);
-            triggerOsd(message, 3500);
+            triggerOsd(message, 3500, false, "sparkles");
           }
         } catch (e) {
           console.error("Ошибка отображения статистики апскейлинга:", e);
@@ -1041,7 +1041,7 @@ function App() {
           const backend = localStorage.getItem("l-mpv-upscale-backend") || "DirectML";
           await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
           localStorage.setItem("l-mpv-upscale-mode", "off");
-          triggerOsd(dict.osd.upscaleOff, 2000);
+          triggerOsd(dict.osd.upscaleOff, 2000, false, "sparkles");
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
         } catch (e) { console.error("Ошибка отключения апскейлинга:", e); triggerOsd(dict.osd.upscaleError(upscaleErrorMessage(e, dict)), 3000, true); }
         break;
@@ -1049,14 +1049,14 @@ function App() {
         try {
           const favorite = getFavoriteModel();
           if (!favorite) {
-            triggerOsd(dict.osd.upscaleNoFavorite, 2500);
+            triggerOsd(dict.osd.upscaleNoFavorite, 2500, false, "sparkles");
             break;
           }
           const models = await invoke<Array<{ slot: number; display_name: string; filename: string }>>("scan_onnx_models").catch(() => []);
           const targetModel = models.find((m) => m.filename === favorite);
 
           if (!targetModel) {
-            triggerOsd(dict.osd.upscaleFavoriteNotFound(favorite), 2500);
+            triggerOsd(dict.osd.upscaleFavoriteNotFound(favorite), 2500, false, "sparkles");
             break;
           }
 
@@ -1069,7 +1069,7 @@ function App() {
           if (isFavoriteActive) {
             await invoke("switch_upscale_network_hotkey", { slot: 0, backend });
             localStorage.setItem("l-mpv-upscale-mode", "off");
-            triggerOsd(dict.osd.upscaleOff, 2000);
+            triggerOsd(dict.osd.upscaleOff, 2000, false, "sparkles");
           } else {
             await invoke("switch_upscale_network_hotkey", { slot: targetModel.slot, backend });
             localStorage.setItem("l-mpv-upscale-mode", "ai");
@@ -1078,9 +1078,9 @@ function App() {
 
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
             const modelTitle = isHideModelNames
-              ? (curLocale === "en" ? "Favorite model" : "Избранная модель")
+              ? dict.osd.upscaleFavoriteLabel
               : targetModel.display_name;
-            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000, false, "sparkles");
           }
 
           window.dispatchEvent(new Event("l-mpv-settings-changed"));
@@ -1117,11 +1117,11 @@ function App() {
             const isHideModelNames = localStorage.getItem("l-mpv-hide-model-names") === "true";
             const modelTitle = isHideModelNames ? (curLocale === "en" ? `Model #${index + 1}` : `Модель #${index + 1}`) : targetModel.display_name;
 
-            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000);
+            triggerOsd(dict.osd.upscaleModel(modelTitle), 2000, false, "sparkles");
 
             window.dispatchEvent(new Event("l-mpv-settings-changed"));
           } else {
-            triggerOsd(dict.osd.upscaleModelNotFound(index + 1), 2000);
+            triggerOsd(dict.osd.upscaleModelNotFound(index + 1), 2000, false, "sparkles");
           }
         } catch (e) {
           console.error("Ошибка переключения нейросети по хоткею:", e);
@@ -1322,7 +1322,7 @@ function App() {
       try {
         await invoke("load_audio_file", { path: file });
         await latestRef.current.loadTracks();
-        showOsd(d.osd.audioLoaded(getFileNameFromPath(file)));
+        showOsd(d.osd.audioLoaded(getFileNameFromPath(file)), { icon: "audio" });
       } catch (err) {
         console.error("Ошибка подключения аудиодорожки (Хотлоад):", err);
         showOsd(d.osd.audioLoadErr, { isError: true });
@@ -1331,7 +1331,7 @@ function App() {
       try {
         await invoke("load_subtitle_file", { path: file });
         await latestRef.current.loadTracks();
-        showOsd(d.osd.subsLoaded(getFileNameFromPath(file)));
+        showOsd(d.osd.subsLoaded(getFileNameFromPath(file)), { icon: "subtitles" });
       } catch (err) {
         console.error("Ошибка подключения субтитров (Хотлоад):", err);
         showOsd(d.osd.subtitlesLoadErr, { isError: true });
@@ -1373,6 +1373,7 @@ function App() {
       {/* Футуристичный стеклянный Glass HUD: парящие уведомления и центральный Flash-глиф Play/Pause */}
       <GlassHud
         osdText={osdText}
+        osdIcon={osdIcon}
         isOsdClosing={isOsdClosing}
         isOsdError={isOsdError}
       />

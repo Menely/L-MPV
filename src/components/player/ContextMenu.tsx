@@ -518,7 +518,7 @@ export function ContextMenu({
     try {
       await invoke("set_speed", { speed });
       setCurrentSpeed(speed);
-      showOsd(dict.osd.speed(formatSpeedValue(speed)));
+      showOsd(dict.osd.speed(formatSpeedValue(speed)), { icon: "speed" });
     } catch (e) {
       console.error("Ошибка установки скорости воспроизведения:", e);
     }
@@ -533,7 +533,7 @@ export function ContextMenu({
         fit: dict.settings.cmenuUI.frameFit,
         fill: dict.settings.cmenuUI.frameFill,
       };
-      showOsd(dict.settings.cmenuUI.osdFrame(labels[mode]));
+      showOsd(dict.settings.cmenuUI.osdFrame(labels[mode]), { icon: "frame" });
     } catch (e) {
       console.error("Ошибка смены режима видеокадра:", e);
       showOsd(dict.settings.cmenuUI.errFrame(String(e)), { isError: true });
@@ -560,7 +560,7 @@ export function ContextMenu({
         off: dict.settings.cmenuUI.ambientOff,
         blur: dict.settings.cmenuUI.ambientBlur,
       };
-      showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode));
+      showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode), { icon: "ambient" });
       window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
@@ -582,7 +582,7 @@ export function ContextMenu({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      showOsd(dict.settings.cmenuUI.osdScreenshot);
+      showOsd(dict.settings.cmenuUI.osdScreenshot, { icon: "screenshot" });
     } catch (e) {
       console.error("Ошибка при сохранении кадра:", e);
       showOsd(dict.settings.cmenuUI.osdScreenshotErr, { isError: true });
@@ -599,7 +599,7 @@ export function ContextMenu({
         1: dict.settings.cmenuUI.repeatOne,
         2: dict.settings.cmenuUI.repeatAll,
       } as const;
-      showOsd(dict.settings.cmenuUI.osdRepeat(labels[mode]));
+      showOsd(dict.settings.cmenuUI.osdRepeat(labels[mode]), { icon: "repeat" });
     } catch (e) {
       console.error("Ошибка установки режима повтора:", e);
       showOsd(dict.settings.cmenuUI.errRepeat(String(e)), { isError: true });
@@ -621,7 +621,7 @@ export function ContextMenu({
     try {
       await applySettingsPreset(preset);
       setActivePresetId(preset.id);
-      showOsd(dict.settings.cmenuUI.osdPreset(preset.name));
+      showOsd(dict.settings.cmenuUI.osdPreset(preset.name), { icon: "sparkles" });
     } catch (e) {
       console.error("Ошибка применения пресета:", e);
       showOsd(dict.settings.cmenuUI.osdPresetErr, { isError: true });
@@ -640,7 +640,7 @@ export function ContextMenu({
       await invoke("apply_upscale_settings", { settings: updated });
       setUpscaleMode("off");
       localStorage.setItem("l-mpv-upscale-mode", "off");
-      showOsd(dict.settings.cmenuUI.osdUpscaleOff);
+      showOsd(dict.settings.cmenuUI.osdUpscaleOff, { icon: "sparkles" });
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка выключения апскейлинга:", e);
@@ -662,7 +662,7 @@ export function ContextMenu({
       localStorage.setItem("l-mpv-upscale-mode", "ai");
       localStorage.setItem("l-mpv-upscale-selected-model", model.filename);
       localStorage.setItem("l-mpv-upscale-slot", String(model.slot));
-      showOsd(dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename));
+      showOsd(dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename), { icon: "sparkles" });
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка включения модели апскейлинга:", e);
@@ -727,7 +727,7 @@ export function ContextMenu({
       setPlayerThemeState(theme);
       const nextStyle = getSavedControlBarStyle(theme);
       setControlBarStyle(nextStyle);
-      showOsd(`${dict.settings.appearance.interfaceTheme}: ${label}`);
+      showOsd(`${dict.settings.appearance.interfaceTheme}: ${label}`, { icon: "sparkles" });
     },
     [dict.settings.appearance.interfaceTheme]
   );
@@ -740,7 +740,8 @@ export function ContextMenu({
     showOsd(
       nextState
         ? dict.settings.cmenuUI.osdHeatmapOn
-        : dict.settings.cmenuUI.osdHeatmapOff
+        : dict.settings.cmenuUI.osdHeatmapOff,
+      { icon: "visualizer" }
     );
   }, [heatmapConfig.enabled, dict.settings.cmenuUI]);
 

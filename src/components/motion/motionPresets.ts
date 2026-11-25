@@ -31,7 +31,11 @@ export function surfacePose(
       return { opacity: phase === "visible" ? 1 : 0 };
     }
     if (kind === "dialog") {
-      return { opacity: phase === "visible" ? 1 : 0, y: 0 };
+      return {
+        opacity: phase === "visible" ? 1 : 0,
+        y: !allowed || phase === "visible" ? 0
+          : phase === "initial" ? motionPresets.dialog.enterY : motionPresets.dialog.exitY,
+      };
     }
     if (kind === "sidebar") {
       return { opacity: phase === "visible" ? 1 : 0, x: 0 };

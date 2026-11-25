@@ -307,8 +307,8 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           style={{
             width: isExpanded ? "820px" : "480px",
             maxWidth: "min(94vw, calc(100vw / var(--ui-scale, 1) - 24px))",
-            height: isExpanded ? "78vh" : "420px",
-            maxHeight: "min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px))",
+            height: isExpanded ? "100%" : "min(440px, 100%)",
+            maxHeight: "100%",
             display: "flex",
             flexDirection: "column",
             overflow: "hidden",

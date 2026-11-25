@@ -1285,6 +1285,12 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 /* ─── Кнопки и стеклянные стили диалога обновления в классическом и современном режимах ─── */
 .modal-overlay.update-modal-overlay {
+  --update-safe-gap: 10px;
+  padding:
+    calc(var(--titlebar-height, 40px) + var(--update-safe-gap))
+    12px
+    calc(var(--player-controls-top, 40px) + var(--update-safe-gap));
+  box-sizing: border-box;
   background: rgba(0, 0, 0, 0.56);
 }
 
@@ -2730,8 +2736,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
   position: relative;
   width: 500px;
   max-width: min(94vw, calc(100vw / var(--ui-scale, 1) - 24px));
-  height: 480px;
-  max-height: min(92vh, calc(100dvh / var(--ui-scale, 1) - 24px));
+  height: min(480px, 100%);
+  max-height: 100%;
   display: flex;
   flex-direction: column;
   gap: 10px !important;
@@ -2746,8 +2752,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .update-modal-capsule--expanded {
-  width: 820px !important;
-  height: 78vh !important;
+  width: min(820px, 100%) !important;
+  height: 100% !important;
 }
 
 .update-modal-capsule .update-card {

@@ -1,6 +1,7 @@
 import React from "react";
 import type { MediaInfo } from "../../../contexts/PlayerStateContext";
 import { useTranslation } from "../../../i18n/LanguageContext";
+import { getIntlLocale } from "../../../i18n";
 
 /**
  * Пропсы секции сведений об аудиопотоке.
@@ -24,7 +25,7 @@ export const MediaInfoAudioSection: React.FC<MediaInfoAudioSectionProps> = ({
   currentVolume,
 }) => {
   const { dict, locale } = useTranslation();
-  const numberLocale = locale === "en" ? "en-US" : "ru-RU";
+  const numberLocale = getIntlLocale(locale);
 
   const channelsCount = Number(mediaInfo?.audio_channels);
   const validChannels =

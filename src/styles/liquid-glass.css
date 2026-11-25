@@ -501,7 +501,6 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-dr
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
-html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings:not(.modal--settings-capsule),
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings-capsule .settings-card,
@@ -509,6 +508,11 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-si
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel--capsule .settings-card,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
   transition: none !important;
+}
+
+/* Для окна обновлений сохраняем плавную анимацию раскрытия (width/height), отключая только переходы подложки */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card {
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
 /* Карточки Капсулы рисуются напрямую в GLSL-слоте f=2, без рваной CSS-рамки и без подсветки при наведении */
