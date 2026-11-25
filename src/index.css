@@ -1,69 +1,70 @@
 /* ─── L-MPV Design System v2 ─────────────────────────── */
-/* Модульная архитектура стилей                            */
+/* Модульная слоёная архитектура стилей                     */
 
-/* 0. Локальные вариативные шрифты */
-@import './styles/fonts.css';
+/* 0. Шрифты и Design Tokens (переменные, глубина, прозрачность) */
+@import "./styles/tokens/fonts.css";
+@import "./styles/tokens/variables.css";
 
-/* 1. Design Tokens (переменные, масштабирование)  */
-@import './styles/variables.css';
+/* 1. Базовый сброс и основа */
+@import "./styles/base/base.css";
 
-/* 2. Глобальный сброс, контейнер, idle/mini, OSD */
-@import './styles/base.css';
+/* 2. Примитивы дизайн-системы (поверхности, кнопки, бейджи) */
+@import "./styles/primitives/components.css";
 
-/* 2.1. Единые компоненты дизайн-системы (поверхности, кнопки, бейджи) */
-@import './styles/components.css';
+/* 3. Поверхности плеера */
+@import "./styles/player/titlebar.css";
+@import "./styles/player/video-area.css";
 
-/* 3. Кастомный Titlebar */
-@import './styles/titlebar.css';
+@import "./styles/player/controls/controls-base.css";
+@import "./styles/player/controls/controls-modern.css";
+@import "./styles/player/controls/controls-docked.css";
+@import "./styles/player/controls/controls-capsule.css";
+@import "./styles/player/controls/speed-control.css";
+@import "./styles/player/controls/controls-overflow.css";
+@import "./styles/player/controls/seek-indicator.css";
+@import "./styles/player/controls/volume-indicator.css";
+@import "./styles/player/controls/center-time.css";
 
-/* 4. Область видео */
-@import './styles/video-area.css';
+@import "./styles/player/context-menu.css";
 
-/* 5. Панель управления: таймлайн, кнопки, volume, container queries */
-@import './styles/controls.css';
+/* 4. Модальные окна (настройки, обновления, главы, медиа, субтитры) */
+@import "./styles/modals/modal-base.css";
+@import "./styles/modals/settings/settings-modal.css";
+@import "./styles/modals/update-modal.css";
+@import "./styles/modals/mediainfo-modal/mediainfo-modal.css";
+@import "./styles/modals/color-picker-modal.css";
 
-/* 6. Контекстное меню */
-@import './styles/context-menu.css';
+/* 5. Боковые и всплывающие оверлеи плеера */
+@import "./styles/player/side-panel.css";
 
-/* 7. Модальные окна и кнопки действий */
-@import './styles/modals.css';
-@import './styles/mediainfo-modal.css';
-@import './styles/color-picker-modal.css';
+@import "./styles/player/track-popover/track-popover-base.css";
+@import "./styles/player/track-popover/track-popover-capsule.css";
 
-/* 8. Боковая панель (главы) */
-@import './styles/side-panel.css';
+@import "./styles/player/media-info-overlay/media-info-overlay-base.css";
+@import "./styles/player/media-info-overlay/media-info-overlay-capsule.css";
 
-/* 9. Popover-ы выбора дорожек */
-@import './styles/track-popover.css';
+@import "./styles/player/playlist/playlist-base.css";
+@import "./styles/player/playlist/playlist-capsule.css";
 
-/* 9.1. Всплывающее окно информации о файле (I) */
-@import './styles/media-info-overlay.css';
+@import "./styles/modals/subtitles-modal/subtitles-modal-base.css";
+@import "./styles/modals/subtitles-modal/subtitles-modal-capsule.css";
 
-/* 9.2. Окно плейлиста */
-@import './styles/playlist.css';
+@import "./styles/player/drop-overlay.css";
+@import "./styles/modals/chapters-modal.css";
 
-/* 9.3. Окно поиска по субтитрам */
-@import './styles/subtitles-modal.css';
+/* 6. Адаптивность, визуализатор, пресеты */
+@import "./styles/base/responsive.css";
+@import "./styles/player/visualizer.css";
+@import "./styles/modals/settings/presets.css";
 
-/* 10. Overlays: drag&drop, scrollbar, media info, playlist, update */
-@import './styles/overlays.css';
+/* 7. Утилиты, глубина, выравнивание и анимации */
+@import "./styles/base/utilities.css";
+@import "./styles/tokens/surface-opacity.css";
+@import "./styles/tokens/surface-depth.css";
+@import "./styles/modals/settings/settings-alignment.css";
+@import "./styles/primitives/close-actions.css";
+@import "./styles/player/glass-hud.css";
+@import "./styles/base/motion.css";
 
-/* 11. Глобальная адаптивность (media queries) */
-@import './styles/responsive.css';
-
-/* 12. Аудио-визуалайзер */
-@import './styles/visualizer.css';
-
-/* 13. Пресеты настроек */
-@import './styles/presets.css';
-
-/* 14. Утилиты оформления — ПОСЛЕДНИМ, чтобы класс при равной
-       специфичности побеждал обычные правила, как раньше инлайн-стиль */
-@import './styles/utilities.css';
-@import './styles/surface-opacity.css';
-@import './styles/surface-depth.css';
-@import './styles/settings-alignment.css';
-@import './styles/close-actions.css';
-@import './styles/glass-hud.css';
-@import './styles/motion.css';
-@import './styles/liquid-glass.css';
+/* 8. Темы оформления — ПОСЛЕДНИМ слоем */
+@import "./styles/themes/liquid-glass/index.css";

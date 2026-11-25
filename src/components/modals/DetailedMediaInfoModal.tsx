@@ -30,7 +30,7 @@ import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils"
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;

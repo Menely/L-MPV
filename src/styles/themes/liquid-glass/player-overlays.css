@@ -1,0 +1,282 @@
+/* ─── Контекстное меню ПКМ: читаемость текста на стекле с сохранением акцентов L-MPV ─── */
+html[data-interface-theme="glass"] .context-menu__item,
+html[data-interface-theme="glass"] .context-menu__track-btn {
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .context-menu__item--active,
+html[data-interface-theme="glass"] .context-menu__track-btn--active,
+html[data-interface-theme="glass"] .context-menu__item:hover .context-menu__item-icon,
+html[data-interface-theme="glass"] .context-menu__item--submenu-open .context-menu__item-icon,
+html[data-interface-theme="glass"] .context-menu__item--active .context-menu__item-icon,
+html[data-interface-theme="glass"] .context-menu__item:hover .context-menu__item-arrow,
+html[data-interface-theme="glass"] .context-menu__item--submenu-open .context-menu__item-arrow {
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__item--active,
+html[data-interface-theme="glass"] .player-controls-wrapper .track-popover__item--active .track-popover__item-title {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper :is(
+  .track-popover__icon-btn,
+  .track-download-btn,
+  .speed-popover__close-btn
+):hover:not(:disabled),
+html[data-interface-theme="glass"] .context-menu .track-download-btn:hover:not(:disabled) {
+  background: var(--action-hover-veil) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .navigation-popover button:hover:not(:disabled) > svg,
+html[data-interface-theme="glass"] .navigation-popover button[aria-selected="true"],
+html[data-interface-theme="glass"] .navigation-popover button[aria-selected="true"] > svg {
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .context-menu__item-shortcut,
+html[data-interface-theme="glass"] .context-menu__item-arrow,
+html[data-interface-theme="glass"] .context-menu__group-header {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+html[data-interface-theme="glass"] .context-menu__divider {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+/* ─── Окно сведений о файле MediaInfo (I): контраст над стеклом + акцентные вкладки и ховеры L-MPV ─── */
+html[data-interface-theme="glass"] .media-info-overlay {
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__tabs {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__header,
+html[data-interface-theme="glass"] .media-info-overlay:not(.media-info-overlay--capsule) .media-info__section,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__section-header {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__section-title,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__value {
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn--active {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__tab-btn:hover:not(.media-info__tab-btn--active) {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__stream-item:hover {
+  background: var(--hover-veil-float);
+  border-color: rgba(var(--accent-rgb, 127, 199, 255), 0.35);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-lang,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__badge-codec {
+  background: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+/* ─── Плейлист и Проводник: читаемость над стеклом и акцентные акценты/ховеры L-MPV ─── */
+html[data-interface-theme="glass"] .playlist-drawer:not(.playlist-drawer--capsule) .playlist-drawer__header,
+html[data-interface-theme="glass"] .playlist-drawer:not(.playlist-drawer--capsule) .playlist-drawer__search {
+  border-bottom-color: rgba(255, 255, 255, 0.14);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__search-input {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.14);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__badge,
+html[data-interface-theme="glass"] .chapters-modal-card .chapters-modal-badge {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .navigation-panel__tab:hover:not([aria-selected="true"]) {
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__action-btn,
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__close,
+html[data-interface-theme="glass"] .chapters-modal-card .chapters-modal__close {
+  color: rgba(255, 255, 255, 0.86);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .navigation-panel__pin[aria-pressed="true"] {
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .navigation-panel__pin[aria-pressed="true"]:hover {
+  background: var(--surface-accent-hover);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-drawer__close:hover,
+html[data-interface-theme="glass"] .chapters-modal-card .chapters-modal__close:hover,
+html[data-interface-theme="glass"] .media-info-overlay .media-info__close:hover,
+html[data-interface-theme="glass"] .subtitles-search-card .modal__close:hover,
+html[data-interface-theme="glass"] .update-toast .update-toast__close:hover {
+  background: var(--action-hover-veil) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-item:hover .playlist-item__icon,
+html[data-interface-theme="glass"] .playlist-drawer .explorer-panel__entry:hover:not(:disabled) .explorer-panel__entry-icon,
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__entry:hover .saved-playlists__play > svg,
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__source-trigger:hover > svg,
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__tools button:hover:not(:disabled) > svg {
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .explorer-panel__entry[aria-current="true"],
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__play[aria-current="true"] {
+  color: var(--accent-text) !important;
+  font-weight: 600;
+}
+
+html[data-interface-theme="glass"] .playlist-drawer .playlist-item:hover,
+html[data-interface-theme="glass"] .playlist-drawer .explorer-panel__entry:hover:not(:disabled),
+html[data-interface-theme="glass"] .playlist-drawer .saved-playlists__entry:hover,
+html[data-interface-theme="glass"] .chapters-modal-card .chapter-item:hover:not(.chapter-item--active) {
+  background: var(--hover-veil-float) !important;
+  border-color: transparent !important;
+}
+
+/* ─── Окно глав (Chapters Modal): контраст миниатюр и акцент активной главы ─── */
+html[data-interface-theme="glass"] .chapters-modal-card .chapter-item--active {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+}
+
+html[data-interface-theme="glass"] .chapters-modal-card .chapter-item--active:hover {
+  background: var(--surface-accent-hover) !important;
+}
+
+html[data-interface-theme="glass"] .chapters-modal-card .chapter-item__thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.14);
+}
+
+/* ─── Окно поиска по субтитрам (Subtitles Search Modal): стекло во всех стилях + лёгкое адаптивное тонирование ─── */
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) {
+  --surface-level-3: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
+  --surface-level-3-hover: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.32);
+  --border-subtle: rgba(255, 255, 255, 0.14);
+  --text-secondary: rgba(255, 255, 255, 0.90);
+  --text-muted: rgba(255, 255, 255, 0.72);
+  --bg-active: linear-gradient(var(--surface-accent-subtle), var(--surface-accent-subtle)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.26);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque) .subtitles-search-card__mode-switch {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .subtitles-search-card__mode-btn--active {
+  background: linear-gradient(var(--surface-accent-subtle), var(--surface-accent-subtle)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.24) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__mode-btn--active,
+html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__mode-btn:hover:not(.subtitles-search-card__mode-btn--active) {
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque) .subtitles-search-card__search-input {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.24) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  color: #ffffff !important;
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque) .subtitles-search-card__track-picker-btn {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
+  border-color: rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(20px) saturate(145%);
+  -webkit-backdrop-filter: blur(20px) saturate(145%);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque) .subtitles-search-card__track-picker-btn:hover {
+  background: linear-gradient(var(--hover-veil-float), var(--hover-veil-float)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.28) !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__search-meta {
+  border-top-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .subtitles-search-card__follow-btn:hover:not(.subtitles-search-card__follow-btn--active),
+html[data-interface-theme="glass"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card--follow-btn:hover:not(.subtitles-card--follow-btn--active) {
+  background: var(--hover-veil-float) !important;
+  border-color: transparent !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .subtitles-search-card__follow-btn--active,
+html[data-interface-theme="glass"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card--follow-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .subtitles-search-card__follow-btn--active:hover,
+html[data-interface-theme="glass"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card--follow-btn--active:hover {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .sub-line-row {
+  backdrop-filter: blur(18px) saturate(145%);
+  -webkit-backdrop-filter: blur(18px) saturate(145%);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .sub-line-row:hover {
+  background: linear-gradient(var(--hover-veil-float), var(--hover-veil-float)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.28) !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .sub-line-row--active {
+  background: linear-gradient(var(--surface-accent-subtle), var(--surface-accent-subtle)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.26) !important;
+  border-color: var(--selection-frame) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .sub-line-row--active:hover {
+  background: linear-gradient(var(--surface-accent-hover), var(--surface-accent-hover)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.30) !important;
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card:not(.subtitles-search-card--opaque) .sub-tech-tag:not(.sub-tech-tag--actor) {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.28);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .subtitles-search-card :is(
+  .subtitles-search-card__jump-btn,
+  .subtitles-search-card__clear-btn,
+  .subtitles-search-card__delay-btn,
+  .sub-line-copy-btn
+):hover {
+  background: var(--action-hover-veil) !important;
+  color: var(--accent-text) !important;
+  opacity: 1 !important;
+}

@@ -4,13 +4,13 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 import { SelectionRail } from "../../motion/SelectionRail";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
-import { DEFAULT_UI_OPACITY } from "../../../utils/uiThemeUtils";
+import { DEFAULT_UI_OPACITY } from "../../../theme/tokens";
 import {
   GlassBlurSetting,
   GlassDispersionSetting,
   GlassRefractionSetting,
-} from "../../../features/liquidGlass/ClassicAppearance";
-import type { PlayerTheme } from "../../../features/liquidGlass/preferences";
+} from "../../../theme/liquidGlass/ClassicAppearance";
+import type { PlayerTheme } from "../../../theme/liquidGlass/preferences";
 import { AppearanceSetting } from "./AppearanceSetting";
 import type { PlayerAppearanceProps } from "./appearanceTypes";
 

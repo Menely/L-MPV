@@ -3,8 +3,8 @@ import { useAnimationControls, usePresence, usePresenceData, type HTMLMotionProp
 import * as m from "motion/react-m";
 import { motionPresets, surfacePose, surfaceTransition, type MotionSurfaceKind } from "./motionPresets";
 import { useMotionAllowed } from "./useMotionAllowed";
-import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
-import { getPlayerTheme, subscribePlayerTheme } from "../../features/liquidGlass/preferences";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
+import { getPlayerTheme, subscribePlayerTheme } from "../../theme/liquidGlass/preferences";
 
 function motionPresetsDuration(kind: MotionSurfaceKind, phase: "enter" | "exit"): number {
   return motionPresets[kind][phase];

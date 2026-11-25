@@ -1,5 +1,5 @@
-import { colorAppearance, colorRgb, transformOklch } from "../../utils/colorMath";
-import { PLAYER_THEMES, type PlayerThemeId } from "../../utils/playerPalettes";
+import { colorAppearance, colorRgb, transformOklch } from "../colorMath";
+import { PLAYER_THEMES, type PlayerThemeId } from "../palettes";
 
 export type PlayerTheme = "lmpv" | "glass";
 export type GlassTintId = "transparent" | PlayerThemeId;

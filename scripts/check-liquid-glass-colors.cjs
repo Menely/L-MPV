@@ -38,9 +38,9 @@ function load(file) {
 }
 
 const fromRoot = (file) => load(path.resolve(__dirname, "..", file));
-const colors = fromRoot("src/utils/colorUtils.ts");
-const preferences = fromRoot("src/features/liquidGlass/preferences.ts");
-const layout = fromRoot("src/utils/controlBarStyleUtils.ts");
+const colors = fromRoot("src/theme/colors.ts");
+const preferences = fromRoot("src/theme/liquidGlass/preferences.ts");
+const layout = fromRoot("src/theme/controlBarStyle.ts");
 
 // Recover the interface selection from an early build, then pick a real palette.
 storage.set(colors.PLAYER_THEME_STORAGE_KEY, "glass");

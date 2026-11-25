@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useIsPresent } from "motion/react";
 import { MotionSurface } from "../motion/MotionSurface";
 import { SelectionRail } from "../motion/SelectionRail";
-import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassAnimation } from "../../theme/liquidGlass/LiquidGlassSync";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { openUrl } from "@tauri-apps/plugin-opener";
@@ -68,7 +68,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   createDefaultAmbientSettings,
   normalizeAmbientSettings,
@@ -110,7 +110,7 @@ import {
   UiFontId,
   getSavedUiFont,
   saveUiFont,
-} from "../../utils/uiThemeUtils";
+} from "../../theme/tokens";
 
 export type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 

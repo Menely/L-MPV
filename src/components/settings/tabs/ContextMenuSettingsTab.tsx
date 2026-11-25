@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import { ContextMenuDragPreview } from "../components/ContextMenuDragPreview";
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";

@@ -18,8 +18,8 @@ function load(file) {
   vm.runInNewContext(js,{...sandbox,exports,require: p => p.startsWith('.') ? load(path.resolve(path.dirname(file),p+'.ts')) : { invoke() {} }},{filename:file});
   return exports;
 }
-const colors = load('src/utils/colorUtils.ts'), math = load('src/utils/colorMath.ts'), ui = load('src/utils/uiThemeUtils.ts');
-const hierarchy = load('src/utils/surfaceHierarchy.ts');
+const colors = load('src/theme/colors.ts'), math = load('src/theme/colorMath.ts'), ui = load('src/theme/tokens.ts');
+const hierarchy = load('src/theme/surfaceHierarchy.ts');
 // Independent contrast/compositing reference, deliberately not using colorMath.
 function rgb(s) { if(s.startsWith('#'))return [1,3,5].map(i=>parseInt(s.slice(i,i+2),16)).concat(1); return (s.match(/[\d.]+/g)||[]).map(Number); }
 function blend(a,b) {a=Array.isArray(a)?a:rgb(a);b=Array.isArray(b)?b:rgb(b);return a.slice(0,3).map((v,i)=>v*(a[3]??1)+b[i]*(1-(a[3]??1)));}
@@ -38,10 +38,10 @@ const median = xs => [...xs].sort((a,b)=>a-b)[Math.floor(xs.length/2)];
 assert.ok(colors.STANDARD_PRESETS.every(c=>saturation(c)>=.55),'Standard swatches should be visibly saturated');
 assert.ok(median(colors.STANDARD_PRESETS.map(c=>math.colorAppearance(c).chroma))>=1.8*median(colors.PASTEL_PRESETS.map(c=>math.colorAppearance(c).chroma)),'Palette groups should be perceptually distinct');
 const extras=['#000000','#ffffff','#777777','#7a7a7a','#757575','#ff0000','#0000ff','#00ff00','#6366f1','#8b5cf6'];
-const depthCss=fs.readFileSync(path.join(rootDir,'src/styles/surface-depth.css'),'utf8');
+const depthCss=fs.readFileSync(path.join(rootDir,'src/styles/tokens/surface-depth.css'),'utf8');
 const scopes=new Map([...depthCss.matchAll(/\[data-surface-depth="(\d)"\]\s*\{([^}]*)\}/g)].map(m=>[Number(m[1]),[...m[2].matchAll(/(--[\w-]+):\s*([^;]+);/g)].map(d=>[d[1],d[2].trim()])]));
-const componentsCss=fs.readFileSync(path.join(rootDir,'src/styles/components.css'),'utf8');
-const fillCss=fs.readFileSync(path.join(rootDir,'src/styles/surface-opacity.css'),'utf8');
+const componentsCss=fs.readFileSync(path.join(rootDir,'src/styles/primitives/components.css'),'utf8');
+const fillCss=fs.readFileSync(path.join(rootDir,'src/styles/tokens/surface-opacity.css'),'utf8');
 const fillTokens=new Map([...fillCss.matchAll(/(--surface-fill[\w-]*):\s*color-mix\(in srgb, var\((--[\w-]+)\)/g)].map(m=>[m[1],m[2]]));
 for(const selector of ['.glass-section','.glass-tile']) {
   const start=componentsCss.indexOf(selector+' {');

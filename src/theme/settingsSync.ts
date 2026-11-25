@@ -1,7 +1,7 @@
-import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "./timelinePreviewPreference";
-import { getFavoriteModel, setFavoriteModel } from "./favoriteModel";
-import { EXPLORER_FILTER_KEY, savedExplorerFilter } from "./explorerPanel";
-import { parseNavigationPin, readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "./navigationPanelPin";
+import { isTimelinePreviewEnabled, setTimelinePreviewEnabled } from "../utils/timelinePreviewPreference";
+import { getFavoriteModel, setFavoriteModel } from "../utils/favoriteModel";
+import { EXPLORER_FILTER_KEY, savedExplorerFilter } from "../utils/explorerPanel";
+import { parseNavigationPin, readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "../utils/navigationPanelPin";
 /**
  * Модуль двусторонней синхронизации визуальных настроек L-MPV с портативным файлом config/settings.json.
  * 
@@ -11,8 +11,8 @@ import { parseNavigationPin, readNavigationPin, saveNavigationPin, NAVIGATION_PI
  */
 
 import { invoke } from "@tauri-apps/api/core";
-import { applyAnimationsFlagToDom } from "./animationUtils";
-import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "./volumeFeedback";
+import { applyAnimationsFlagToDom } from "../utils/animationUtils";
+import { isVolumeIndicatorEnabled, setVolumeIndicatorEnabled, isVolumeOsdEnabled, setVolumeOsdEnabled } from "../utils/volumeFeedback";
 import {
   getSavedPlayerTheme,
   savePlayerTheme,
@@ -23,7 +23,7 @@ import {
   applyAccentColor,
   applyPlayerTheme,
   type GlowIntensity,
-} from "./colorUtils";
+} from "./colors";
 import {
   getSavedUiRadius,
   saveUiRadius,
@@ -44,12 +44,12 @@ import {
   UiFontId,
   UiRadiusLevel,
   UiScaleMode,
-} from "./uiThemeUtils";
+} from "./tokens";
 import {
   getSavedControlBarStyle,
   saveControlBarStyle,
   ControlBarStyle,
-} from "./controlBarStyleUtils";
+} from "./controlBarStyle";
 import {
   getGlassBlur,
   getGlassDispersion,
@@ -63,33 +63,33 @@ import {
   saveGlassTint,
   setPlayerTheme,
   type GlassTintId,
-} from "../features/liquidGlass/preferences";
+} from "./liquidGlass/preferences";
 import {
   getSavedUtilityCards,
   saveUtilityCards,
   UTILITY_CARDS_CHANGED_EVENT,
-} from "./controlBarUtilityLayout";
+} from "../utils/controlBarUtilityLayout";
 import {
   getSavedTimePosition,
   saveTimePosition,
   TimeDisplayPosition,
-} from "./timePositionUtils";
+} from "../utils/timePositionUtils";
 import {
   getSavedTimeFormat,
   saveTimeFormat,
   TimeFormatMode,
-} from "./timeFormatUtils";
+} from "../utils/timeFormatUtils";
 import {
   getCustomHotkeys,
   HOTKEYS_SCHEMA_VERSION,
   saveCustomHotkeys,
-} from "./hotkeyUtils";
+} from "../utils/hotkeyUtils";
 import {
   getSavedSeekStepSeconds,
   getSavedSkipOpeningSeconds,
   saveSeekStepSeconds,
   saveSkipOpeningSeconds,
-} from "./seekUtils";
+} from "../utils/seekUtils";
 import { saveLocale, getEffectiveLocale, type Locale } from "../i18n/index";
 import {
   getHeatmapConfig,

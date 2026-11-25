@@ -8,13 +8,13 @@
 
 ### 1. Два глобальных режима оформления и распределение компонентов
 
-- **Выбор темы интерфейса (`l-mpv-player-interface-theme`: `"lmpv"` | `"glass"`):** управляется в [src/features/liquidGlass/preferences.ts](src/features/liquidGlass/preferences.ts), переключается из настроек («Цветовое оформление» / «Стиль плеера»), контекстного меню ПКМ и через пресеты.
+- **Выбор темы интерфейса (`l-mpv-player-interface-theme`: `"lmpv"` | `"glass"`):** управляется в [src/theme/liquidGlass/preferences.ts](src/theme/liquidGlass/preferences.ts), переключается из настроек («Цветовое оформление» / «Стиль плеера»), контекстного меню ПКМ и через пресеты.
 - **Единая WebView2-оболочка поверх видео:** и классический режим `L-MPV`, и тема `Liquid Glass` рендерят один и тот же UI на React + Vanilla CSS (`Titlebar`, `PlayerControls`, `ContextMenu`, `TrackPopovers`, `SpeedPopover`, `MediaInfoOverlay`, `ChaptersModal`, `SubtitlesSearchModal`, `PlaylistDrawer`, `ExplorerPanel`, `SavedPlaylistPanel`, `GlassHud`, `VolumeOsdCard`, `UpdateToast`). Прежний раздельный ASS-хост (`ClassicHost`) удалён.
 - **Три независимые раскладки панели управления во всех темах:**
   - `capsule` («Капсула») — раздельные островки таймлайна, времени и нижнего дока; в `Liquid Glass` каждому островку передаётся повышенный уровень размытия `frost = 1`.
   - `modern` («Classic · Плавающая») — единая парящая капсула.
   - `docked` («Classic · Прикреплённая») — пристыкованная к нижнему краю панель.
-  - Стили сохраняются раздельно для `L-MPV` (`l-mpv-control-bar-style`) и `Liquid Glass` (`l-mpv-liquid-glass-layout`) через [src/utils/controlBarStyleUtils.ts](src/utils/controlBarStyleUtils.ts).
+  - Стили сохраняются раздельно для `L-MPV` (`l-mpv-control-bar-style`) и `Liquid Glass` (`l-mpv-liquid-glass-layout`) через [src/theme/controlBarStyle.ts](src/theme/controlBarStyle.ts).
 - **Единые правила UI (для обеих тем и всех стилей):**
   - **Высота заголовка и безопасное окно настроек:** `--titlebar-height` (`40px`, кнопки `40×36px`) и динамическая верхняя граница нижней панели `--player-controls-top` ([PlayerControls.tsx](src/components/player/PlayerControls.tsx)) задают симметричный вертикальный коридор для `.settings-modal-overlay` с равным минимальным отступом `--settings-safe-gap: 10px` сверху от заголовка и снизу от панели управления (`max-height: 100%`).
   - **Выделение активных пунктов и чистый таймлайн:** активные элементы в ПКМ-меню, списках аудио/субтитров/скорости, поиске по субтитрам, переключателе списков, плейлисте и проводнике выделяются одновременно точкой-индикатором (без внешнего неонового свечения) и акцентным цветом текста `var(--accent-text)`. Полностью удалено неоновое свечение вокруг бегунка таймлайна (`.timeline__thumb` использует чистую физическую тень `0 1px 4px rgba(0,0,0,0.45)` во всех темах и состояниях зажатия). В теме `Liquid Glass` дополнительно отключено ховер-свечение иконок (`--hover-icon-glow: none`), а иконки HUD-уведомлений отображаются без фоновой квадратной плашки.
@@ -41,7 +41,7 @@
 
 Вместо стандартного браузерного `backdrop-filter` (который в WebView2 на Windows не видит аппаратную поверхность видео под окном) используется **гибридный конвейер реального преломления на GPU**:
 
-1. **Сбор геометрии на фронтенде ([LiquidGlassSync.tsx](src/features/liquidGlass/LiquidGlassSync.tsx), [uiSettingsSync.ts](src/utils/uiSettingsSync.ts)):**
+1. **Сбор геометрии на фронтенде ([LiquidGlassSync.tsx](src/theme/liquidGlass/LiquidGlassSync.tsx), [settingsSync.ts](src/theme/settingsSync.ts)):**
    - Атрибуты `data-interface-theme="glass"` и `--glass-tint-rgb` выставляются на `<html>` сразу при применении визуальных настроек (`applyAllVisualSettings`), а при наличии медиафайлa (`hasMedia && playerTheme === "glass"`) `LiquidGlassSync` отслеживает геометрию без пересоздания наблюдателей на `videoReady`/`mediaPath` и выставляет `data-liquid-glass-active="true|false"`.
    - `collectGlassSurfaces()` собирает до `24` видимых поверхностей (с наивысшим приоритетом: модальное окно настроек / островки Капсулы `.modal--settings`, боковая панель настроек `.settings-side-panel`, окно обновления `.update-modal-*`; затем островки/панель управления, центральное время, всплывающая карточка скорости, карточка предпросмотра, тепловая карта, поповеры дорожек/переполнения, ПКМ-меню и подменю, MediaInfo, Главы, Поиск по субтитрам, Плейлист/Проводник, HUD-баннеры, тост обновления и вложенные карточки Капсулы с `f = 2`, исключая визуализатор) в нормализованных координатах экрана с учётом каскадной прозрачности (`measureEffectiveOpacity`), скругления (с компенсацией `zoom: var(--ui-scale)`), `frost` и `clipRect`.
    - `collectTopBlur()` формирует компактную полосу размытия (`50px`) чуть ниже `.titlebar`, заменяя в `Liquid Glass` тёмный скрам заголовка.
@@ -64,7 +64,7 @@
 
 ### 3. Цвета, акценты OKLCH и пресеты
 
-- **Цвет стекла (`l-mpv-liquid-glass-tint`) и адаптация акцентов ([colorMath.ts](src/utils/colorMath.ts), [colorUtils.ts](src/utils/colorUtils.ts)):** доступно чистое бесцветное стекло `transparent` и все 15 оттенков из `PLAYER_THEMES` (перевод в кристаллический оптический фильтр через OKLCH в `getGlassTintShaderParams()`). Для читаемости поверх живого видео акцентные цвета автоматически адаптируются через `readableColor` в переменные `--glass-accent`, `--glass-accent-hover`, `--glass-accent-text`, `--glass-accent-rgb`, `--glass-on-accent`.
+- **Цвет стекла (`l-mpv-liquid-glass-tint`) и адаптация акцентов ([colorMath.ts](src/theme/colorMath.ts), [colors.ts](src/theme/colors.ts)):** доступно чистое бесцветное стекло `transparent` и все 15 оттенков из `PLAYER_THEMES` (перевод в кристаллический оптический фильтр через OKLCH в `getGlassTintShaderParams()`). Для читаемости поверх живого видео акцентные цвета автоматически адаптируются через `readableColor` в переменные `--glass-accent`, `--glass-accent-hover`, `--glass-accent-text`, `--glass-accent-rgb`, `--glass-on-accent`.
 - **Пресеты ([presetsUtils.ts](src/utils/presetsUtils.ts), [PresetsSection.tsx](src/components/settings/sections/PresetsSection.tsx)):** `SettingsPresetData` хранит `playerInterfaceTheme`, `liquidGlassStyle`, `liquidGlassBlur`, `liquidGlassRefraction`, `liquidGlassTint`. Встроенные пресеты (`BUILT_IN_PRESETS`) включают классические стили с явным `playerInterfaceTheme: "lmpv"` и два стеклянных пресета (`builtin_liquid_glass`, `builtin_sapphire_glass`); карточки отображают бейджи темы, стиля, оттенка/шашечки прозрачности, размытия и степени преломления.
 
 <details>
@@ -298,82 +298,89 @@ L-MPV/
 │   │   ├── types.ts                      # Типы словарей локализации
 │   │   ├── index.ts                      # Реэкспорт и helpers (getDict, getEffectiveLocale, saveLocale)
 │   │   └── locales/                      # Словари ru.ts / en.ts
-│   ├── styles/                           # Модульная система стилей (Vanilla CSS)
-│   │   ├── fonts.css                     # Локальные @font-face декларации встроенных гарнитур (Inter, Outfit, Jakarta, Manrope, JetBrains)
-│   │   ├── variables.css                 # CSS Custom Properties, темы, UI Scale, шрифтовые гарнитуры, акцентные палитры, радиусы, параметры свечения
-│   │   ├── components.css                # Стандартизированная дизайн-система компонентов (.glass-panel, .glass-section, .glass-tile, .btn, .badge, .kbd-chip)
-│   │   ├── base.css                      # Глобальный сброс, стили приложения, IDLE-режим, OSD
-│   │   ├── glass-hud.css                 # Футуристичный Glass HUD экранных уведомлений в левом верхнем углу
-│   │   ├── titlebar.css                  # Кастомная шапка окна и бейдж времени
-│   │   ├── video-area.css                # Область видео и вотермарка
-│   │   ├── controls.css                  # Главный агрегатор стилей панели управления
-│   │   ├── controls/                     # Модульные стили панели управления по режимам:
-│   │   │   ├── controls-base.css         # Базовая геометрия кнопок, таймлайна и регулятора громкости
-│   │   │   ├── controls-capsule.css      # 3-колоночный Grid, парящие островки, карточка времени и стили «Капсулы»
-│   │   │   ├── controls-modern.css       # Стили единой парящей капсулы «Модерн»
-│   │   │   ├── controls-docked.css       # Стили пристыкованной классической панели «Классический»
-│   │   │   ├── controls-overflow.css     # Адаптивное меню «Ещё...» переполнения кнопок при узком окне
-│   │   │   ├── speed-control.css         # Кнопка скорости и всплывающее окно выбора
-│   │   │   ├── seek-indicator.css        # Шкала экранной перемотки и движущаяся отметка
-│   │   │   ├── volume-indicator.css      # Шкала громкости поверх кадра (процент, чёткие метки 50/100) и угловой Glass HUD OSD
-│   │   │   └── center-time.css           # Центральное время для трёх стилей панели
-│   │   ├── surface-depth.css             # Иерархия 5 уровней поверхностей (.surface-level-0..4, data-surface-depth, рамки hover/selected)
-│   │   ├── surface-opacity.css           # Кривые прозрачности вложенных поверхностей, поповеров и островков
-│   │   ├── settings-alignment.css        # Выравнивание и калибровка геометрии карточек экрана настроек
-│   │   ├── settings-control-buttons.css  # Адаптивные группы видимости кнопок и поля секунд
-│   │   ├── visualizer.css                # Стили аудио-визуалайзера (14 палитр, режимы над таймлайном, в тулбаре и в шкале)
-│   │   ├── presets.css                   # Стили секции управления пресетами настроек
-│   │   ├── context-menu.css              # Кастомное ПКМ-меню и островные группы подменю
-│   │   ├── modals.css                    # Модальные окна (Настройки с адаптивной Flex-геометрией, Chapters, DnD-меню)
-│   │   ├── color-picker-modal.css        # Стили модального окна выбора цвета («Модерн», «Классический», «Капсула»)
-│   │   ├── mediainfo-modal.css           # Агрегатор и базовые стили автономного и модального окна MediaInfo
-│   │   ├── mediainfo-modal/              # Модульные стили окна MediaInfo:
-│   │   │   └── mediainfo-modal-capsule.css # Островная архитектура стиля «Капсула» (6 парящих островков, сетка 160px, калибровка кнопок)
-│   │   ├── media-info-overlay.css        # Агрегатор стилей компактного оверлея информации о файле (I)
-│   │   ├── media-info-overlay/           # Стили оверлея информации о файле:
-│   │   │   ├── media-info-overlay-base.css # Базовая геометрия, сетка параметров, фиксированная шапка и скролл-контейнер
-│   │   │   └── media-info-overlay-capsule.css # Островные карточки секций с мягкими тенями 12px
-│   │   ├── playlist.css                  # Агрегатор стилей плейлиста
-│   │   ├── playlist/                     # Модульные стили плейлиста:
-│   │   │   ├── playlist-base.css         # Базовые стили панели плейлиста, поиска и строк
-│   │   │   └── playlist-capsule.css      # Островной дизайн плейлиста для стиля «Капсула», неоновый маркер без джиттера
-│   │   ├── explorer-panel.css            # Стили встроенного файлового проводника (навигация, тулбар, список файлов)
-│   │   ├── navigation-panel-position.css # Геометрия закреплённой панели навигации (Pin), ограничения высоты и перетаскивание
-│   │   ├── navigation-popover.css        # Стили всплывающих меню выбора источников и контекстных действий
-│   │   ├── saved-playlists.css           # Стили панели сохраняемых плейлистов и элементов подборок
-│   │   ├── subtitles-modal.css           # Агрегатор стилей модального окна поиска по субтитрам
-│   │   ├── subtitles-modal/              # Модульные стили поиска по субтитрам:
-│   │   │   ├── subtitles-modal-base.css  # Базовая геометрия, виртуализированный список, задержка
-│   │   │   └── subtitles-modal-capsule.css # 4 островные группы, хитбоксы 28px, согласованные радиусы кнопок
-│   │   ├── track-popover.css             # Агрегатор стилей меню аудиодорожек и субтитров
-│   │   ├── track-popover/                # Модульные стили всплывающих меню дорожек:
-│   │   │   ├── track-popover-base.css    # Базовая компоновка меню дорожек и интеграция с токеном --radius-controls
-│   │   │   └── track-popover-capsule.css # Островная шапка, отдельная карточка отключения сабов, монолитный список дорожек
-│   │   ├── side-panel.css                # Панель глав
-│   │   ├── overlays.css                  # Overlay-элементы (Drag&Drop, Scrollbar, окно глав ChaptersModal под стили «Капсула»/«Модерн»/«Классический», Update)
-│   │   ├── settings-panel.css            # Sidebar-форма настроек: адаптивные inset/offset, привязка к панели управления
-│   │   ├── responsive.css                # Глобальные медиа-запросы
-│   │   └── utilities.css                 # Утилитарные классы оформления (подключается последним в index.css)
-│   ├── utils/                            # Утилиты
+│   ├── styles/                           # Слоёная модульная система стилей (Vanilla CSS)
+│   │   ├── tokens/                       # Токены, шрифты и кривые прозрачности/глубины
+│   │   │   ├── fonts.css                 # Локальные @font-face декларации встроенных гарнитур (Inter, Outfit, Jakarta, Manrope, JetBrains)
+│   │   │   ├── variables.css             # CSS Custom Properties, темы, UI Scale, шрифтовые гарнитуры, акцентные палитры, радиусы, параметры свечения
+│   │   │   ├── surface-depth.css         # Иерархия 5 уровней поверхностей (.surface-level-0..4, data-surface-depth, рамки hover/selected)
+│   │   │   └── surface-opacity.css       # Кривые прозрачности вложенных поверхностей, поповеров и островков
+│   │   ├── base/                         # Глобальная основа, утилиты, адаптив и motion
+│   │   │   ├── base.css                  # Глобальный сброс, стили приложения, IDLE-режим, OSD
+│   │   │   ├── utilities.css             # Утилитарные классы оформления
+│   │   │   ├── responsive.css            # Глобальные медиа-запросы
+│   │   │   ├── motion.css                # Базовые CSS-переходы и анимации поверхностей
+│   │   │   └── scroll-edge-fade.css      # Плавное затухание краёв прокрутки
+│   │   ├── primitives/                   # Базовые UI-примитивы
+│   │   │   ├── components.css            # Стандартизированная дизайн-система компонентов (.glass-panel, .glass-section, .glass-tile, .btn, .badge, .kbd-chip)
+│   │   │   └── close-actions.css         # Унифицированные кнопки закрытия/сворачивания
+│   │   ├── player/                       # Стили поверхностей плеера поверх видео
+│   │   │   ├── titlebar.css              # Кастомная шапка окна и бейдж времени
+│   │   │   ├── video-area.css            # Область видео и вотермарка
+│   │   │   ├── glass-hud.css             # Футуристичный Glass HUD экранных уведомлений в левом верхнем углу
+│   │   │   ├── visualizer.css            # Стили аудио-визуалайзера (14 палитр, режимы над таймлайном, в тулбаре и в шкале)
+│   │   │   ├── file-drag-preview.css     # Плашка предпросмотра при Drag & Drop
+│   │   │   ├── drop-overlay.css          # Оверлей зоны перетаскивания файлов
+│   │   │   ├── context-menu.css          # Кастомное ПКМ-меню и островные группы подменю
+│   │   │   ├── side-panel.css            # Боковая панель глав
+│   │   │   ├── explorer-panel.css        # Стили встроенного файлового проводника
+│   │   │   ├── saved-playlists.css       # Стили панели сохраняемых плейлистов
+│   │   │   ├── navigation-popover.css    # Меню выбора источников и контекстных действий
+│   │   │   ├── navigation-panel-position.css # Геометрия закреплённой панели навигации (Pin)
+│   │   │   ├── controls/                 # Панель управления (base, capsule, modern, docked, overflow, speed, seek, volume, center-time, timeline-preview)
+│   │   │   ├── track-popover/            # Всплывающие меню дорожек (base, capsule)
+│   │   │   ├── media-info-overlay/       # Компактный оверлей информации о файле по клавише I (base, capsule)
+│   │   │   └── playlist/                 # Панель плейлиста (base, capsule)
+│   │   ├── modals/                       # Модальные окна (разделены по экранам)
+│   │   │   ├── modal-base.css            # Базовая геометрия модального окна, шапки, скролла и кнопок
+│   │   │   ├── update-modal.css          # Диалог обновления/отката (classic + capsule), UpdateToast и VersionPicker
+│   │   │   ├── chapters-modal.css        # Модалка списка глав (classic + capsule)
+│   │   │   ├── color-picker-modal.css    # Стили модального окна выбора цвета
+│   │   │   ├── mediainfo-modal/          # Автономное окно MediaInfo (mediainfo-modal.css + mediainfo-modal-capsule.css)
+│   │   │   ├── subtitles-modal/          # Поиск по субтитрам (base + capsule)
+│   │   │   └── settings/                 # Модульные стили окна и панели настроек
+│   │   │       ├── settings-modal.css    # Базовые и капсульные стили настроек, аккордеоны, тайлы, DnD ПКМ-меню
+│   │   │       ├── settings-panel.css    # Sidebar-форма настроек и привязка к панели управления
+│   │   │       ├── settings-alignment.css # Калибровка и выравнивание элементов настроек
+│   │   │       ├── settings-system.css   # Стили вкладки «Система» и графика кэша
+│   │   │       ├── settings-control-buttons.css # Адаптивные группы видимости кнопок и поля секунд
+│   │   │       ├── player-appearance-settings.css # Карточки выбора оформления плеера
+│   │   │       └── presets.css           # Стили секции пресетов настроек
+│   │   └── themes/                       # Темы оформления интерфейса
+│   │       └── liquid-glass/             # Модульная тема Liquid Glass
+│   │           ├── index.css             # Единый агрегатор слоёв темы
+│   │           ├── tokens.css            # CSS-переменные и адаптация акцентов
+│   │           ├── controls.css          # Панель управления и поповеры дорожек
+│   │           ├── glsl-surfaces.css     # Прозрачность под GLSL и резервный WebView2 fallback
+│   │           ├── player-overlays.css   # ПКМ-меню, MediaInfo, плейлист, главы, субтитры
+│   │           ├── update-modal.css      # Адаптация UpdateModal и UpdateToast
+│   │           ├── motion-titlebar.css   # Fade-анимации и интеграция с Titlebar
+│   │           └── settings-modals.css   # Настройки и ColorPickerModal поверх стекла
+│   ├── theme/                            # Подсистема тем, палитр, токенов и Liquid Glass
+│   │   ├── index.ts                      # Единая точка реэкспорта API подсистемы тем
+│   │   ├── palettes.ts                   # 15 тем оформления, палитры акцентов и рекомендации
+│   │   ├── colorMath.ts                  # Вычисление пяти тонов глубины в OKLCH и контраста readableColor
+│   │   ├── colors.ts                     # Токены цветовой системы, атомарное применение CSS-переменных
+│   │   ├── tokens.ts                     # Скругления, UI Scale, прозрачность и шрифты (FontFace API)
+│   │   ├── controlBarStyle.ts            # Стили панели («Капсула», «Модерн», «Классический»)
+│   │   ├── surfaceHierarchy.ts           # Назначение data-surface-depth и изоляция меню/капсул
+│   │   ├── settingsSync.ts               # Синхронизация системных переменных, палитр и стилей с DOM
+│   │   └── liquidGlass/                  # Клиентская интеграция темы Liquid Glass
+│   │       ├── preferences.ts            # Хранение выбора темы и параметров стекла
+│   │       ├── LiquidGlassSync.tsx       # Синхронизация координат DOM-карточек с mpv GLSL
+│   │       └── ClassicAppearance.tsx     # Секция настроек параметров Liquid Glass
+│   ├── utils/                            # Прикладные утилиты (не относящиеся к темам)
 │   │   ├── contextMenuRegistry.ts        # Типизированный реестр 22 доступных элементов и подменю контекстного меню
 │   │   ├── contextMenuLayout.ts          # Модуль сохранения, валидации, сброса и синхронизации раскладки меню (config/context_menu.json)
 │   │   ├── timePositionUtils.ts          # 6 вариантов расположения времени (таймлайн, тулбар, парящий бейдж, Titlebar)
 │   │   ├── timeFormatUtils.ts            # Прошедшее/общее, прошедшее/оставшееся, оставшееся и время окончания
-│   │   ├── controlBarStyleUtils.ts       # Стили плеера («Капсула», «Модерн», «Классический»)
 │   │   ├── controlBarUtilityLayout.ts    # Хранение, нормализация и синхронизация порядка и островков кнопок-утилит тулбара (speed, skipOpening, alwaysOnTop, info, mediaInfo, visualizer, playlist, screenshot, fullscreen)
 │   │   ├── seekUtils.ts                  # Настраиваемый шаг перемотки (1–300 сек) и события SeekIndicator
 │   │   ├── externalTrackLoader.ts        # Единая загрузка внешних аудиодорожек и субтитров (диалог, IPC, loadTracks, OSD и проверка расширений)
 │   │   ├── playbackPolling.ts            # Интервалы опроса до готовности видео и при обычной паузе
 │   │   ├── volumeFeedback.ts             # Событие экранной громкости, включение и выбор шкалы/OSD
-│   │   ├── uiThemeUtils.ts               # Управление скруглением углов, масштабом (UI Scale), прозрачностью (--ui-opacity/--bg-glass), шрифтами (UI Font) и их загрузкой (FontFace API)
 │   │   ├── timelinePreviewPreference.ts    # Сохраняемый переключатель кадра при наведении
-│   │   ├── uiSettingsSync.ts             # Синхронизация системных CSS-переменных, палитр и стилей оформления с DOM
-│   │   ├── playerPalettes.ts             # 15 тем оформления, 2 группы по 16 акцентов (пастельные и насыщенные), рекомендации сочетаний
-│   │   ├── colorMath.ts                  # Вычисление пяти тонов глубины в OKLCH, hover/selected состояний, контраста и текста
-│   │   ├── surfaceHierarchy.ts           # Назначение data-surface-depth, MutationObserver структуры и изоляция меню/капсул
-│   │   ├── dndCoordinates.ts            # Пересчёт экранных смещений dnd-kit в локальные координаты CSS zoom
+│   │   ├── dndCoordinates.ts             # Пересчёт экранных смещений dnd-kit в локальные координаты CSS zoom
 │   │   ├── ambientSettingsUtils.ts       # Модели и типы настроек подсветки полос (Off / Blur, радиус 5..150)
-│   │   ├── colorUtils.ts                 # Токены цветовой системы, атомарное применение CSS-переменных, контраст
 │   │   ├── favoriteModel.ts              # Выбор избранной ONNX-модели по имени файла и событие изменения
 │   │   ├── hotkeyUtils.ts                # Реестр действий, бинды, сохранение и сброс горячих клавиш (Ctrl+J, U, Shift+Backquote и Shift+1..9)
 │   │   ├── subtitleUiGeometry.ts        # Высота панели, нижний отступ и зазор субтитров с учётом CSS zoom
@@ -2278,6 +2285,11 @@ L-MPV/
 
 ### Контроль изменений
 
+- «Модерн»: единая плавающая поверхность с общим внешним радиусом.
+- «Классический»: нижние углы пристыкованной панели равны нулю, верхние следуют `--radius-surface`; это правило не обнуляет углы самостоятельных модальных окон.
+
+### Контроль изменений
+
 Проверять настройки и их вкладки, аудио/субтитры/скорость, поиск субтитров, плейлист, главы, MediaInfo (оба окна), обновления, пресеты, выбор цвета и контекстные меню. Для каждого компонента учитывать базовое, наведённое, нажатое, выбранное и фокусное состояния, псевдоэлементы, inline-стили, `!important` и адаптивные правила.
 
 Минимальная матрица: три стиля × радиусы 0/8/16/22/30/48 × широкое/компактное окно. Вычисленные CSS-значения проверяются без переходных анимаций. Автоматическая проверка деклараций и компонентных макетов не заменяет визуального просмотра настоящих окон; нельзя считать её доказательством проверки каждого состояния приложения.
@@ -2694,11 +2706,11 @@ node scripts/check-surface-opacity.cjs
 
 
 **Конвейер окрашивания (порядок приоритета, побеждает верхний):**
-1. `src/utils/colorUtils.ts :: applyAccentColor()` — инлайн-стили на `documentElement` (`--surface-accent-subtle/hover`, `--surface-card-selected/hover`, `--accent*`, `--focus-ring`, `--on-accent*`, `--border*`). Перекрывает весь CSS.
-2. `[data-surface-depth="0..4"]` в `src/styles/surface-depth.css` — переопределения для островов/попапов (все глубины выровнены на вуаль, см. ниже).
-3. `src/styles/surface-opacity.css` (`:root`) — кривые непрозрачности по глубинам.
-4. `src/styles/variables.css` (`:root`) — дефолты до первого `applyAccentColor`.
-5. Источник тонов — `src/utils/colorMath.ts :: buildThemeRoles()` (OKLCH): 5 `levels` + `hover/inset/selected` + `readableColor()` для текста; источник палитр — `src/utils/playerPalettes.ts` (15 тем, `PASTEL_PRESETS` 16 + `STANDARD_PRESETS` 16, `PAIRINGS`).
+1. `src/theme/colors.ts :: applyAccentColor()` — инлайн-стили на `documentElement` (`--surface-accent-subtle/hover`, `--surface-card-selected/hover`, `--accent*`, `--focus-ring`, `--on-accent*`, `--border*`). Перекрывает весь CSS.
+2. `[data-surface-depth="0..4"]` в `src/styles/tokens/surface-depth.css` — переопределения для островов/попапов (все глубины выровнены на вуаль, см. ниже).
+3. `src/styles/tokens/surface-opacity.css` (`:root`) — кривые непрозрачности по глубинам.
+4. `src/styles/tokens/variables.css` (`:root`) — дефолты до первого `applyAccentColor`.
+5. Источник тонов — `src/theme/colorMath.ts :: buildThemeRoles()` (OKLCH): 5 `levels` + `hover/inset/selected` + `readableColor()` для текста; источник палитр — `src/theme/palettes.ts` (15 тем, `PASTEL_PRESETS` 16 + `STANDARD_PRESETS` 16, `PAIRINGS`).
 
 **Эталон selected-состояния (обязателен везде — кнопки, табы, строки сабов/треков, карточки, чипы хоткеев):**
 - Референсная реализация — строка шрифта `.ui-font-choice`: заливка `--surface-accent-subtle` (сырой акцент 16%), выбранный hover — `--surface-accent-hover` (22%). В покое рамка берётся из `--selection-frame` (transparent), тень — `--selection-shadow` (none); текст primary, акцентные надписи — `--accent-text`. Наведение выбранных контролов оформляется отдельно, не изменяя размеров.
@@ -2733,11 +2745,11 @@ node scripts/check-surface-opacity.cjs
 
 **Правила свечения (Glow):**
 - Один мягкий внешний слой, без сплошных `0 0 Npx var(--accent)` слоёв и без двойных колец. Кнопки-превью уровней в `ColorSchemeSection.tsx :: GLOW_OPTIONS`: off `none`, soft `0 0 8px rgba(0.25)`, medium `0 0 12px rgba(0.35)`, intense `0 0 16px rgba(0.50)` + везде `inset 0 0 0 1.5px transparent`; фон — вуаль, бордер 1px. Кнопка показывает СВОЙ уровень, а не глобальный `--surface-accent-glow`.
-- Системные профили `GLOW_PROFILES` (`colorUtils.ts`, soft/medium/intense с поправкой на OLED) задают тени значков, бегунков и таймлайна; off отключает декоративное свечение. Выбранное состояние использует `--selection-frame` / `--selection-shadow`, а контур клавиатурного фокуса — `--focus-ring`; `check-interaction-states.cjs` проверяет их разделение.
+- Системные профили `GLOW_PROFILES` (`src/theme/colors.ts`, soft/medium/intense с поправкой на OLED) задают тени значков, бегунков и таймлайна; off отключает декоративное свечение. Выбранное состояние использует `--selection-frame` / `--selection-shadow`, а контур клавиатурного фокуса — `--focus-ring`; `check-interaction-states.cjs` проверяет их разделение.
 - У крупных выбранных сегментов и карточек нет постоянного внешнего ореола: используются токены выбора. Превью интенсивности свечения и функциональные индикаторы оформляются отдельно; их тень не должна подменять клавиатурный фокус.
 
 **Правила прозрачности:**
-- `--ui-opacity` 0.1–1.0 (по умолчанию 0.88, `uiThemeUtils.ts::applyUiOpacity`) управляет фонами `--bg-pill`, `--bg-glass`, `--bg-elevated`. Вложенные `surface-fill-*` и поповеры используют кривые `surface-opacity.css`; основной selected-акцент — отдельная вуаль 16%/22%, а не накопление полупрозрачных цветов родителя. `--surface-selection-opacity-*` применяется при прямом использовании вычисленных selected-fill ролей. Для поповеров `--ui-popover-opacity = 0.45 + o * 0.55`, для островков `--capsule-island-opacity = 0.20 + o * 0.55`.
+- `--ui-opacity` 0.1–1.0 (по умолчанию 0.88, `src/theme/tokens.ts :: applyUiOpacity`) управляет фонами `--bg-pill`, `--bg-glass`, `--bg-elevated`. Вложенные `surface-fill-*` и поповеры используют кривые `src/styles/tokens/surface-opacity.css`; основной selected-акцент — отдельная вуаль 16%/22%, а не накопление полупрозрачных цветов родителя. `--surface-selection-opacity-*` применяется при прямом использовании вычисленных selected-fill ролей. Для поповеров `--ui-popover-opacity = 0.45 + o * 0.55`, для островков `--capsule-island-opacity = 0.20 + o * 0.55`.
 - Тени следуют за прозрачностью линейно: `--shadow-alpha = o*0.35`, `--shadow-ambient-alpha = o*0.18` (иначе тёмная тень просвечивает сквозь прозрачную плашку).
 - Текст/иконки общую прозрачность фона НЕ наследуют. Тёмный текст поверх видео читается за счёт подложки, не за счёт поднятия альфы текста.
 - Motion/transition: для компонентов задавать явные списки свойств; движение — через transform/opacity; `transition: all` не допускается. Темы и акценты используют общую кнопку `ColorSwatch.tsx` без внутреннего масштабируемого слоя. Для `.color-circle--palette` в покое задан `scale(1)` и сохраняется `will-change: transform`: сброс композитного слоя после окончания перехода может изменить растеризацию края при дробном масштабе. Увеличение использует общую пружинную кривую, уменьшение — `--ease-smooth` без обратного отскока. При отключённых анимациях/reduced motion подсказка will-change сбрасывается. Разметка акцентной палитры остаётся CSS Grid; её не следует менять ради устранения артефактов композитора.

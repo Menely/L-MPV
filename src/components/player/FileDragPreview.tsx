@@ -4,7 +4,7 @@ import { File, FileAudio, FileImage, ListMusic, Subtitles } from "lucide-react";
 import { useExternalFileDrop } from "../../hooks/useExternalFileDrop";
 import { draggedFileKind } from "../../utils/fileDragPreview";
 import appIcon from "../../../src-tauri/icons/64x64.png";
-import "../../styles/file-drag-preview.css";
+import "../../styles/player/file-drag-preview.css";
 
 const FILE_ICONS = {
   audio: FileAudio, subtitle: Subtitles, image: FileImage, playlist: ListMusic, file: File,

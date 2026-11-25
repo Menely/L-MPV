@@ -29,11 +29,11 @@ import { MotionSurface } from "../motion/MotionSurface";
 import {
   notifyLiquidGlassAnimation,
   notifyLiquidGlassSync,
-} from "../../features/liquidGlass/LiquidGlassSync";
+} from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   MIN_MODAL_WIDTH,
   TECH_MODAL_MIN_WIDTH,

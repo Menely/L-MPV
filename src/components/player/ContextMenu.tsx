@@ -27,13 +27,13 @@ import {
   type ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   type PlayerTheme,
   getPlayerTheme,
   setPlayerTheme,
-} from "../../features/liquidGlass/preferences";
-import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
+} from "../../theme/liquidGlass/preferences";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   loadUserPresets,
   applySettingsPreset,

@@ -1,7 +1,7 @@
 import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
 import { supportsTimelineThumbnail, thumbnailWidth as pickThumbnailWidth } from "../../utils/timelineThumbnail";
 import { prewarmTimelineThumbnail, useTimelineStoryboard } from "../../hooks/useTimelineStoryboard";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../theme/tokens";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";

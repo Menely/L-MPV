@@ -1,7 +1,7 @@
 import React from "react";
 import { MotionSurface } from "../../../motion/MotionSurface";
 import type { TrackInfo } from "../../../../contexts/PlayerStateContext";
-import type { ControlBarStyle } from "../../../../utils/controlBarStyleUtils";
+import type { ControlBarStyle } from "../../../../theme/controlBarStyle";
 import { useTranslation } from "../../../../i18n/LanguageContext";
 import { truncateMiddle } from "../../../../utils/textUtils";
 import { TrackPopoverHeader } from "./TrackPopoverHeader";

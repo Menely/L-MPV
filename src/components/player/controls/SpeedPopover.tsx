@@ -3,8 +3,8 @@ import { X } from "lucide-react";
 import { MotionSurface } from "../../motion/MotionSurface";
 import { SpeedIcon } from "./SpeedIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
-import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
+import type { ControlBarStyle } from "../../../theme/controlBarStyle";
 
 export interface SpeedPopoverProps {
   /** Текущая скорость воспроизведения */

@@ -1,7 +1,7 @@
 import React from "react";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../theme/tokens";
 import { toLocalDragTransform } from "../../utils/dndCoordinates";
 import { GripVertical, Star } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";

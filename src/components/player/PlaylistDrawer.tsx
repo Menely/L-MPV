@@ -8,20 +8,20 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
 import { AnimatePresence } from "motion/react";
 import { MotionSurface } from "../motion/MotionSurface";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../theme/tokens";
 import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
 import { EmptyState } from "../settings/components/SettingBlocks";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { SavedPlaylistPanel } from "./SavedPlaylistPanel";
 import { savedPlaylistSource } from "../../utils/savedPlaylists";
 import { usePinnedNavigationPanel } from "../../hooks/usePinnedNavigationPanel";
-import "../../styles/navigation-panel-position.css";
+import "../../styles/player/navigation-panel-position.css";
 import { DEFAULT_NAVIGATION_WIDTH, MIN_NAVIGATION_WIDTH, savedNavigationWidth, savedNavigationTab, saveNavigationTab, type NavigationPanelTab } from "../../utils/explorerPanel";
-import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 /** Данные прогресса просмотра для одного файла плейлиста. */
 interface WatchProgressInfo {

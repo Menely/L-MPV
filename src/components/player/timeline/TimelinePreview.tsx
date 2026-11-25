@@ -2,11 +2,11 @@ import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { useTimelineThumbnail } from "../../../hooks/useTimelineThumbnail";
 import { supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import { formatTime } from "../../../utils/timeUtils";
-import { notifyLiquidGlassSync } from "../../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassSync } from "../../../theme/liquidGlass/LiquidGlassSync";
 import type { TimelineSegmentData } from "../Timeline";
-import "../../../styles/controls/timeline-preview.css";
+import "../../../styles/player/controls/timeline-preview.css";
 
 interface Props {
   hoverInfo: { ratio: number; time: number };

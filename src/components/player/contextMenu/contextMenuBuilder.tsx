@@ -35,8 +35,8 @@ import type { ModelFileItem } from "../../upscale/types";
 import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
-import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
-import type { PlayerTheme } from "../../../features/liquidGlass/preferences";
+import type { ControlBarStyle } from "../../../theme/controlBarStyle";
+import type { PlayerTheme } from "../../../theme/liquidGlass/preferences";
 import type {
   HeatmapConfig,
   HeatmapDataSource,

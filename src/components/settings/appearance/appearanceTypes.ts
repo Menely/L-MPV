@@ -1,4 +1,4 @@
-import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import type { ControlBarStyle } from "../../../theme/controlBarStyle";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 

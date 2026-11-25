@@ -18,7 +18,7 @@ import {
   PlayerThemeId,
   getSavedPlayerTheme,
   savePlayerTheme,
-} from "./colorUtils";
+} from "../theme/colors";
 import {
   VisualizerConfig,
   getVisualizerConfig,
@@ -45,7 +45,7 @@ import {
   getSavedUiSettingsStyle,
   saveUiSettingsStyle,
   UiSettingsStyle,
-} from "./uiThemeUtils";
+} from "../theme/tokens";
 import {
   TimeDisplayPosition,
   getSavedTimePosition,
@@ -60,7 +60,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "./controlBarStyleUtils";
+} from "../theme/controlBarStyle";
 import {
   DEFAULT_GLASS_BLUR,
   DEFAULT_GLASS_DISPERSION,
@@ -80,7 +80,7 @@ import {
   setPlayerTheme,
   type GlassTintId,
   type PlayerTheme,
-} from "../features/liquidGlass/preferences";
+} from "../theme/liquidGlass/preferences";
 import {
   type UtilityButtonId,
   getSavedUtilityCards,

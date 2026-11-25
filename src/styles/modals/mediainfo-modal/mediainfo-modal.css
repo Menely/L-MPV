@@ -1,4 +1,4 @@
-@import "./mediainfo-modal/mediainfo-modal-capsule.css";
+@import "./mediainfo-modal-capsule.css";
 
 /* ─── Компактное плавающее окно MediaInfo (в стиле MPC) ──── */
 .mediainfo-floating-window {

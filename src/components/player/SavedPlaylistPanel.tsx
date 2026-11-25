@@ -5,11 +5,11 @@ import { Plus, MoreHorizontal, FilePlus, Pencil, Trash2, Import, Download, Arrow
 import { useSavedPlaylists } from "../../hooks/useSavedPlaylists";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { movePlaylistEntry, playlistFileName, samePlaylistFile, savedPlaylistWindow } from "../../utils/savedPlaylists";
-import "../../styles/saved-playlists.css";
+import "../../styles/player/saved-playlists.css";
 import { NavigationPopover } from "./NavigationPopover";
 import { SavedPlaylistSource } from "./SavedPlaylistSource";
 import { usePlaylistFileDrop } from "../../hooks/usePlaylistFileDrop";
-import { notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 
 interface Props { active: boolean; folderPaths: string[]; mediaPath: string; refreshPlaylist: () => Promise<void>; onFolderRequested: () => Promise<void>; onSourceChange?: (saved: boolean) => void; children: ReactNode }
 type Editor = { kind: "create" | "folder" | "rename"; id?: string } | null;

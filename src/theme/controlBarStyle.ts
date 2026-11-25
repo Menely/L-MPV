@@ -5,7 +5,7 @@
  * - "docked": Классический стиль во всю ширину окна внизу без зазоров.
  */
 
-import { getPlayerTheme, readGlassLayout, writeGlassLayout, type PlayerTheme } from "../features/liquidGlass/preferences";
+import { getPlayerTheme, readGlassLayout, writeGlassLayout, type PlayerTheme } from "./liquidGlass/preferences";
 
 export type ControlBarStyle = "capsule" | "modern" | "docked";
 

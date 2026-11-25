@@ -11,8 +11,8 @@ import { openExplorerFile, isExplorerCurrentFile, savedExplorerFilter, EXPLORER_
 import { bindExplorerHistoryMouse } from "../../utils/explorerHistory";
 import { ExplorerPath } from "./ExplorerPath";
 import { NavigationPopover } from "./NavigationPopover";
-import { notifyLiquidGlassSync } from "../../features/liquidGlass/LiquidGlassSync";
-import "../../styles/explorer-panel.css";
+import { notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
+import "../../styles/player/explorer-panel.css";
 
 interface Props {
   active: boolean;

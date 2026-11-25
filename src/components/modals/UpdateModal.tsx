@@ -16,8 +16,8 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
-import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
+} from "../../theme/controlBarStyle";
+import { notifyLiquidGlassAnimation } from "../../theme/liquidGlass/LiquidGlassSync";
 import type { AppUpdaterController } from "../../hooks/useAppUpdater";
 import {
   AppLogoIcon,

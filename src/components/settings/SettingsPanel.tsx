@@ -2,7 +2,7 @@ import { SettingsUpdateAction } from "./components/SettingsUpdateAction";
 import { MotionSurface } from "../motion/MotionSurface";
 import { SelectionRail } from "../motion/SelectionRail";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
-import { notifyLiquidGlassAnimation } from "../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassAnimation } from "../../theme/liquidGlass/LiquidGlassSync";
 import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
@@ -34,7 +34,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   createDefaultAmbientSettings,
   normalizeAmbientSettings,
@@ -77,7 +77,7 @@ import {
   getSavedUiFont,
   saveUiFont,
   getActiveUiScale,
-} from "../../utils/uiThemeUtils";
+} from "../../theme/tokens";
 /**
  * Векторная иконка GitHub для ссылки на репозиторий.
  */

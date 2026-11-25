@@ -1,0 +1,265 @@
+/* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + адаптированные акценты L-MPV) ─── */
+
+/* Полное удаление затеняющих теней (box-shadow) во всех стилях темы Liquid Glass */
+html[data-interface-theme="glass"],
+html[data-interface-theme="glass"][data-glow="off"] {
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-card-active: none;
+  --shadow-pill: none;
+  --shadow-pill-hover: none;
+  --shadow-elevated: none;
+  --shadow-modal: none;
+  --shadow-glow: none;
+  --btn-glow: none;
+  --selection-shadow: none;
+  --hover-icon-glow: none;
+  --timeline-glow: none;
+  --thumb-glow: none;
+  --active-icon-glow: none;
+  --play-icon-glow: none;
+}
+
+html[data-interface-theme="glass"] .titlebar,
+html[data-interface-theme="glass"] .player-controls-wrapper,
+html[data-interface-theme="glass"] .context-menu,
+html[data-interface-theme="glass"] .context-menu__submenu,
+html[data-interface-theme="glass"] .media-info-overlay,
+html[data-interface-theme="glass"] .mediainfo-floating-window,
+html[data-interface-theme="glass"] .mediainfo-standalone,
+html[data-interface-theme="glass"] .chapters-modal-card,
+html[data-interface-theme="glass"] .subtitles-search-card,
+html[data-interface-theme="glass"] .playlist-drawer,
+html[data-interface-theme="glass"] .navigation-popover,
+html[data-interface-theme="glass"] .glass-hud-pill,
+html[data-interface-theme="glass"] .frame-osd,
+html[data-interface-theme="glass"] .volume-feedback-osd,
+html[data-interface-theme="glass"] .update-toast,
+html[data-interface-theme="glass"] .update-modal-card,
+html[data-interface-theme="glass"] .update-modal-capsule,
+html[data-interface-theme="glass"] .modal--settings,
+html[data-interface-theme="glass"] .settings-side-panel,
+html[data-interface-theme="glass"] .color-picker-modal,
+html[data-interface-theme="glass"] .confirm-dialog,
+html[data-interface-theme="glass"] .preset-toast {
+  --shadow-sm: none;
+  --shadow-md: none;
+  --shadow-lg: none;
+  --shadow-card: none;
+  --shadow-card-hover: none;
+  --shadow-card-active: none;
+  --shadow-pill: none;
+  --shadow-pill-hover: none;
+  --shadow-elevated: none;
+  --shadow-modal: none;
+  --shadow-glow: none;
+  --btn-glow: none;
+  --selection-shadow: none;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.86);
+  --text-muted: rgba(255, 255, 255, 0.66);
+  --border-pill: rgba(255, 255, 255, 0.18);
+  --accent: var(--glass-accent, #7fc7ff);
+  --accent-hover: var(--glass-accent-hover, #99d4ff);
+  --accent-text: var(--glass-accent-text, #7fc7ff);
+  --accent-rgb: var(--glass-accent-rgb, 127, 199, 255);
+  --on-accent: var(--glass-on-accent, #101216);
+  --accent-gradient: linear-gradient(90deg, var(--glass-accent, #7fc7ff), var(--glass-accent-hover, #99d4ff));
+  --border-pill-hover: rgba(var(--glass-accent-rgb, 127, 199, 255), 0.46);
+  --surface-accent-subtle: rgba(var(--glass-accent-rgb, 127, 199, 255), 0.20);
+  --surface-accent-hover: rgba(var(--glass-accent-rgb, 127, 199, 255), 0.28);
+  --hover-veil-float: rgba(var(--glass-accent-rgb, 127, 199, 255), 0.22);
+  --action-hover-veil: rgba(var(--glass-accent-rgb, 127, 199, 255), 0.24);
+  --hover-veil: var(--hover-veil-float);
+  --bg-active: var(--surface-accent-hover);
+  --surface-accent-glow: color-mix(in srgb, var(--glass-accent, #7fc7ff) 42%, transparent);
+  --timeline-glow: var(--glass-timeline-glow, none);
+  --thumb-glow: var(--glass-thumb-glow, none);
+  --active-icon-glow: var(--glass-active-icon-glow, none);
+  --play-icon-glow: var(--glass-play-icon-glow, none);
+  --hover-icon-glow: none;
+}
+
+/* В Liquid Glass убраны все тени под окнами, карточками, поповерами и элементами во всех стилях */
+html[data-interface-theme="glass"] .modal__header {
+  animation: none !important;
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] :is(
+  .player-controls,
+  .player-controls:hover,
+  .player-controls--modern,
+  .player-controls--modern:hover,
+  .player-controls--docked,
+  .controls-island,
+  .controls-island--time,
+  .controls-islands-row,
+  .controls-islands-row .controls-island,
+  .time-display--floating-center,
+  .time-display--floating-center:hover,
+  .time-display--titlebar,
+  .time-display--titlebar:hover,
+  .timeline-preview-card,
+  .timeline-preview-card--with-frame,
+  .controls-overflow,
+  .waveform-activity-strip__badge,
+  .waveform-activity-strip__status,
+  .track-popover,
+  .track-popover--capsule .track-popover__heading,
+  .track-popover--capsule .track-popover__header-actions,
+  .track-popover--capsule .track-popover__disable-sub-card,
+  .track-popover--capsule .track-popover__list-surface,
+  .context-menu,
+  .context-menu__submenu--solid,
+  .context-menu__group,
+  .playlist-drawer,
+  .playlist-drawer--capsule .playlist-drawer__header-left,
+  .playlist-drawer--capsule .playlist-drawer__header-actions,
+  .playlist-drawer--capsule .playlist-drawer__search,
+  .playlist-drawer--capsule .playlist-drawer__list-surface,
+  .playlist-drawer--capsule .navigation-panel__tabs,
+  .playlist-drawer--capsule .explorer-panel__toolbar,
+  .playlist-drawer--capsule .saved-playlists__source,
+  .playlist-drawer--capsule .saved-playlists__editor,
+  .playlist-drawer--capsule .saved-playlists__info,
+  .navigation-popover,
+  .side-panel,
+  .file-drag-preview,
+  .modal,
+  .modal--settings,
+  .modal--settings-capsule .settings-card,
+  .settings-side-panel,
+  .settings-side-panel--capsule .settings-card,
+  .chapters-modal-card,
+  .chapters-modal-card--capsule .chapters-modal-header-left,
+  .chapters-modal-card--capsule .chapters-modal-header-actions,
+  .chapters-modal-card--capsule .chapters-list,
+  .subtitles-search-card,
+  .subtitles-search-card--capsule .subtitles-card,
+  .subtitles-search-card--capsule .subtitles-card--follow-btn,
+  .subtitles-search-card--capsule .subtitles-search-card__no-tracks,
+  .subtitles-search-card--capsule .subtitles-search-card__bar,
+  .subtitles-search-card--capsule .subtitles-search-card__list-surface,
+  .subtitles-search-card--capsule .subtitles-search-card__track-picker-menu,
+  .media-info-overlay,
+  .media-info-overlay--capsule .media-info__header-left,
+  .media-info-overlay--capsule .media-info__tabs,
+  .media-info-overlay--capsule .media-info__header-actions,
+  .media-info-overlay--capsule .media-info__section,
+  .mediainfo-floating-window,
+  .mediainfo-floating-window--capsule :is(.mediainfo-floating-window__header-left, .mediainfo-floating-window__actions, .mediainfo-floating-window__search-bar, .mediainfo-standalone__tabs-bar, .mediainfo-floating-window__body),
+  .mediainfo-standalone--capsule :is(.mediainfo-standalone__titlebar-left, .mediainfo-standalone__window-controls, .mediainfo-standalone__search-wrapper, .mediainfo-standalone__actions, .mediainfo-standalone__tabs-bar, .mediainfo-standalone__body),
+  .mediainfo-section__collapse-trigger,
+  .mediainfo-section__collapse-trigger:hover,
+  .update-modal-card,
+  .update-modal-capsule .update-card,
+  .version-picker-popover,
+  .update-toast,
+  .update-toast--capsule .update-toast__island,
+  .color-picker-modal,
+  .color-picker-modal--capsule .color-picker-card,
+  .confirm-dialog,
+  .preset-toast,
+  .glass-hud-pill,
+  .frame-osd,
+  .volume-feedback-osd,
+  .glass-panel,
+  .glass-section,
+  .glass-tile,
+  .glass-tile--clickable:hover,
+  .option-card,
+  .theme-card,
+  .color-column-card,
+  .settings-preview-card,
+  .settings-accordion,
+  .settings-accordion:has(> .settings-accordion__header:hover),
+  .settings-accordion--open,
+  .settings-accordion--open:has(> .settings-accordion__header:hover),
+  .presets-creator,
+  .preset-card,
+  .preset-card:hover,
+  .preset-card--active,
+  .preset-tag__color-dot,
+  .preset-action-btn,
+  .cmenu-editor__header,
+  .cmenu-editor__current,
+  .cmenu-editor__available,
+  .cmenu-entry,
+  .cmenu-entry:hover,
+  .cmenu-entry--overlay,
+  .control-buttons-builder__canvas,
+  .control-buttons-builder__card,
+  .control-buttons-builder__card--over,
+  .control-buttons-builder__chip--dragging,
+  .kbd-chip,
+  .visual-bar-preview__floating-island,
+  .settings-preview-card__mini-player,
+  .btn,
+  .settings-action-btn,
+  .ui-reset-btn,
+  .hotkey-reset-btn,
+  .ui-option-btn,
+  .ui-option-btn--selected,
+  .compact-segment-btn,
+  .compact-segment-btn--active,
+  .ui-font-choice,
+  .ui-font-choice--active,
+  .visual-bar-card,
+  .visual-bar-card--active,
+  .settings-window-choice.visual-bar-card--active,
+  .ambient-choice,
+  .ambient-choice--active,
+  .viz-power-btn,
+  .viz-power-btn--active,
+  .player-appearance__style[aria-pressed="true"],
+  .settings-tab-btn--active,
+  .settings-side-panel__nav-btn--active,
+  .chapter-item--active,
+  .side-panel__item--active,
+  .preset-action-btn--apply:hover,
+  .preset-action-btn--applied,
+  .hotkey-chip,
+  .model-hotkey-btn,
+  .color-circle,
+  .color-circle--palette,
+  .color-circle--active,
+  .color-circle--windows,
+  .color-circle--transparent,
+  .color-circle--add,
+  .color-circle--add:hover,
+  .color-circle__remove-btn,
+  .color-picker-swatch-btn,
+  .color-picker-swatch-btn--active,
+  .color-picker-wheel-wrap,
+  .color-picker-range::-webkit-slider-thumb,
+  .ui-premium-slider::-webkit-slider-thumb,
+  .ui-premium-slider:hover::-webkit-slider-thumb,
+  .ui-premium-slider:active::-webkit-slider-thumb,
+  .ui-premium-slider::-moz-range-thumb,
+  .ui-premium-slider:hover::-moz-range-thumb,
+  .ui-premium-slider:active::-moz-range-thumb,
+  .volume-feedback-osd__bar-fill--boost,
+  .playlist-item__progress-fill,
+  .playlist-item__progress-fill--watched,
+  .subtitles-search-card__resize-handle::after,
+  .playlist-drawer__resize-handle::after
+) {
+  box-shadow: none !important;
+}
+
+html[data-interface-theme="glass"] :is(.update-modal-card, .update-modal-capsule) :is(img, kbd) {
+  box-shadow: none !important;
+}
+
+/* В Liquid Glass иконки не имеют паразитного свечения и bitmap-фильтров (исключает белые/серые ореолы) */
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn svg,
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg,
+html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):hover svg,
+html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__icon,
+html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__chevron {
+  filter: none !important;
+}

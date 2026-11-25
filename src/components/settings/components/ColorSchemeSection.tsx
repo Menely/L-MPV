@@ -27,7 +27,7 @@ import {
   GlowIntensity,
   getGlowIntensity,
   saveGlowIntensity,
-} from "../../../utils/colorUtils";
+} from "../../../theme/colors";
 import {
   DEFAULT_GLASS_TINT,
   getGlassTint,
@@ -35,9 +35,9 @@ import {
   saveGlassTint,
   subscribePlayerTheme,
   type GlassTintId,
-} from "../../../features/liquidGlass/preferences";
+} from "../../../theme/liquidGlass/preferences";
 import { ColorPickerModal } from "../../modals/ColorPickerModal";
-import { onColor } from "../../../utils/colorMath";
+import { onColor } from "../../../theme/colorMath";
 
 interface ColorSchemeSectionProps {
   /** Опциональный callback при изменении акцентного цвета */

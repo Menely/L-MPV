@@ -42,11 +42,11 @@ import {
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { SpeedIcon } from "../../player/controls/SpeedIcon";
 import { toLocalDragTransform } from "../../../utils/dndCoordinates";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/controlBarStyle";
 import {
   ALL_UTILITY_BUTTON_IDS,
   type UtilityButtonId,

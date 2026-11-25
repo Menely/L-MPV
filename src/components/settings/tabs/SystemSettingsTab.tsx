@@ -14,7 +14,7 @@ export type { SystemDiagnosticsInfo } from "../lib/systemDiagnostics";
 import { CacheSettingsSection } from "../components/CacheSettingsSection";
 import { SystemDiagnosticsSummary } from "../components/SystemDiagnosticsSummary";
 import { AccordionSection } from "../components/AccordionSection";
-import "../../../styles/settings-system.css";
+import "../../../styles/modals/settings/settings-system.css";
 
 /**
  * Компактная вкладка «Система»: диагностический дашборд бинарников, DLL,

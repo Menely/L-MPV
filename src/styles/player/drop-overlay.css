@@ -1,0 +1,29 @@
+/* ─── Drag & Drop overlay ────────────────────────────── */
+.drop-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-drop);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  animation: fadeIn 150ms var(--ease-smooth);
+}
+
+.drop-overlay__content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 40px 60px;
+  border: 2px dashed var(--accent-dim);
+  border-radius: var(--radius-xl);
+  color: var(--accent-text);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+}
+
+
+
+/* (Стили Media Info Overlay вынесены в styles/media-info-overlay.css) */

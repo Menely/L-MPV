@@ -23,10 +23,10 @@ import {
   UI_FONT_PRESETS,
   CustomFontItem,
   registerCustomFont,
-} from "../../../utils/uiThemeUtils";
+} from "../../../theme/tokens";
 import { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import { TimeFormatMode } from "../../../utils/timeFormatUtils";
-import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import { ControlBarStyle } from "../../../theme/controlBarStyle";
 import {
   saveSeekStepSeconds,
   saveSkipOpeningSeconds,

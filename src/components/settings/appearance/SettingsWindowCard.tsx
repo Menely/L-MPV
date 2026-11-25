@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { SelectionRail } from "../../motion/SelectionRail";
-import { getSavedUiSettingsStyle, saveUiSettingsStyle, type UiSettingsStyle } from "../../../utils/uiThemeUtils";
+import { getSavedUiSettingsStyle, saveUiSettingsStyle, type UiSettingsStyle } from "../../../theme/tokens";
 import { AppearanceSetting } from "./AppearanceSetting";
 
 export function SettingsWindowCard() {

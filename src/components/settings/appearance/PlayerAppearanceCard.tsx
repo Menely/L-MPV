@@ -6,10 +6,10 @@ import { SettingsIcon } from "../components/SettingsIcon";
 import { CapsuleControlsPreview } from "../components/CapsuleControlsPreview";
 import { AppearanceDetailsScroll } from "./AppearanceDetailsScroll";
 import { PlayerStyleDetails } from "./PlayerStyleDetails";
-import { getPlayerTheme, setPlayerTheme, subscribePlayerTheme } from "../../../features/liquidGlass/preferences";
-import { getSavedControlBarStyle, saveControlBarStyle as saveThemeControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import { getPlayerTheme, setPlayerTheme, subscribePlayerTheme } from "../../../theme/liquidGlass/preferences";
+import { getSavedControlBarStyle, saveControlBarStyle as saveThemeControlBarStyle } from "../../../theme/controlBarStyle";
 import type { PlayerAppearanceProps } from "./appearanceTypes";
-import "../../../styles/player-appearance-settings.css";
+import "../../../styles/modals/settings/player-appearance-settings.css";
 
 const getGlassStyle = () => getSavedControlBarStyle("glass");
 

@@ -18,7 +18,7 @@ import { SpeedIcon } from "./controls/SpeedIcon";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import type { HudIconType } from "../../hooks/useOsd";
 
 /**

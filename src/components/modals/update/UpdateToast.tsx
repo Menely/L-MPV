@@ -6,7 +6,7 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/controlBarStyle";
 import type { AppUpdaterController } from "../../../hooks/useAppUpdater";
 import { AppLogoIcon } from "./AppLogoIcon";
 import { UpdateInfo, formatBytes, normalizeVersion } from "./updateTypes";

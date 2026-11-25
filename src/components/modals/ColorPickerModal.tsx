@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { Palette, X } from "lucide-react";
-import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../utils/colorUtils";
+import { hslToRgb, rgbToHex, hexToRgb, rgbToHsl } from "../../theme/colors";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
 import { MotionSurface } from "../motion/MotionSurface";
-import { getSavedControlBarStyle, ControlBarStyle } from "../../utils/controlBarStyleUtils";
+import { getSavedControlBarStyle, ControlBarStyle } from "../../theme/controlBarStyle";
 import {
   ColorPickerModalProps,
   ColorWheel,

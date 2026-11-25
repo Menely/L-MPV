@@ -11,11 +11,11 @@ import { useChapterThumbnails } from "../../hooks/useChapterThumbnails";
 import {
   notifyLiquidGlassAnimation,
   notifyLiquidGlassSync,
-} from "../../features/liquidGlass/LiquidGlassSync";
+} from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 const CHAPTER_THUMBNAIL_WIDTH = 320;
 

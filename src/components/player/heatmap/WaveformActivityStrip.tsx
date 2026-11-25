@@ -19,7 +19,7 @@ import { usePlayerState, usePlayerProgress } from "../../../contexts/PlayerState
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { createHeatmapDisplayCache } from "./heatmapDisplay";
 import { getVisualizerConfig } from "../AudioVisualizer";
-import { notifyLiquidGlassSync } from "../../../features/liquidGlass/LiquidGlassSync";
+import { notifyLiquidGlassSync } from "../../../theme/liquidGlass/LiquidGlassSync";
 import {
   timelineScrubSync,
   TimelineScrubState,

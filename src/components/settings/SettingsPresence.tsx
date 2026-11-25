@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { AnimatePresence } from "motion/react";
 import type { UpdateInfo } from "../modals/UpdateModal";
-import type { UiSettingsStyle } from "../../utils/uiThemeUtils";
+import type { UiSettingsStyle } from "../../theme/tokens";
 import { SettingsModalView, SettingsPanelView } from "./lib/settingsModulePreload";
 
 interface SettingsPresenceProps {

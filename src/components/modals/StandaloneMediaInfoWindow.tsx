@@ -32,13 +32,13 @@ import {
   useMediaInfoDragDrop,
   useMediaInfoSearchNav,
 } from "./mediainfo";
-import "../../styles/mediainfo-modal.css";
+import "../../styles/modals/mediainfo-modal/mediainfo-modal.css";
 import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils";
 import { getEffectiveLocale } from "../../i18n";
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 interface DetailedMediaInfoResponse {
   text: string;

@@ -1,5 +1,5 @@
 import { useCallback, useLayoutEffect, useRef, useState, type KeyboardEvent, type PointerEvent, type RefObject } from "react";
-import { getActiveUiScale } from "../utils/uiThemeUtils";
+import { getActiveUiScale } from "../theme/tokens";
 import { readNavigationPin, saveNavigationPin, NAVIGATION_PIN_EVENT } from "../utils/navigationPanelPin";
 
 interface Geometry { top: number; height: number }

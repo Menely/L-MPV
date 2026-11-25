@@ -25,8 +25,8 @@ import { Titlebar } from "./components/player/Titlebar";
 import { FileDragPreview } from "./components/player/FileDragPreview";
 import { PlayerControls } from "./components/player/PlayerControls";
 import { formatSpeedValue } from "./components/player/controls/SpeedPopover";
-import { LiquidGlassSync } from "./features/liquidGlass/LiquidGlassSync";
-import { getPlayerTheme, subscribePlayerTheme } from "./features/liquidGlass/preferences";
+import { LiquidGlassSync } from "./theme/liquidGlass/LiquidGlassSync";
+import { getPlayerTheme, subscribePlayerTheme } from "./theme/liquidGlass/preferences";
 import { ContextMenu } from "./components/player/ContextMenu";
 import { PlaylistDrawer } from "./components/player/PlaylistDrawer";
 import { SeekIndicator } from "./components/player/SeekIndicator";
@@ -36,7 +36,7 @@ import { triggerVolumeFeedback } from "./utils/volumeFeedback";
 import { UpdateInfo } from "./components/modals/UpdateModal";
 import { useAppUpdater } from "./hooks/useAppUpdater";
 import { getVisualizerConfig, saveVisualizerConfig, VisualizerMode } from "./components/player/AudioVisualizer";
-import { applyAccentColor } from "./utils/colorUtils";
+import { applyAccentColor } from "./theme/colors";
 import {
   getCustomHotkeys,
   isKeyboardEventMatch,
@@ -46,7 +46,7 @@ import { getFavoriteModel } from "./utils/favoriteModel";
 import { normalizeAmbientSettings } from "./utils/ambientSettingsUtils";
 import { addRecentFile } from "./utils/recentFilesUtils";
 import { getDict, getEffectiveLocale, saveLocale, type Locale } from "./i18n";
-import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./utils/uiThemeUtils";
+import { getSavedUiSettingsStyle, type UiSettingsStyle } from "./theme/tokens";
 import {
   getSavedSeekStepSeconds,
   getSavedSkipOpeningSeconds,

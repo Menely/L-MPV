@@ -1,0 +1,269 @@
+/* ─── Модальное окно ─────────────────────────────────── */
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: var(--z-modal);
+  background: rgba(0, 0, 0, 0.50);
+  animation: fadeIn var(--t-pop) var(--ease-decelerate);
+}
+
+/* Окно настроек во всех темах и стилях занимает безопасную область строго между
+   верхним заголовком и нижней панелью управления с равными минимальными отступами */
+.modal-overlay.settings-modal-overlay {
+  --settings-safe-gap: 10px;
+  padding:
+    calc(var(--titlebar-height, 40px) + var(--settings-safe-gap))
+    12px
+    calc(var(--player-controls-top, 40px) + var(--settings-safe-gap));
+  box-sizing: border-box;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.modal-overlay::before {
+  display: none;
+}
+
+.modal {
+  position: relative;
+  z-index: var(--z-in-base);
+  width: 460px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-glass, var(--bg-modal-solid, #11141c));
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-surface);
+  box-shadow: var(--shadow-modal);
+  overflow: hidden;
+  transform-origin: center center;
+  transition: background 0.25s var(--ease-smooth),
+              box-shadow 0.25s var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+
+@media (max-width: 800px) {
+  .modal--settings {
+    width: min(720px, calc(100vw - 24px)) !important;
+    height: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    max-height: 100% !important;
+    border-radius: var(--radius-surface);
+  }
+}
+
+.modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.modal__title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-wrap: balance;
+}
+
+.modal__close {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  padding: 0;
+  margin: 0;
+  line-height: 1;
+  flex-shrink: 0;
+  box-sizing: border-box;
+  transform-origin: center center;
+  transition: transform var(--t-fast) var(--ease-spring-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+.modal__close svg {
+  display: block;
+  flex-shrink: 0;
+  transform-origin: center center;
+}
+
+.modal__close:hover {
+  background: var(--action-hover-veil);
+  color: var(--text-primary);
+}
+
+.modal__close:active {
+  transform: scale(0.92);
+}
+
+.modal__body {
+  background: transparent;
+  padding: 14px 18px;
+  overflow-y: auto;
+  scrollbar-gutter: stable;
+  flex: 1;
+  min-height: 0;
+}
+
+/* ─── Scroll-Driven Animation: Плавная тень шапки модального окна без JS (Chromium 115+) ─── */
+@supports (animation-timeline: scroll()) {
+  .modal {
+    timeline-scope: --modal-body-scroll;
+  }
+
+  .modal__body {
+    scroll-timeline-name: --modal-body-scroll;
+    scroll-timeline-axis: block;
+  }
+
+  .modal__header {
+    position: relative;
+    z-index: 2;
+    animation: headerScrollElevation linear both;
+    animation-timeline: --modal-body-scroll;
+    animation-range: 0px 32px;
+  }
+
+  /* В окне настроек (стили Модерн и Классический) тень элевации отключена,
+     чтобы под шапкой и вкладками не возникало затемнения при листании контента */
+  .modal--settings .modal__header,
+  .modal--settings .settings-tabs {
+    animation: none !important;
+    box-shadow: none !important;
+  }
+}
+
+.modal__section {
+  margin-bottom: 14px;
+  min-width: 0;
+}
+
+.modal__section-title {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--accent-text);
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  margin-bottom: var(--space-4);
+}
+
+.modal__row {
+  display: flex;
+  justify-content: space-between;
+  padding: var(--space-2) 0;
+  font-size: var(--fs-sm);
+}
+
+.modal__row-label {
+  color: var(--text-secondary);
+}
+
+.modal__row-value {
+  color: var(--text-primary);
+  font-weight: 500;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Кнопки действий в модальных окнах ───────────────── */
+.settings-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 38px;
+  padding: 0 16px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-base);
+  font-weight: 500;
+  gap: var(--space-4);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth),
+              opacity var(--t-fast) var(--ease-smooth);
+  user-select: none;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.settings-action-btn:active:not(:disabled) {
+  transform: translateY(1px);
+}
+
+.settings-action-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.settings-action-btn--primary {
+  background: var(--accent-glass);
+  border-color: var(--border-pill);
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.settings-action-btn--primary:hover:not(:disabled) {
+  background: var(--accent);
+  color: var(--on-accent);
+  box-shadow: none;
+  border-color: var(--border-pill-hover);
+}
+
+.settings-action-btn--secondary {
+  background: var(--surface-level-3);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.settings-action-btn--secondary:hover:not(:disabled) {
+  background: var(--hover-veil);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+.settings-action-btn--danger {
+  background: rgba(244, 67, 54, 0.08);
+  border-color: rgba(244, 67, 54, 0.25);
+  color: var(--danger-text);
+}
+
+.settings-action-btn--danger:hover:not(:disabled) {
+  background: rgba(244, 67, 54, 0.18);
+  border-color: rgba(244, 67, 54, 0.45);
+  color: #fca5a5;
+  box-shadow: none;
+}
+
+.spin-animation {
+  animation: spinAround 1s linear infinite;
+}
+
+@keyframes spinAround {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

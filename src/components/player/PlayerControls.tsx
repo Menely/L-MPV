@@ -65,8 +65,8 @@ import {
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
-import { getPlayerTheme } from "../../features/liquidGlass/preferences";
+} from "../../theme/controlBarStyle";
+import { getPlayerTheme } from "../../theme/liquidGlass/preferences";
 import {
   type UtilityButtonId,
   getSavedUtilityCards,

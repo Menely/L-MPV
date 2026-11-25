@@ -1,0 +1,214 @@
+/* ─── Полностью прозрачная CSS-подложка поверх активного GLSL-стекла ─── */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--modern,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .player-controls--docked,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island:hover,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--timeline,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-island--time,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .timeline-preview-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .waveform-activity-strip__badge,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover:not(.track-popover--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-overflow,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card:not(.chapters-modal-card--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-modal-header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-modal-header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-list,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__no-tracks,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__bar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .glass-hud-pill,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .frame-osd,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .volume-feedback-osd,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toast:not(.update-toast--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-toast--capsule .update-toast__island,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel--capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer:not(.playlist-drawer--capsule)::before,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .navigation-panel__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search:focus-within,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .playlist-drawer__content),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .explorer-panel__entries),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .saved-playlists__entries),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__entries,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__source,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__editor,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__info,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .saved-playlists__entries {
+  background: transparent !important;
+  background-color: transparent !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Исключаем конфликтующие CSS-переходы подложки при покадровом трекинге GLSL */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--solid,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card:not(.chapters-modal-card--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-modal-header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-modal-header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .chapters-modal-card--capsule .chapters-list,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__bar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__list-surface,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-capsule .update-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .settings-side-panel--capsule .settings-card,
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .controls-islands-row .controls-island {
+  transition: none !important;
+}
+
+/* Для окна обновлений сохраняем плавную анимацию раскрытия (width/height), отключая только переходы подложки */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .update-modal-card {
+  transition: width 0.3s cubic-bezier(0.16, 1, 0.3, 1), height 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* Карточки Капсулы рисуются напрямую в GLSL-слоте f=2, без рваной CSS-рамки и без подсветки при наведении */
+
+/* ─── Резервная подложка, если GLSL-шейдер недоступен (аудио без видео, поворот, не gpu-next) ─── */
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .player-controls--modern,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .player-controls--docked,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--timeline,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-island--time,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .time-display--floating-center,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .timeline-preview-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .waveform-activity-strip__badge,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover:not(.track-popover--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__heading,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__disable-sub-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .track-popover--capsule .track-popover__list-surface,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-overflow,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu:not(.context-menu--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--solid,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu--capsule .context-menu__group,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .context-menu__submenu--capsule .context-menu__group,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay:not(.media-info-overlay--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-left,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__tabs,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .media-info-overlay--capsule .media-info__section,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .chapters-modal-card:not(.chapters-modal-card--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .chapters-modal-card--capsule .chapters-modal-header-left,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .chapters-modal-card--capsule .chapters-modal-header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .chapters-modal-card--capsule .chapters-list,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .subtitles-search-card:not(.subtitles-search-card--capsule):not(.subtitles-search-card--opaque),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__no-tracks,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__bar,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .subtitles-search-card--capsule:not(.subtitles-search-card--opaque) .subtitles-search-card__list-surface,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .glass-hud-pill,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .frame-osd,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .volume-feedback-osd,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-toast:not(.update-toast--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-toast--capsule .update-toast__island,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .update-modal-capsule .update-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .modal--settings:not(.modal--settings-capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .modal--settings-capsule .settings-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .settings-side-panel:not(.settings-side-panel--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .settings-side-panel--capsule .settings-card,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer:not(.playlist-drawer--capsule)::before,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-left,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .navigation-panel__tabs,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__header-actions,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__search,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .playlist-drawer__content),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .explorer-panel__entries),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .playlist-drawer__list-surface:has(> .saved-playlists__entries),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .explorer-panel__toolbar,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__source,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__editor,
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .playlist-drawer--capsule .saved-playlists__info {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.62) !important;
+  border-color: rgba(255, 255, 255, 0.16) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+}
+
+/* Выпадающие меню внутри Плейлиста/Проводника, Поиска по субтитрам и окна поверх настроек (ColorPickerModal / ConfirmDialog)
+   открываются поверх HTML-карточек, поэтому используют собственное дымчатое стекло WebView с размытием без смешивания текста под ними */
+html[data-interface-theme="glass"] .navigation-popover,
+html[data-interface-theme="glass"] .subtitles-search-card .subtitles-search-card__track-picker-menu,
+html[data-interface-theme="glass"] .update-modal-card .version-picker-popover,
+html[data-interface-theme="glass"] .update-modal-capsule .version-picker-popover,
+html[data-interface-theme="glass"] .color-picker-modal:not(.color-picker-modal--capsule),
+html[data-interface-theme="glass"] .color-picker-modal--capsule .color-picker-card,
+html[data-interface-theme="glass"] .confirm-dialog {
+  background: rgba(var(--glass-tint-rgb, 16, 19, 26), 0.72) !important;
+  border: 1px solid rgba(255, 255, 255, 0.18) !important;
+  box-shadow: none !important;
+  backdrop-filter: blur(28px) saturate(160%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(160%) !important;
+}
+
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island:not(.controls-island--visualizer),
+html[data-interface-theme="glass"]:not([data-liquid-glass-active="true"]) .player-controls-wrapper .controls-islands-row .controls-island:not(.controls-island--visualizer):hover {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.26) !important;
+  border-color: rgba(255, 255, 255, 0.15) !important;
+  backdrop-filter: blur(22px) saturate(155%) !important;
+  -webkit-backdrop-filter: blur(22px) saturate(155%) !important;
+}
+
+/* Во время первичного прогрева GLSL при старте видео не блокируем композитор WebView2
+   тяжёлым временным backdrop-filter на панели управления и заголовке */
+html[data-interface-theme="glass"][data-liquid-glass-active="pending"] .titlebar,
+html[data-interface-theme="glass"][data-liquid-glass-active="pending"] .player-controls-wrapper :is(
+  .player-controls--modern,
+  .player-controls--docked,
+  .controls-islands-row,
+  .controls-island,
+  .controls-island--timeline,
+  .controls-island--time
+) {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}

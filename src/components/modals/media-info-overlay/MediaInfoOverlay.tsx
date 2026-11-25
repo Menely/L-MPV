@@ -12,12 +12,12 @@ import { useVideoBitrate } from "../../../hooks/useVideoBitrate";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
-import { getPlayerTheme } from "../../../features/liquidGlass/preferences";
+} from "../../../theme/controlBarStyle";
+import { getPlayerTheme } from "../../../theme/liquidGlass/preferences";
 import {
   notifyLiquidGlassAnimation,
   notifyLiquidGlassSync,
-} from "../../../features/liquidGlass/LiquidGlassSync";
+} from "../../../theme/liquidGlass/LiquidGlassSync";
 import { MediaInfoHeader } from "./MediaInfoHeader";
 import { MediaInfoGeneralSection } from "./MediaInfoGeneralSection";
 import { MediaInfoVideoSection } from "./MediaInfoVideoSection";

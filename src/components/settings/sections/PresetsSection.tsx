@@ -42,7 +42,7 @@ import {
   saveActivePresetId,
   isSettingsMatchingPreset,
 } from "../../../utils/presetsUtils";
-import { PLAYER_THEMES, PlayerThemeId } from "../../../utils/colorUtils";
+import { PLAYER_THEMES, PlayerThemeId } from "../../../theme/colors";
 import {
   getPreloadedUserPresets,
   loadPreloadedUserPresets,

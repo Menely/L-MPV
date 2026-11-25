@@ -6,9 +6,9 @@
 
 import { buildThemeRoles, colorRgb, mixColor, normalizeHex, onColor, readableColor, shiftLightness } from "./colorMath";
 
-import { PLAYER_THEMES, type PlayerThemeId } from "./playerPalettes";
-export { PLAYER_THEMES, PASTEL_PRESETS, STANDARD_PRESETS } from "./playerPalettes";
-export type { PlayerThemeId, PlayerThemeConfig, PlayerThemeTokens } from "./playerPalettes";
+import { PLAYER_THEMES, type PlayerThemeId } from "./palettes";
+export { PLAYER_THEMES, PASTEL_PRESETS, STANDARD_PRESETS } from "./palettes";
+export type { PlayerThemeId, PlayerThemeConfig, PlayerThemeTokens } from "./palettes";
 
 export const PLAYER_THEME_STORAGE_KEY = "l-mpv-player-theme";
 export const DEFAULT_PLAYER_THEME: PlayerThemeId = "graphite";

@@ -1,0 +1,78 @@
+/* ─── Окно обновления и всплывающий тост обновления (UpdateModal / UpdateToast) ─── */
+html[data-interface-theme="glass"] .modal-overlay.update-modal-overlay {
+  background: rgba(0, 0, 0, 0.34);
+}
+
+html[data-interface-theme="glass"] .update-modal-card,
+html[data-interface-theme="glass"] .update-modal-capsule {
+  --text-secondary: rgba(255, 255, 255, 0.86);
+  --text-muted: rgba(255, 255, 255, 0.66);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-heading,
+html[data-interface-theme="glass"] .update-modal-card .update-modal-footer {
+  border-color: rgba(255, 255, 255, 0.14) !important;
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-notes-wrap,
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__notes-wrap {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(255, 255, 255, 0.14) !important;
+  color: rgba(255, 255, 255, 0.92);
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-btn--secondary:hover:not(:disabled),
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--secondary:hover {
+  background: var(--hover-veil-float) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: #ffffff !important;
+}
+
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .update-modal-card .update-modal-btn--primary:hover:not(:disabled),
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--primary:hover,
+html[data-interface-theme="glass"] .update-modal-capsule .update-card__btn--downgrade:hover {
+  background: var(--surface-accent-hover) !important;
+  border-color: var(--border-pill-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__icon {
+  background: var(--surface-accent-subtle);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--secondary {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: rgba(255, 255, 255, 0.88);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--secondary:hover {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--primary {
+  background: var(--surface-accent-subtle);
+  border-color: transparent;
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__btn--primary:hover {
+  background: var(--surface-accent-hover);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
+}
+
+html[data-interface-theme="glass"] .update-toast .update-toast__progress-track {
+  background: rgba(255, 255, 255, 0.22);
+}

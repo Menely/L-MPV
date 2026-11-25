@@ -1,3 +1,0 @@
-/* ─── Модульная архитектура стилей окна дорожек (аудио / субтитры) ── */
-@import "./track-popover/track-popover-base.css";
-@import "./track-popover/track-popover-capsule.css";

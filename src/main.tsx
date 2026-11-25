@@ -2,16 +2,16 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./index.css";
-import "./styles/settings-panel.css";
-import "./styles/scroll-edge-fade.css";
+import "./styles/modals/settings/settings-panel.css";
+import "./styles/base/scroll-edge-fade.css";
 import { initScrollEdgeFade } from "./utils/scrollEdgeFade";
-import { applyPlayerTheme } from "./utils/colorUtils";
-import { initSurfaceHierarchy } from "./utils/surfaceHierarchy";
+import { applyPlayerTheme } from "./theme/colors";
+import { initSurfaceHierarchy } from "./theme/surfaceHierarchy";
 import {
   hydrateUiSettingsFromDisk,
   initUiSettingsAutoSync,
   applyAllVisualSettings,
-} from "./utils/uiSettingsSync";
+} from "./theme/settingsSync";
 
 const PlayerRoot = React.lazy(() => import("./PlayerRoot"));
 const StandaloneMediaInfoWindow = React.lazy(() =>
