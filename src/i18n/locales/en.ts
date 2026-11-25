@@ -330,7 +330,7 @@ export const en: TranslationDict = {
         no: "No normalization: track volume stays original as recorded.",
         dynaudnorm: "Gradually boosts quiet passages. Gain rises gradually again after loud passages.",
         loudnorm: "Compresses loud passages without boosting quiet ones.",
-        ebu128: "Matches the selected track's loudness across episodes. Targets −23 LUFS with ceilings of −18 LUFS over 3 seconds and −1 dBTP. Background measurements take effect the next time the track is opened.",
+        ebu128: "Studio-grade track loudness matching using the EBU R128 (ITU-R BS.1770) standard targeting −23 LUFS with True Peak ceiling of −1 dBTP. Preserves natural dynamic range and speech clarity without audio distortion.",
       },
       TONE_MAPPING_TIPS: {
         auto: "mpv picks the algorithm (its smooth default).",

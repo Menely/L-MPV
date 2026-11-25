@@ -472,8 +472,8 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
           className="option-card"
           style={{
             ...optionCardStyle,
-            padding: "9px 14px",
-            gap: 8,
+            padding: "7px 12px",
+            gap: 6,
           }}
         >
           <div style={optionBlockHeaderStyle}>
@@ -490,11 +490,11 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             </span>
           </div>
 
-          {/* Фиксированный контейнер предпросмотра: гарантирует стабильность высоты карточки и всего списка настроек */}
+          {/* Компактный фиксированный контейнер превью: ровно под максимальную высоту 38px */}
           <div
             style={{
               width: "100%",
-              height: 48,
+              height: MAX_HEATMAP_HEIGHT + 2,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -505,7 +505,7 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
               onMouseLeave={handlePreviewMouseLeave}
               style={{
                 width: "100%",
-                // Полоса рельефа масштабируется по высоте согласно настройке в пределах свободного места
+                // Полоса рельефа масштабируется по высоте согласно настройке
                 height: config.height + 2,
                 borderRadius: "var(--radius-sm, 6px)",
                 background: "var(--surface-level-2)",

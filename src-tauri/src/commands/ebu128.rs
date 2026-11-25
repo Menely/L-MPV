@@ -13,7 +13,6 @@ use tauri::async_runtime::{spawn, JoinHandle};
 use tokio::io::{AsyncBufReadExt, BufReader};
 
 const TARGET_LUFS: f64 = -23.0;
-const MAX_SHORT_TERM_LUFS: f64 = -18.0;
 const MAX_TRUE_PEAK_DBTP: f64 = -1.0;
 const LOCAL_GAIN: &str = "file-local-options/volume-gain";
 
@@ -33,15 +32,13 @@ impl Loudness {
         {
             return None;
         }
-        // FFmpeg prints the true-peak summary to one decimal place, and S to three.
+        // Защита от межсемпловых и истинных пиков (True Peak).
+        // По стандарту EBU R128 максимальный уровень True Peak составляет -1.0 dBTP.
+        // Даем технический запас 0.05 dB для компенсации округлений в отчете FFmpeg.
         let peak_limit = MAX_TRUE_PEAK_DBTP - self.true_peak - 0.05;
-        let short_term_limit = self
-            .short_term_max
-            .map_or(f64::INFINITY, |value| MAX_SHORT_TERM_LUFS - value - 0.0005);
         Some(
             (TARGET_LUFS - self.integrated)
                 .min(peak_limit)
-                .min(short_term_limit)
                 .min(max_gain),
         )
     }
@@ -98,7 +95,7 @@ fn parse_summary_value(value: &str) -> Option<f64> {
     value.split_whitespace().next()?.parse().ok()
 }
 
-#[derive(PartialEq, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 struct Selection {
     path: String,
     aid: i64,
@@ -238,6 +235,37 @@ impl Ebu128 {
                 }) {
                     let _ = mpv.set_property_double(LOCAL_GAIN, applied.gain);
                 }
+                return;
+            }
+            // Если applied ещё None, фоновый замер мог уже завершиться и сохранить кэш.
+            let Ok(tracks) = mpv.get_tracks_snapshot() else {
+                return;
+            };
+            let Some(track) = tracks
+                .iter()
+                .find(|track| track.id == aid && track.track_type == "audio" && track.selected)
+            else {
+                return;
+            };
+            if track.ff_index < 0 {
+                return;
+            }
+            let source = if track.external {
+                &track.external_filename
+            } else {
+                path
+            };
+            let Ok(source) = std::fs::canonicalize(source) else {
+                return;
+            };
+            let Some(cache_file) = self.cache_path(&source, track.ff_index) else {
+                return;
+            };
+            if let Some(loudness) = std::fs::read(&cache_file)
+                .ok()
+                .and_then(|data| serde_json::from_slice::<Loudness>(&data).ok())
+            {
+                self.apply_loudness(&mut session, mpv, aid, &selection, loudness);
             }
             return;
         }
@@ -255,7 +283,7 @@ impl Ebu128 {
         if !selection.is_current_file(mpv) {
             return;
         }
-        session.selection = Some(selection);
+        session.selection = Some(selection.clone());
 
         if track.ff_index < 0 {
             return;
@@ -276,28 +304,8 @@ impl Ebu128 {
             .ok()
             .and_then(|data| serde_json::from_slice::<Loudness>(&data).ok())
         {
-            let max_gain = mpv
-                .get_property_double("options/volume-gain-max")
-                .unwrap_or(12.0);
-            let min_gain = mpv
-                .get_property_double("options/volume-gain-min")
-                .unwrap_or(-96.0);
-            if let Some(gain) = loudness.gain(max_gain).filter(|gain| *gain >= min_gain) {
-                if let Ok(baseline) = mpv.get_property_double("volume-gain") {
-                    if mpv
-                        .get_property_string("aid")
-                        .is_ok_and(|current| current.parse() == Ok(aid))
-                        && session
-                            .selection
-                            .as_ref()
-                            .is_some_and(|selection| selection.is_current_file(mpv))
-                        && mpv.set_property_double(LOCAL_GAIN, gain).is_ok()
-                    {
-                        session.applied = Some(AppliedGain { baseline, gain });
-                    } else {
-                        session.selection = None;
-                    }
-                }
+            if !self.apply_loudness(&mut session, mpv, aid, &selection, loudness) {
+                session.selection = None;
             }
             return;
         }
@@ -317,6 +325,37 @@ impl Ebu128 {
                 }
             }
         }));
+    }
+
+    /// Безопасное применение вычисленного гейна нормализации к текущему треку mpv.
+    fn apply_loudness(
+        &self,
+        session: &mut Session,
+        mpv: &MpvManager,
+        aid: i64,
+        selection: &Selection,
+        loudness: Loudness,
+    ) -> bool {
+        let max_gain = mpv
+            .get_property_double("options/volume-gain-max")
+            .unwrap_or(12.0);
+        let min_gain = mpv
+            .get_property_double("options/volume-gain-min")
+            .unwrap_or(-96.0);
+        if let Some(gain) = loudness.gain(max_gain).filter(|gain| *gain >= min_gain) {
+            if let Ok(baseline) = mpv.get_property_double("volume-gain") {
+                if mpv
+                    .get_property_string("aid")
+                    .is_ok_and(|current| current.parse() == Ok(aid))
+                    && selection.is_current_file(mpv)
+                    && mpv.set_property_double(LOCAL_GAIN, gain).is_ok()
+                {
+                    session.applied = Some(AppliedGain { baseline, gain });
+                    return true;
+                }
+            }
+        }
+        false
     }
 
     fn cache_path(&self, source: &Path, stream: i64) -> Option<PathBuf> {
@@ -383,17 +422,14 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ebu128_static_gain_respects_both_ceilings() {
+    fn ebu128_static_gain_respects_true_peak_ceiling() {
         let mut measurement = Loudness {
             integrated: -30.0,
             short_term_max: Some(-26.0),
             true_peak: -12.0,
         };
         assert_eq!(measurement.gain(12.0), Some(7.0));
-        measurement.short_term_max = Some(-16.0);
-        assert!((measurement.gain(12.0).unwrap() - (-2.0005)).abs() < 1e-9);
         measurement.true_peak = -0.2;
-        measurement.short_term_max = Some(-26.0);
         assert!((measurement.gain(12.0).unwrap() - (-0.85)).abs() < 1e-9);
         measurement.integrated = -70.0;
         assert_eq!(measurement.gain(12.0), None);
@@ -464,7 +500,6 @@ mod tests {
         assert!(quiet.gain(12.0).unwrap() > 0.0);
         let gain = loud.gain(12.0).unwrap();
         assert!(gain < 0.0);
-        assert!(loud.short_term_max.unwrap() + gain <= MAX_SHORT_TERM_LUFS);
         assert!(loud.true_peak + gain <= MAX_TRUE_PEAK_DBTP);
     }
 }
