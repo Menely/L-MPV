@@ -239,7 +239,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Multi-Threaded Fallback (`-threads 0`):** Automatic transcoding for incompatible container formats (e.g., `mov_text` subtitle streams convert into `.srt`).
 - **Direct Copy for External Files:** duplicates loaded external subtitles without invoking FFmpeg (with robust relative path resolution).
 - **Flexible Output Paths:** Save extracted files alongside the video or choose any custom destination via Windows Explorer.
-- **Animated Feedback:** Inline spinner inside the menu and a sleek progress status bar on the control panel.
+- **Organic Progress Wave & Cancellation:** Dual-layer fluid meniscus animation, clean percentage tracking, and hover-to-cancel action directly inside the track menu.
 
 </details>
 
@@ -290,6 +290,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   - **Physical Lens Optics & Fine Control:** Snell's law refraction ($IOR = 1.52$), smooth analytical softplus normals, sub-bit dithering (`IGN`), adjustable glass blur (`0–100%`), and refraction level control (`0–10` scale, where `0` disables refraction for flat frosted glass and `5` is the default standard).
   - **Crystal Pigmentation:** Beer–Lambert law optical absorption tinting the glass body to any of L-MPV's 15 themes with crystal light scattering.
   - **Full Ecosystem Glass Coverage:** Liquid Glass powers the control bar (all 3 styles), chapter cards, track popovers, context menu, playlist drawer, file explorer, MediaInfo overlay and standalone window, update modal and toast, Settings center, and Color Picker.
+  - **Letterbox & Pillarbox Adaptation:** Automatic video frame bounds detection with smooth hybrid glass underlays, preserving element readability and visual continuity whenever overlays extend beyond the video frame onto black bars.
 - **Translucent Panels:**
   - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving text contrast and legibility.
   - **Borders and shadows:** Panel borders and shadows distinguish interface surfaces.
