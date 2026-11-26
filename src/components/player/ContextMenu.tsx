@@ -140,8 +140,11 @@ export function ContextMenu({
   const { dict } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [activeNestedSubmenu, setActiveNestedSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
+  const nestedCloseTimerRef = useRef<number | null>(null);
+  const nestedOpenTimerRef = useRef<number | null>(null);
   const styleSwitchGuardUntilRef = useRef<number>(0);
   const prevOriginCoordsRef = useRef<{ x: number; y: number } | null>(null);
 
@@ -460,7 +463,27 @@ export function ContextMenu({
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
+    if (nestedOpenTimerRef.current !== null) {
+      window.clearTimeout(nestedOpenTimerRef.current);
+      nestedOpenTimerRef.current = null;
+    }
+    if (nestedCloseTimerRef.current !== null) {
+      window.clearTimeout(nestedCloseTimerRef.current);
+      nestedCloseTimerRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    setActiveNestedSubmenu(null);
+    if (nestedOpenTimerRef.current !== null) {
+      window.clearTimeout(nestedOpenTimerRef.current);
+      nestedOpenTimerRef.current = null;
+    }
+    if (nestedCloseTimerRef.current !== null) {
+      window.clearTimeout(nestedCloseTimerRef.current);
+      nestedCloseTimerRef.current = null;
+    }
+  }, [activeSubmenu]);
 
   const { handleClose, isPresent } = useSurfaceDismiss({
     onClose,
@@ -709,6 +732,14 @@ export function ContextMenu({
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
       }
+      if (nestedCloseTimerRef.current !== null) {
+        window.clearTimeout(nestedCloseTimerRef.current);
+        nestedCloseTimerRef.current = null;
+      }
+      if (nestedOpenTimerRef.current !== null) {
+        window.clearTimeout(nestedOpenTimerRef.current);
+        nestedOpenTimerRef.current = null;
+      }
       saveControlBarStyle(style, getPlayerTheme());
       setControlBarStyle(style);
       showOsd(dict.settings.cmenuUI.osdBarStyle(label));
@@ -722,6 +753,14 @@ export function ContextMenu({
       if (closeTimerRef.current !== null) {
         window.clearTimeout(closeTimerRef.current);
         closeTimerRef.current = null;
+      }
+      if (nestedCloseTimerRef.current !== null) {
+        window.clearTimeout(nestedCloseTimerRef.current);
+        nestedCloseTimerRef.current = null;
+      }
+      if (nestedOpenTimerRef.current !== null) {
+        window.clearTimeout(nestedOpenTimerRef.current);
+        nestedOpenTimerRef.current = null;
       }
       setPlayerTheme(theme);
       setPlayerThemeState(theme);
@@ -936,7 +975,14 @@ export function ContextMenu({
   const isRightScreenEdge = useMemo(() => {
     if (typeof window === "undefined") return false;
     const zoom = getUiScale();
-    return adjustedPos.x + menuWidth + 220> (window.innerWidth / zoom);
+    return adjustedPos.x + menuWidth + 220 > (window.innerWidth / zoom);
+  }, [adjustedPos.x, menuWidth]);
+
+  // Для вложенного подменю третьего уровня: проверяем, поместятся ли оба окна
+  const isRightScreenEdgeForNested = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const zoom = getUiScale();
+    return adjustedPos.x + menuWidth + 420 > (window.innerWidth / zoom);
   }, [adjustedPos.x, menuWidth]);
 
   // Красивая точка роста меню: origin следует за реальным флипом по X/Y
@@ -958,7 +1004,8 @@ export function ContextMenu({
 
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
-    (item: MenuItem, index: number, isSubmenuChild: boolean = false) => {
+    (item: MenuItem, index: number, depth: number = 0, currentInteractiveCount?: number) => {
+      const activeItemCount = currentInteractiveCount ?? interactiveItemCount;
       if (item.type === "divider") {
         return (
           <div
@@ -970,17 +1017,36 @@ export function ContextMenu({
                 window.clearTimeout(openTimerRef.current);
                 openTimerRef.current = null;
               }
-              if (!isSubmenuChild) {
+              if (depth === 0) {
                 if (closeTimerRef.current !== null) {
                   window.clearTimeout(closeTimerRef.current);
                 }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
                   closeTimerRef.current = null;
                 }, 250);
-              } else if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              } else if (depth === 1) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 150);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
               }
             }}
           />
@@ -1010,17 +1076,36 @@ export function ContextMenu({
                 window.clearTimeout(openTimerRef.current);
                 openTimerRef.current = null;
               }
-              if (!isSubmenuChild) {
+              if (depth === 0) {
                 if (closeTimerRef.current !== null) {
                   window.clearTimeout(closeTimerRef.current);
                 }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
                   closeTimerRef.current = null;
                 }, 250);
-              } else if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              } else if (depth === 1) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 150);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
               }
             }}
             >
@@ -1076,56 +1161,100 @@ export function ContextMenu({
       }
 
       if (item.type === "submenu") {
-        const submenuId = item.id || `submenu-${index}`;
-        const isBottomHalf = index > interactiveItemCount / 2;
-        const isSubmenuOpen = activeSubmenu === submenuId;
+        const isNestedSubmenu = depth > 0;
+        const submenuId = item.id || (isNestedSubmenu ? `nested-submenu-${index}` : `submenu-${index}`);
+        const isBottomHalf = index > activeItemCount / 2;
+        const isSubmenuOpen = isNestedSubmenu
+          ? activeNestedSubmenu === submenuId
+          : activeSubmenu === submenuId;
+        const isLeftPosition = isNestedSubmenu ? isRightScreenEdgeForNested : isRightScreenEdge;
+
         return (
           <div
             key={submenuId}
             role="none"
             style={{
               position: "relative",
-              zIndex: isSubmenuOpen ? 100 : 1,
+              zIndex: isSubmenuOpen ? (isNestedSubmenu ? 200 : 100) : 1,
             }}
             onMouseEnter={() => {
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
-              }
-              if (activeSubmenu === submenuId) {
+              if (isNestedSubmenu) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
+                if (activeNestedSubmenu === submenuId) {
+                  if (nestedOpenTimerRef.current !== null) {
+                    window.clearTimeout(nestedOpenTimerRef.current);
+                    nestedOpenTimerRef.current = null;
+                  }
+                  return;
+                }
+                if (nestedOpenTimerRef.current !== null) {
+                  window.clearTimeout(nestedOpenTimerRef.current);
+                }
+                const delay = activeNestedSubmenu ? 120 : 40;
+                nestedOpenTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(submenuId);
+                  nestedOpenTimerRef.current = null;
+                }, delay);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (activeSubmenu === submenuId) {
+                  if (openTimerRef.current !== null) {
+                    window.clearTimeout(openTimerRef.current);
+                    openTimerRef.current = null;
+                  }
+                  return;
+                }
                 if (openTimerRef.current !== null) {
                   window.clearTimeout(openTimerRef.current);
-                  openTimerRef.current = null;
                 }
-                return;
+                const delay = activeSubmenu ? 150 : 50;
+                openTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(submenuId);
+                  setActiveNestedSubmenu(null);
+                  openTimerRef.current = null;
+                }, delay);
               }
-              if (openTimerRef.current !== null) {
-                window.clearTimeout(openTimerRef.current);
-              }
-              // Защита безопасного перехода: если другое подменю уже открыто,
-              // переключаемся с небольшой задержкой (hover-intent 150мс),
-              // чтобы диагональный транзит мыши не ломал текущее открытое подменю
-              const delay = activeSubmenu ? 150 : 50;
-              openTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(submenuId);
-                openTimerRef.current = null;
-              }, delay);
             }}
             onMouseLeave={() => {
               if (performance.now() < styleSwitchGuardUntilRef.current) {
                 return;
               }
-              if (openTimerRef.current !== null) {
-                window.clearTimeout(openTimerRef.current);
-                openTimerRef.current = null;
+              if (isNestedSubmenu) {
+                if (nestedOpenTimerRef.current !== null) {
+                  window.clearTimeout(nestedOpenTimerRef.current);
+                  nestedOpenTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 200);
+              } else {
+                if (openTimerRef.current !== null) {
+                  window.clearTimeout(openTimerRef.current);
+                  openTimerRef.current = null;
+                }
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                }
+                closeTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
+                  closeTimerRef.current = null;
+                }, 250);
               }
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-              }
-              closeTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(null);
-                closeTimerRef.current = null;
-              }, 250);
             }}
             >
             <button
@@ -1134,17 +1263,22 @@ export function ContextMenu({
               aria-haspopup="menu"
               aria-expanded={isSubmenuOpen}
               className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""} ${
-                isRightScreenEdge ? "context-menu__item--submenu-left" : ""
-              }`}
+                item.active ? "context-menu__item--active" : ""
+              } ${isLeftPosition ? "context-menu__item--submenu-left" : ""}`}
               onClick={item.action}
               >
-              <span className="context-menu__item-icon">
-                {item.icon}
-              </span>
-              <span className="context-menu__item-label">
+              {item.icon && (
+                <span className="context-menu__item-icon">
+                  {item.icon}
+                </span>
+              )}
+              <span className="context-menu__item-label context-menu__item-label--truncate">
                 {item.label}
               </span>
-              <ChevronRight size={15} style={{ opacity: 0.5 }} />
+              {item.active && item.indicator === "dot" && (
+                <span className="context-menu__radio-dot" aria-hidden="true" style={{ marginRight: 6 }} />
+              )}
+              <ChevronRight size={15} style={{ opacity: 0.5, marginLeft: item.active && item.indicator === "dot" ? 0 : "auto" }} />
             </button>
 
             {isSubmenuOpen && item.children && (
@@ -1157,7 +1291,7 @@ export function ContextMenu({
                     : "context-menu__submenu--solid"
                 } ${
                   item.submenuClassName || ""
-                } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
+                } ${isLeftPosition ? "context-menu__submenu--left" : ""} ${
                   isBottomHalf ? "context-menu__submenu--bottom" : ""
                 }`}
                 onMouseEnter={() => {
@@ -1168,6 +1302,14 @@ export function ContextMenu({
                   if (openTimerRef.current !== null) {
                     window.clearTimeout(openTimerRef.current);
                     openTimerRef.current = null;
+                  }
+                  if (nestedCloseTimerRef.current !== null) {
+                    window.clearTimeout(nestedCloseTimerRef.current);
+                    nestedCloseTimerRef.current = null;
+                  }
+                  if (nestedOpenTimerRef.current !== null) {
+                    window.clearTimeout(nestedOpenTimerRef.current);
+                    nestedOpenTimerRef.current = null;
                   }
                 }}
                 >
@@ -1184,10 +1326,10 @@ export function ContextMenu({
                             {group.header}
                           </div>
                         )}
-                        {group.items.map((child, ci) => renderItem(child, ci, true))}
+                        {group.items.map((child, ci) => renderItem(child, ci, depth + 1, group.items.length))}
                       </div>
                     ))
-                  : item.children.map((child, ci) => renderItem(child, ci, true))}
+                  : item.children.map((child, ci) => renderItem(child, ci, depth + 1, item.children!.length))}
               </div>
             )}
           </div>
@@ -1216,17 +1358,36 @@ export function ContextMenu({
               window.clearTimeout(openTimerRef.current);
               openTimerRef.current = null;
             }
-            if (!isSubmenuChild) {
+            if (depth === 0) {
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
               }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
+                setActiveNestedSubmenu(null);
                 closeTimerRef.current = null;
               }, 250);
-            } else if (closeTimerRef.current !== null) {
-              window.clearTimeout(closeTimerRef.current);
-              closeTimerRef.current = null;
+            } else if (depth === 1) {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
+              }
+              if (nestedCloseTimerRef.current !== null) {
+                window.clearTimeout(nestedCloseTimerRef.current);
+              }
+              nestedCloseTimerRef.current = window.setTimeout(() => {
+                setActiveNestedSubmenu(null);
+                nestedCloseTimerRef.current = null;
+              }, 150);
+            } else {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
+              }
+              if (nestedCloseTimerRef.current !== null) {
+                window.clearTimeout(nestedCloseTimerRef.current);
+                nestedCloseTimerRef.current = null;
+              }
             }
           }}
           >
@@ -1253,7 +1414,7 @@ export function ContextMenu({
         </button>
       );
     },
-    [activeSubmenu, isRightScreenEdge, interactiveItemCount, dict.controls.downloadAudio, controlBarStyle]
+    [activeSubmenu, activeNestedSubmenu, isRightScreenEdge, isRightScreenEdgeForNested, interactiveItemCount, dict.controls.downloadAudio, controlBarStyle]
   );
 
   const isCapsule = controlBarStyle === "capsule";
@@ -1289,16 +1450,16 @@ export function ContextMenu({
               )}
               {group.items.map((item) => {
                 const itemIdx = renderedItemCount++;
-                return renderItem(item, itemIdx, false);
+                return renderItem(item, itemIdx, 0);
               })}
             </div>
           ))
         : menuItems.map((item, rawIndex) => {
             if (item.type === "divider" || item.type === "header") {
-              return renderItem(item, rawIndex, false);
+              return renderItem(item, rawIndex, 0);
             }
             const itemIdx = renderedItemCount++;
-            return renderItem(item, itemIdx, false);
+            return renderItem(item, itemIdx, 0);
           })}
     </MotionSurface>
   );

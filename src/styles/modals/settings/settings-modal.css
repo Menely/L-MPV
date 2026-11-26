@@ -845,9 +845,9 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .settings-footer__icon-btn {
-  width: 22px;
-  height: 22px;
-  background: transparent;
+  width: 24px;
+  height: 24px;
+  background: transparent !important;
   border: none;
   padding: 0;
   cursor: pointer;
@@ -857,8 +857,26 @@ html.no-animations .color-circle--palette { will-change: auto; }
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  box-shadow: none !important;
   transition: color var(--t-fast) var(--ease-smooth),
-              background-color var(--t-fast) var(--ease-smooth);
+              filter var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-smooth);
+}
+
+.settings-footer__icon-btn:hover:not(:disabled) {
+  background: transparent !important;
+  color: var(--accent-text, #ffffff) !important;
+  filter: drop-shadow(0 0 6px var(--accent-glow, rgba(127, 199, 255, 0.45)));
+  box-shadow: none !important;
+  transform: translateY(-0.5px);
+}
+
+.settings-footer__icon-btn:hover:not(:disabled) > svg {
+  color: var(--accent-text, #ffffff) !important;
+}
+
+.settings-footer__icon-btn:active:not(:disabled) {
+  transform: translateY(0.5px) scale(0.95);
 }
 
 .settings-footer__title {

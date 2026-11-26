@@ -831,7 +831,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <button
             type="button"
             onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-            className="settings-footer__icon-btn hover-bright"
+            className="settings-footer__icon-btn"
             title={dict.settings.integration.githubTooltip}
           >
             <GithubIcon size={20} />
@@ -840,7 +840,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           <button
             type="button"
             onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-            className="settings-footer__icon-btn hover-bright"
+            className="settings-footer__icon-btn"
             title={dict.settings.integration.telegramTooltip}
           >
             <TelegramIcon size={20} />

@@ -97,7 +97,7 @@
     .mediainfo-floating-window__btn,
     .mediainfo-standalone__btn-icon, .mediainfo-standalone__action-btn--icon,
     .update-card__action-btn, .playlist-drawer__action-btn,
-    .modal__close, .track-popover__icon-btn, .settings-footer__icon-btn):hover:not(:disabled):not(.titlebar__btn--close):not(.mediainfo-standalone__control-btn--close) {
+    .modal__close, .track-popover__icon-btn):hover:not(:disabled):not(.titlebar__btn--close):not(.mediainfo-standalone__control-btn--close) {
   background: var(--action-hover-veil) !important;
   color: var(--accent-text) !important;
   filter: none !important;
@@ -107,7 +107,7 @@
     .mediainfo-floating-window__btn,
     .mediainfo-standalone__btn-icon, .mediainfo-standalone__action-btn--icon,
     .update-card__action-btn, .playlist-drawer__action-btn,
-    .modal__close, .track-popover__icon-btn, .settings-footer__icon-btn):hover:not(:disabled):not(.titlebar__btn--close):not(.mediainfo-standalone__control-btn--close) > svg {
+    .modal__close, .track-popover__icon-btn):hover:not(:disabled):not(.titlebar__btn--close):not(.mediainfo-standalone__control-btn--close) > svg {
   color: var(--accent-text) !important;
 }
 

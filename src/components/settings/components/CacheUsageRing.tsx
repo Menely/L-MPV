@@ -27,7 +27,6 @@ export function CacheUsageRing({
   hoveredId?: string | null;
   onHoverSlice?: (id: string | null) => void;
 }) {
-  let offset = 0;
   const positive = slices.filter((slice) => slice.bytes > 0);
   const capsule = cacheRingSegments(positive.map((slice) => slice.bytes));
 
@@ -51,39 +50,47 @@ export function CacheUsageRing({
         )}
 
         {/* Обычный режим (Modern / Classic) */}
-        {positive.map((slice) => {
-          const start = offset;
-          const size = (slice.bytes / total) * 100;
-          offset += size;
+        {(() => {
+          const count = positive.length;
+          const minPct = count > 1 ? Math.min(1.2, 25 / count) : 0;
+          const poolPct = 100 - count * minPct;
+          let ringOffset = 0;
 
-          const midPercent = start + size / 2;
-          const midAngleDeg = (midPercent / 100) * 360;
-          const rad = (midAngleDeg * Math.PI) / 180;
-          const isPopped = hoveredId === slice.id;
-          const dx = isPopped ? Math.cos(rad) * POP_OUT_DISTANCE : 0;
-          const dy = isPopped ? Math.sin(rad) * POP_OUT_DISTANCE : 0;
+          return positive.map((slice) => {
+            const start = ringOffset;
+            const proportional = total > 0 ? (slice.bytes / total) * poolPct : 0;
+            const size = count > 1 ? minPct + proportional : 100;
+            ringOffset += size;
 
-          return (
-            <circle
-              key={slice.id}
-              cx="88"
-              cy="88"
-              r="75"
-              pathLength="100"
-              className={`system-cache-ring__segment ${isPopped ? "is-popped" : ""}`}
-              onMouseEnter={() => onHoverSlice?.(slice.id)}
-              style={
-                {
-                  stroke: slice.color,
-                  "--segment-size": size,
-                  "--segment-offset": start,
-                  "--pop-color": slice.color,
-                  transform: isPopped ? `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)` : undefined,
-                } as CSSProperties
-              }
-            />
-          );
-        })}
+            const midPercent = start + size / 2;
+            const midAngleDeg = (midPercent / 100) * 360;
+            const rad = (midAngleDeg * Math.PI) / 180;
+            const isPopped = hoveredId === slice.id;
+            const dx = isPopped ? Math.cos(rad) * POP_OUT_DISTANCE : 0;
+            const dy = isPopped ? Math.sin(rad) * POP_OUT_DISTANCE : 0;
+
+            return (
+              <circle
+                key={slice.id}
+                cx="88"
+                cy="88"
+                r="75"
+                pathLength="100"
+                className={`system-cache-ring__segment ${isPopped ? "is-popped" : ""}`}
+                onMouseEnter={() => onHoverSlice?.(slice.id)}
+                style={
+                  {
+                    stroke: slice.color,
+                    "--segment-size": size,
+                    "--segment-offset": start,
+                    "--pop-color": slice.color,
+                    transform: isPopped ? `translate(${dx.toFixed(2)}px, ${dy.toFixed(2)}px)` : undefined,
+                  } as CSSProperties
+                }
+              />
+            );
+          });
+        })()}
 
         {/* Капсульный режим (Capsule) */}
         {capsule.map((segment) => {
@@ -143,7 +150,11 @@ export function CacheUsageRing({
               {activeSlice.formattedSize || value}
             </strong>
             <span className="system-cache-ring__center-pct">
-              {total > 0 ? `${((activeSlice.bytes / total) * 100).toFixed(1)}%` : ""}
+              {total > 0
+                ? (activeSlice.bytes / total) * 100 < 0.05
+                  ? "< 0.1%"
+                  : `${((activeSlice.bytes / total) * 100).toFixed(1)}%`
+                : ""}
             </span>
           </>
         ) : (

@@ -725,8 +725,10 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       const isClassic = controlBarStyle !== "capsule";
       return {
         type: "submenu",
+        id: "control_bar_style",
         icon: STATIC_ICONS.controlBarStyle,
         label: dict.settings.cmenuUI.barStyle,
+        submenuClassName: "context-menu__submenu--style context-menu__submenu--has-nested",
         children: [
           { type: "header" as const, label: dict.settings.appearance.interfaceTheme },
           {
@@ -752,33 +754,33 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             action: () => handleSelectControlBarStyle("capsule", "Capsule"),
           },
           {
-            type: "item" as const,
+            type: "submenu" as const,
+            id: "classic_style",
             label: "Classic",
             active: isClassic,
             indicator: "dot" as const,
-            action: () => handleSelectControlBarStyle(classicStyle, "Classic"),
+            action: () =>
+              handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
+            submenuClassName: "context-menu__submenu--classic-style",
+            children: [
+              {
+                type: "item" as const,
+                label: dict.settings.appearance.panelFloating,
+                active: isClassic && classicStyle === "modern",
+                indicator: "dot" as const,
+                action: () =>
+                  handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
+              },
+              {
+                type: "item" as const,
+                label: dict.settings.appearance.panelDocked,
+                active: isClassic && classicStyle === "docked",
+                indicator: "dot" as const,
+                action: () =>
+                  handleSelectControlBarStyle("docked", dict.settings.appearance.panelDocked),
+              },
+            ],
           },
-          ...(isClassic
-            ? [
-                { type: "header" as const, label: dict.settings.appearance.panelPlacement },
-                {
-                  type: "item" as const,
-                  label: dict.settings.appearance.panelFloating,
-                  active: controlBarStyle === "modern",
-                  indicator: "dot" as const,
-                  action: () =>
-                    handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
-                },
-                {
-                  type: "item" as const,
-                  label: dict.settings.appearance.panelDocked,
-                  active: controlBarStyle === "docked",
-                  indicator: "dot" as const,
-                  action: () =>
-                    handleSelectControlBarStyle("docked", dict.settings.appearance.panelDocked),
-                },
-              ]
-            : []),
         ],
       };
     },

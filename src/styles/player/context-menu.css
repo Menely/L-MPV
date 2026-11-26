@@ -302,6 +302,26 @@
   max-width: 320px;
 }
 
+/* Контейнеры подменю с вложенными подменю не обрезают дочерние выпадающие окна */
+.context-menu__submenu--has-nested,
+.context-menu__submenu--has-nested .context-menu__group {
+  overflow: visible !important;
+}
+
+/* Компактное окно выбора темы и стиля плеера */
+.context-menu__submenu--style {
+  min-width: 155px;
+  width: max-content;
+  max-width: 210px;
+}
+
+/* Компактное окно выбора вариантов классического стиля (Плавающая / Прикреплённая) */
+.context-menu__submenu--classic-style {
+  min-width: 150px;
+  width: max-content;
+  max-width: 210px;
+}
+
 .context-menu__item--disabled {
   opacity: 0.55;
   cursor: default;
