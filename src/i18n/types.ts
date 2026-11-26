@@ -40,6 +40,8 @@ export interface TranslationDict {
     externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
+    cancelDownload: string;
+    downloadCompleted: string;
     audioFilter: string;
     downloadingAudio: string;
     downloadingSubtitle: string;

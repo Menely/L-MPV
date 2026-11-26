@@ -194,6 +194,13 @@
   color: var(--accent-text) !important;
 }
 
+.track-popover--capsule .track-popover__item--liquid,
+.track-popover--capsule .track-popover__item--liquid:hover,
+.track-popover--capsule .track-popover__item--active.track-popover__item--liquid,
+.track-popover--capsule .track-popover__item--active.track-popover__item--liquid:hover {
+  background: transparent !important;
+}
+
 /* Кнопка скачивания: тот же «голый» дизайн, что и в остальных стилях
    (базовое правило .track-download-btn), в «Капсуле» — крупнее на 4px. */
 .track-popover--capsule .track-download-btn {
@@ -215,6 +222,20 @@
   background: var(--hover-veil-float) !important;
   color: var(--accent-text) !important;
   border-color: transparent !important;
+}
+
+.track-popover--capsule .track-download-btn.track-download-btn--progress:hover:not(:disabled) {
+  background: var(--danger-surface) !important;
+  color: var(--danger-text) !important;
+  border-color: transparent !important;
+}
+
+.track-popover--capsule .track-download-btn__percent {
+  color: var(--accent-text) !important;
+}
+
+.track-popover--capsule .track-download-btn__done {
+  color: var(--success-text) !important;
 }
 
 /* Разделитель между «Выключить» и списком в монолитном режиме скрывается */

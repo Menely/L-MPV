@@ -35,6 +35,8 @@ export const en: TranslationDict = {
     externalTrackTooltip: "External track",
     downloadAudio: "Download audio track",
     downloadSubtitle: "Download subtitles",
+    cancelDownload: "Cancel download",
+    downloadCompleted: "Done",
     audioFilter: "Audio files",
     downloadingAudio: "Downloading audio track…",
     downloadingSubtitle: "Downloading subtitles…",

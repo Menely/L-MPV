@@ -26,7 +26,10 @@ import {
   Search,
   Flame,
 } from "lucide-react";
-import type { TrackInfo } from "../../../contexts/PlayerStateContext";
+import type {
+  TrackDownloadState,
+  TrackInfo,
+} from "../../../contexts/PlayerStateContext";
 import type { TranslationDict } from "../../../i18n/types";
 import type { LayoutEntry } from "../../../utils/contextMenuLayout";
 import type { RecentFile } from "../../../utils/recentFilesUtils";
@@ -64,7 +67,10 @@ export interface MenuItem {
   submenuClassName?: string;
   track?: TrackInfo;
   onDownload?: () => void;
+  onCancelDownload?: () => void;
   isDownloading?: boolean;
+  isDownloadCompleted?: boolean;
+  downloadProgress?: number;
   downloadTitle?: string;
   isExternal?: boolean;
   externalTooltip?: string;
@@ -124,6 +130,7 @@ export interface ContextMenuBuilderParams {
   audioTracks: TrackInfo[];
   subTracks: TrackInfo[];
   downloadingTrackKey: string | null;
+  trackDownloadState?: TrackDownloadState | null;
   ambientMode: AmbientMode;
   currentSpeed: number;
   currentRotation: number;
@@ -161,6 +168,7 @@ export interface ContextMenuBuilderParams {
   handleSetRotation: (deg: number) => void;
   handleSetAmbientMode: (mode: AmbientMode) => void;
   handleDownloadTrack: (track: TrackInfo) => void;
+  handleCancelDownloadTrack?: (trackKey: string) => void;
   handleToggleAlwaysOnTop: () => void;
   handleTakeScreenshot: () => void;
   handleSetRepeatMode: (mode: 0 | 1 | 2) => void;
@@ -211,6 +219,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     audioTracks,
     subTracks,
     downloadingTrackKey,
+    trackDownloadState,
     ambientMode,
     currentSpeed,
     currentRotation,
@@ -246,6 +255,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleSetRotation,
     handleSetAmbientMode,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
     handleToggleAlwaysOnTop,
     handleTakeScreenshot,
     handleSetRepeatMode,
@@ -329,6 +339,8 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
               const trimmed = t.title?.trim();
               const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.trackLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.trackLabel(t.id, ""));
               const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
+              const rowKey = `audio-${t.id}`;
+              const isMatched = trackDownloadState?.trackKey === rowKey;
               return {
                 type: "track" as const,
                 track: t,
@@ -338,7 +350,13 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
                 indicator: "dot" as const,
                 action: () => handleSelectAudio(t.id),
                 onDownload: () => handleDownloadTrack(t),
-                isDownloading: downloadingTrackKey === `audio-${t.id}`,
+                onCancelDownload: () => handleCancelDownloadTrack?.(rowKey),
+                isDownloading:
+                  (isMatched && trackDownloadState?.status === "running") ||
+                  downloadingTrackKey === rowKey,
+                isDownloadCompleted:
+                  isMatched && trackDownloadState?.status === "completed",
+                downloadProgress: isMatched ? trackDownloadState?.progress ?? 0 : 0,
                 downloadTitle: dict.settings.cmenuUI.downloadAudio,
                 isExternal: Boolean(t.external),
                 externalTooltip: dict.controls.externalTrackTooltip,
@@ -374,6 +392,8 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           const trimmed = t.title?.trim();
           const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.subLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.subLabel(t.id, ""));
           const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
+          const rowKey = `sub-${t.id}`;
+          const isMatched = trackDownloadState?.trackKey === rowKey;
           return {
             type: "track" as const,
             track: t,
@@ -383,7 +403,13 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             indicator: "dot" as const,
             action: () => handleSelectSub(t.id),
             onDownload: () => handleDownloadTrack(t),
-            isDownloading: downloadingTrackKey === `sub-${t.id}`,
+            onCancelDownload: () => handleCancelDownloadTrack?.(rowKey),
+            isDownloading:
+              (isMatched && trackDownloadState?.status === "running") ||
+              downloadingTrackKey === rowKey,
+            isDownloadCompleted:
+              isMatched && trackDownloadState?.status === "completed",
+            downloadProgress: isMatched ? trackDownloadState?.progress ?? 0 : 0,
             downloadTitle: dict.settings.cmenuUI.downloadSub,
             isExternal: Boolean(t.external),
             externalTooltip: dict.controls.externalTrackTooltip,

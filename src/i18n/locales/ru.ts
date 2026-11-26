@@ -34,6 +34,8 @@ export const ru: TranslationDict = {
     externalTrackTooltip: "Внешняя дорожка",
     downloadAudio: "Скачать аудиодорожку",
     downloadSubtitle: "Скачать субтитры",
+    cancelDownload: "Отменить скачивание",
+    downloadCompleted: "Готово",
     audioFilter: "Аудиофайлы",
     downloadingAudio: "Идёт скачивание аудиодорожки…",
     downloadingSubtitle: "Идёт скачивание субтитров…",

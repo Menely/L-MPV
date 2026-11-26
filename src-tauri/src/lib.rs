@@ -260,6 +260,7 @@ pub fn run() {
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,
+            commands::cancel_track_extract,
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
             // Подсветка полос (Blur)

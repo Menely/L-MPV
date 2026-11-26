@@ -6,7 +6,11 @@ import { showOsd } from "../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
-import { ChevronRight, Download, Loader2, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import {
+  TrackDownloadActionButton,
+  TrackLiquidProgressFill,
+} from "./controls/track-popover/TrackDownloadVisuals";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   type TimeDisplayPosition,
@@ -157,7 +161,9 @@ export function ContextMenu({
     selectSubTrack,
     disableSubtitles,
     downloadingTrackKey,
+    trackDownloadState,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
   } = usePlayerState();
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
@@ -823,6 +829,7 @@ export function ContextMenu({
         audioTracks,
         subTracks,
         downloadingTrackKey,
+        trackDownloadState,
         ambientMode,
         currentSpeed,
         currentRotation,
@@ -858,6 +865,7 @@ export function ContextMenu({
         handleSetRotation,
         handleSetAmbientMode,
         handleDownloadTrack,
+        handleCancelDownloadTrack,
         handleToggleAlwaysOnTop,
         handleTakeScreenshot,
         handleSetRepeatMode,
@@ -884,6 +892,7 @@ export function ContextMenu({
       audioTracks,
       subTracks,
       downloadingTrackKey,
+      trackDownloadState,
       ambientMode,
       currentSpeed,
       currentRotation,
@@ -918,6 +927,7 @@ export function ContextMenu({
       handleSetRotation,
       handleSetAmbientMode,
       handleDownloadTrack,
+      handleCancelDownloadTrack,
       handleToggleAlwaysOnTop,
       handleTakeScreenshot,
       handleSetRepeatMode,
@@ -1115,10 +1125,20 @@ export function ContextMenu({
               aria-checked={Boolean(item.active)}
               className={`context-menu__track-btn ${
                 item.active ? "context-menu__track-btn--active" : ""
+              } ${
+                item.isDownloading || item.isDownloadCompleted
+                  ? "context-menu__track-btn--liquid"
+                  : ""
               }`}
               onClick={item.action}
               title={item.title || item.label}
               >
+              {(item.isDownloading || item.isDownloadCompleted) && (
+                <TrackLiquidProgressFill
+                  progress={item.downloadProgress ?? 0}
+                  status={item.isDownloadCompleted ? "completed" : "running"}
+                />
+              )}
               <span className="context-menu__track-main">
                 <span className="context-menu__track-title">{item.label}</span>
                 {item.isExternal && (
@@ -1138,23 +1158,22 @@ export function ContextMenu({
               </span>
             </button>
             {item.onDownload && (
-              <button
-                type="button"
-                className="track-download-btn"
-                aria-label={item.downloadTitle || dict.controls.downloadAudio}
-                title={item.downloadTitle || dict.controls.downloadAudio}
-                disabled={item.isDownloading}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  item.onDownload?.();
-                }}
-                >
-                {item.isDownloading ? (
-                  <Loader2 size={13} className="spin-animation" />
-                ) : (
-                  <Download size={13} />
-                )}
-              </button>
+              <TrackDownloadActionButton
+                downloadLabel={item.downloadTitle || dict.controls.downloadAudio}
+                cancelLabel={dict.controls.cancelDownload}
+                completedLabel={dict.controls.downloadCompleted}
+                status={
+                  item.isDownloading
+                    ? "running"
+                    : item.isDownloadCompleted
+                    ? "completed"
+                    : "idle"
+                }
+                progress={item.downloadProgress ?? 0}
+                iconSize={13}
+                onDownload={item.onDownload}
+                onCancel={item.onCancelDownload}
+              />
             )}
           </div>
         );

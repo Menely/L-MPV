@@ -29,6 +29,21 @@ html[data-interface-theme="glass"] .context-menu .track-download-btn:hover:not(:
   color: var(--accent-text) !important;
 }
 
+html[data-interface-theme="glass"] .player-controls-wrapper .track-download-btn.track-download-btn--progress:hover:not(:disabled),
+html[data-interface-theme="glass"] .context-menu .track-download-btn.track-download-btn--progress:hover:not(:disabled) {
+  background: var(--danger-surface) !important;
+  color: var(--danger-text) !important;
+}
+
+/* Жидкая лента прогресса в Liquid Glass: точное совпадение с плоским акцентным фоном наведения (--hover-veil-float: 0.22) */
+html[data-interface-theme="glass"] .track-liquid-fill {
+  --track-liquid-opacity: 0.22;
+}
+
+html[data-interface-theme="glass"] .track-liquid-fill__bar {
+  color: rgb(var(--glass-accent-rgb, 127, 199, 255));
+}
+
 html[data-interface-theme="glass"] .navigation-popover button:hover:not(:disabled) > svg,
 html[data-interface-theme="glass"] .navigation-popover button[aria-selected="true"],
 html[data-interface-theme="glass"] .navigation-popover button[aria-selected="true"] > svg {

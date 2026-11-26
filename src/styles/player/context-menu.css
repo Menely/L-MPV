@@ -342,6 +342,8 @@
 }
 
 .context-menu__track-btn {
+  position: relative;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -365,6 +367,8 @@
 /* Кнопка скачивания дорожки в подменю контекстного меню.
    Тот же «голый» дизайн, что и в окнах дорожек: без карточки и рамки. */
 .context-menu .track-download-btn {
+  position: relative;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -395,13 +399,18 @@
   border-color: transparent;
 }
 
+.context-menu .track-download-btn.track-download-btn--progress:hover:not(:disabled) {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border-color: transparent;
+}
+
 .context-menu .track-download-btn:active:not(:disabled) {
   transform: scale(0.92);
 }
 
 .context-menu .track-download-btn:disabled {
-  opacity: 0.6;
-  cursor: wait;
+  cursor: default;
 }
 
 .context-menu__track-btn:hover {
@@ -419,7 +428,16 @@
   color: var(--accent-text);
 }
 
+.context-menu__track-btn--liquid,
+.context-menu__track-btn--liquid:hover,
+.context-menu__track-btn--active.context-menu__track-btn--liquid,
+.context-menu__track-btn--active.context-menu__track-btn--liquid:hover {
+  background: transparent !important;
+}
+
 .context-menu__track-main {
+  position: relative;
+  z-index: 2;
   display: flex;
   align-items: center;
   gap: 6px;
@@ -440,6 +458,8 @@
 }
 
 .context-menu__track-check {
+  position: relative;
+  z-index: 2;
   width: 16px;
   height: 16px;
   display: inline-flex;

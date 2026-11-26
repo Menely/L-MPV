@@ -126,9 +126,11 @@ export function PlayerControls({
     isFullscreen,
     toggleFullscreen,
     downloadingTrackKey,
+    trackDownloadState,
     isAudioDownloading,
     isSubDownloading,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
   } = usePlayerState();
   const volume = contextVolume;
   const [isControlsHovered, setIsControlsHovered] = useState(false);
@@ -682,11 +684,13 @@ export function PlayerControls({
         controlBarStyle={controlBarStyle}
         tracks={tracks}
         downloadingTrackKey={downloadingTrackKey}
+        trackDownloadState={trackDownloadState}
         onSelectAudioTrack={selectAudioTrack}
         onSelectSubTrack={selectSubTrack}
         onDisableSubtitles={disableSubtitles}
         onClose={closePopover}
         onDownloadTrack={handleDownloadTrack}
+        onCancelDownloadTrack={handleCancelDownloadTrack}
         onOpenSubtitlesSearch={onOpenSubtitlesSearch}
       />}
       {activePopover === "speed" && (
