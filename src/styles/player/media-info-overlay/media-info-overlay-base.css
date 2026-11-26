@@ -68,8 +68,10 @@
 }
 
 .media-info__title {
+  display: block;
   font-size: var(--fs-xs);
   font-weight: 700;
+  line-height: 1;
   color: var(--accent-text);
   text-transform: uppercase;
   letter-spacing: 0.8px;
@@ -110,7 +112,7 @@
   padding: 0 8px;
   font-size: var(--fs-2xs, 11px);
   font-weight: 500;
-  line-height: 1.2;
+  line-height: 1;
   cursor: pointer;
   background: transparent;
   color: var(--text-secondary);
@@ -140,6 +142,10 @@
 }
 
 .media-info__tab-text {
+  display: block;
+  line-height: 1;
+  padding-block: 4px;
+  margin-block: -4px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

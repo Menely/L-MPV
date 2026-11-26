@@ -1087,6 +1087,7 @@ export interface TranslationDict {
       updateFound: (version: string) => string;
       checkFailed: string;
       portableEdition: string;
+      versionLabel: string;
       pickFolderTitle: string;
       fallbackReleaseNotes: (version: string) => string;
     };

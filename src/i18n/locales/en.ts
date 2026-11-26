@@ -1276,6 +1276,7 @@ export const en: TranslationDict = {
       updateFound: (version: string) => `Version ${version} available`,
       checkFailed: "Failed to check updates",
       portableEdition: "Portable Edition",
+      versionLabel: "Version",
       pickFolderTitle: "Select the folder where mpv.exe is located",
       fallbackReleaseNotes: (version: string) => `L-MPV update v${version} released`
     }

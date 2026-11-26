@@ -98,38 +98,39 @@ html[data-interface-theme="glass"] .settings-side-panel__nav-btn--active:hover {
 }
 
 /* Кнопки футера настроек */
+html[data-interface-theme="glass"] .settings-footer__divider {
+  background: rgba(255, 255, 255, 0.18);
+}
+
 html[data-interface-theme="glass"] .settings-footer__btn--check,
-html[data-interface-theme="glass"] .settings-footer__status {
-  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
-  border-color: rgba(255, 255, 255, 0.16);
-  color: rgba(255, 255, 255, 0.92);
+html[data-interface-theme="glass"] .settings-footer__status,
+html[data-interface-theme="glass"] .settings-card-btn--version {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+  color: rgba(255, 255, 255, 0.86);
 }
 
-html[data-interface-theme="glass"] .settings-footer__btn--check:hover {
-  background: var(--hover-veil-float);
-  border-color: var(--border-pill-hover);
-  color: #ffffff;
-}
-
-html[data-interface-theme="glass"] .settings-footer__btn--version {
-  background: var(--surface-accent-subtle);
+html[data-interface-theme="glass"] .settings-footer__btn--check:hover:not(:disabled),
+html[data-interface-theme="glass"] .settings-footer__btn--check:disabled,
+html[data-interface-theme="glass"] .settings-card-btn--version:hover:not(:disabled) {
+  background: var(--action-hover-veil);
+  border-color: transparent;
+  box-shadow: none;
   color: var(--accent-text);
-}
-
-html[data-interface-theme="glass"] .settings-footer__btn--version:hover {
-  background: var(--surface-accent-hover);
-  border-color: var(--border-pill-hover);
 }
 
 html[data-interface-theme="glass"] .settings-footer__btn--update {
   background: var(--surface-accent-subtle);
-  border-color: var(--border-pill-hover);
+  border-color: transparent;
+  box-shadow: none;
   color: var(--accent-text);
 }
 
-html[data-interface-theme="glass"] .settings-footer__btn--update:hover {
-  background: var(--surface-accent-hover);
-  color: #ffffff;
+html[data-interface-theme="glass"] .settings-footer__btn--update:hover:not(:disabled) {
+  background: var(--action-hover-veil);
+  border-color: transparent;
+  color: var(--accent-text);
 }
 
 /* Аккордеоны и вложенные карточки секций: лёгкое матовое стекло с усиленным размытием без теней */

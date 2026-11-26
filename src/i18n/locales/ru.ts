@@ -1280,6 +1280,7 @@ export const ru: TranslationDict = {
       updateFound: (version: string) => `Доступна версия ${version}`,
       checkFailed: "Не удалось проверить обновления",
       portableEdition: "Portable-редакция",
+      versionLabel: "Версия",
       pickFolderTitle: "Выберите папку, где расположен mpv.exe",
       fallbackReleaseNotes: (version: string) => `Вышло обновление L-MPV v${version}`
     }

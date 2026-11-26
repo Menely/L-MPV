@@ -53,8 +53,10 @@
 }
 
 .media-info-overlay--capsule .media-info__title {
+  display: block;
   font-size: 12.5px;
   font-weight: 600;
+  line-height: 1;
   color: var(--text-primary);
   text-transform: none;
   letter-spacing: 0.2px;
@@ -91,6 +93,7 @@
   padding: 0 8px !important;
   font-size: var(--fs-xs, 12px) !important;
   font-weight: 500 !important;
+  line-height: 1 !important;
   color: var(--text-secondary) !important;
   border-radius: max(0px, calc(var(--radius-controls, 16px) - 4px)) !important;
   cursor: pointer !important;
@@ -116,11 +119,23 @@
 }
 
 .media-info-overlay--capsule .media-info__tab-text {
+  display: block !important;
   font-size: 11px !important;
+  line-height: 1 !important;
+  padding-block: 4px !important;
+  margin-block: -4px !important;
   white-space: nowrap !important;
   overflow: hidden !important;
   text-overflow: ellipsis !important;
   text-align: center !important;
+}
+
+@supports (text-box-trim: trim-both) {
+  .media-info__title,
+  .media-info__tab-text {
+    text-box-trim: trim-both;
+    text-box-edge: cap alphabetic;
+  }
 }
 
 /* Островок 3: Кнопка закрытия */

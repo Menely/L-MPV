@@ -484,7 +484,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             aria-label={useRussian ? "Свернуть" : "Minimize"}
             onClick={handleMinimize}
           >
-            <Minus size={13} />
+            <Minus size={13} strokeWidth={2.8} />
           </button>
           <button
             type="button"
@@ -492,7 +492,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             aria-label={isMaximized ? (useRussian ? "Восстановить" : "Restore") : (useRussian ? "Развернуть" : "Maximize")}
             onClick={handleToggleMaximize}
           >
-            {isMaximized ? <Minimize2 size={12} /> : <Square size={11} />}
+            {isMaximized ? <Minimize2 size={12} strokeWidth={2.8} /> : <Square size={11} strokeWidth={2.8} />}
           </button>
           <button
             type="button"
@@ -500,7 +500,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             aria-label={useRussian ? "Закрыть" : "Close"}
             onClick={handleClose}
           >
-            <X size={16} strokeWidth={2} />
+            <X size={16} strokeWidth={2.8} />
           </button>
         </div>
       </div>

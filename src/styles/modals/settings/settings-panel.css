@@ -387,6 +387,19 @@ body.settings-open .player-controls-wrapper--docked {
   .settings-side-panel__scroll .controls-and-time-grid {
     grid-template-columns: 1fr !important;
   }
+
+  .settings-side-panel .settings-footer {
+    padding-inline: 10px;
+    gap: 8px;
+  }
+
+  .settings-side-panel .settings-footer__left {
+    gap: 4px;
+  }
+
+  .settings-side-panel .settings-footer__edition {
+    font-size: 13px;
+  }
 }
 
 @media (max-width: 768px) {
