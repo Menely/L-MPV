@@ -500,8 +500,8 @@ html.no-animations .timeline__pulse {
 }
 
 .control-btn--play svg.control-btn__app-play-icon {
-  width: 29px;
-  height: 29px;
+  width: 32px;
+  height: 32px;
 }
 
 .control-btn--play:hover {
@@ -520,27 +520,20 @@ html.no-animations .timeline__pulse {
   transition: transform var(--t-fast) var(--ease-smooth);
 }
 
-/* Анимация переключения громкости (Mute/Unmute) — срабатывает только при смене иконки (key), не при каждом шаге громкости */
+/* Иконка громкости и полноэкранного режима с живым векторным морфингом */
 .volume-slider #btn-volume svg {
+  width: 19px;
+  height: 19px;
+  stroke-width: 2.35;
   display: block;
   flex-shrink: 0;
   transform-origin: center center;
-  animation: volumeIconPop var(--t-spring) var(--ease-spring-smooth);
 }
 
-@keyframes volumeIconPop {
-  0% {
-    opacity: 0.5;
-    transform: scale(0.92);
-  }
-  60% {
-    opacity: 1;
-    transform: scale(1.04);
-  }
-  100% {
-    opacity: 1;
-    transform: scale(1);
-  }
+.control-btn svg.control-btn__fullscreen-icon {
+  width: 20px;
+  height: 20px;
+  stroke-width: 2.45;
 }
 
 .control-btn--active {
@@ -852,8 +845,8 @@ html[data-glow="off"] .timeline__thumb {
     height: 20px;
   }
   .control-btn--play svg.control-btn__app-play-icon {
-    width: 25px;
-    height: 25px;
+    width: 28px;
+    height: 28px;
   }
 }
 

@@ -12,12 +12,6 @@ import {
   Redo,
   SkipBack,
   SkipForward,
-  Pause,
-  Volume1,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize as MinimizeIcon,
   AudioLines,
   Subtitles,
   Info,
@@ -26,13 +20,11 @@ import {
   Repeat,
   Repeat1,
   Shuffle,
-  Pin,
   Loader2,
   FastForward,
   FileText,
   AudioWaveform,
   MoreHorizontal,
-
 } from "lucide-react";
 import { Timeline } from "./Timeline";
 import {
@@ -66,7 +58,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
 } from "../../theme/controlBarStyle";
-import { getPlayerTheme } from "../../theme/liquidGlass/preferences";
+import { getPlayerTheme, type PlayerTheme } from "../../theme/liquidGlass/preferences";
 import {
   type UtilityButtonId,
   getSavedUtilityCards,
@@ -80,7 +72,16 @@ import {
   DockedControlsLayout,
   TrackPopovers,
 } from "./controls";
-import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon, AppPlayIcon } from "./controls";
+import {
+  SpeedPopover,
+  formatSpeedValue,
+  SPEED_PRESETS,
+  SpeedIcon,
+  PlayPauseMorphIcon,
+  VolumeMorphIcon,
+  FullscreenMorphIcon,
+  PinMorphIcon,
+} from "./controls";
 import { ControlsOverflow, type OverflowAction } from "./controls/ControlsOverflow";
 
 export function PlayerControls({
@@ -192,6 +193,7 @@ export function PlayerControls({
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
+  const [playerTheme, setPlayerThemeState] = useState<PlayerTheme>(() => getPlayerTheme());
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
     getSavedControlBarStyle(getPlayerTheme()),
   );
@@ -219,13 +221,17 @@ export function PlayerControls({
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
+      const activeTheme = getPlayerTheme();
+      setPlayerThemeState(activeTheme);
+      setControlBarStyle(getSavedControlBarStyle(activeTheme));
       setUtilityCards(getSavedUtilityCards());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
+    window.addEventListener('l-mpv-player-theme-changed', updateSetting);
     window.addEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
     return () => {
       window.removeEventListener('l-mpv-settings-changed', updateSetting);
+      window.removeEventListener('l-mpv-player-theme-changed', updateSetting);
       window.removeEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
     };
   }, []);
@@ -621,7 +627,7 @@ export function PlayerControls({
           ? {
               id: "always-on-top",
               label: dict.controls.alwaysOnTop,
-              icon: <Pin size={18} />,
+              icon: <PinMorphIcon pinned={isAlwaysOnTop} size={18} />,
               priority: "medium",
               onSelect: handleToggleAlwaysOnTop,
               active: isAlwaysOnTop,
@@ -832,13 +838,7 @@ export function PlayerControls({
         id="btn-volume"
         aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
       >
-        {volume === 0 ? (
-          <VolumeX key="vol-x" size={18} />
-        ) : volume < 50 ? (
-          <Volume1 key="vol-1" size={18} />
-        ) : (
-          <Volume2 key="vol-2" size={18} />
-        )}
+        <VolumeMorphIcon volume={volume} size={19} />
       </button>
       <div className="volume-slider__expandable">
         <input
@@ -905,11 +905,7 @@ export function PlayerControls({
         id="btn-play-pause"
         aria-label={paused ? dict.controls.play : dict.controls.pause}
       >
-        {paused ? (
-          <AppPlayIcon key="play-icon" size={28} className="control-btn__app-play-icon" />
-        ) : (
-          <Pause key="pause-icon" size={22} fill="currentColor" />
-        )}
+        <PlayPauseMorphIcon paused={paused} theme={playerTheme} />
       </button>
 
       {visibleButtons.seekButtons !== false && (
@@ -956,11 +952,7 @@ export function PlayerControls({
         id="btn-fullscreen"
         aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
       >
-        {isFullscreen ? (
-          <MinimizeIcon size={24} />
-        ) : (
-          <Maximize size={24} />
-        )}
+        <FullscreenMorphIcon isFullscreen={isFullscreen} size={20} />
       </button>
     ) : null
   );
@@ -1091,7 +1083,7 @@ export function PlayerControls({
             aria-label={dict.controls.alwaysOnTop}
             onClick={handleToggleAlwaysOnTop}
           >
-            <Pin size={18} />
+            <PinMorphIcon pinned={isAlwaysOnTop} size={18} />
           </button>
         ) : null;
       case "info":

@@ -1,5 +1,6 @@
 import { memo, useCallback } from "react";
-import { Copy, Check, Clock } from "lucide-react";
+import { Clock } from "lucide-react";
+import { CopyCheckMorphIcon } from "../common/CopyCheckMorphIcon";
 import { formatTime } from "../../utils/timeUtils";
 import { HighlightedText } from "./HighlightedText";
 import { SubtitleMetaBadges } from "./SubtitleMetaBadges";
@@ -212,7 +213,7 @@ export const SubtitleLineRow = memo(function SubtitleLineRow({
           className="hover-bright sub-line-copy-btn"
           title={dict.subtitlesSearch.copyLineText}
           >
-          {isCopied ? <Check size={13} /> : <Copy size={13} />}
+          <CopyCheckMorphIcon copied={isCopied} size={14} />
         </button>
       </div>
 

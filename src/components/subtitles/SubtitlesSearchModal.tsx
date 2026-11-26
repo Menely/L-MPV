@@ -456,7 +456,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
           copyTimerRef.current = setTimeout(
             () => setCopiedIndex(null),
-            1500
+            2000
           );
         })
         .catch((err) =>

@@ -1,4 +1,4 @@
-import { Volume2, VolumeX } from "lucide-react";
+import { VolumeMorphIcon } from "../controls/VolumeMorphIcon";
 
 interface VolumeOsdCardProps {
   volume: number;
@@ -20,11 +20,15 @@ export function VolumeOsdCard({ volume, label, closing }: VolumeOsdCardProps) {
       aria-atomic="true"
     >
       <div className="volume-feedback-osd__icon-slot">
-        {isMuted ? (
-          <VolumeX size={18} className="volume-feedback-osd__icon volume-feedback-osd__icon--muted" />
-        ) : (
-          <Volume2 size={18} className="volume-feedback-osd__icon volume-feedback-osd__icon--accent" />
-        )}
+        <VolumeMorphIcon
+          volume={volume}
+          size={19}
+          className={`volume-feedback-osd__icon ${
+            isMuted
+              ? "volume-feedback-osd__icon--muted"
+              : "volume-feedback-osd__icon--accent"
+          }`}
+        />
       </div>
       <div className="volume-feedback-osd__content">
         <div className="volume-feedback-osd__text">

@@ -3,7 +3,6 @@ import {
   Keyboard,
   RotateCcw,
   Trash2,
-  Info,
   Play, FastForward, Volume2, Subtitles, Gauge, PanelsTopLeft, ListVideo, Scaling,
 } from "lucide-react";
 import {
@@ -376,55 +375,33 @@ export function HotkeysSettingsTab({
   return (
     <div className="modal__section settings-stack">
       <div
+        className="modal__section-title"
         style={{
-          padding: "12px 16px",
-          borderRadius: "var(--radius-md)",
-          background: "var(--surface-level-2)",
-          border: "1px solid var(--border-pill)",
+          fontSize: "var(--fs-md)",
           color: "var(--text-secondary)",
-          fontSize: "var(--fs-base)",
-          lineHeight: "1.4",
-          fontWeight: 500,
+          fontWeight: 600,
+          textTransform: "none",
+          letterSpacing: "normal",
+          marginBottom: 0,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          flexWrap: "wrap",
-          gap: "var(--settings-content-gap)",
+          gap: "var(--space-3)",
         }}
-        >
-        <span style={{ display: "flex", alignItems: "center", gap: 8, flex: "1 1 240px" }}>
-          <Info size={16} aria-hidden="true" style={{ flexShrink: 0 }} />
-          {dict.settings.hotkeys.helpText}
-        </span>
+      >
+        <span>{dict.settings.hotkeys.sectionTitle}</span>
         <button
+          type="button"
+          className="ui-reset-btn"
           aria-label={dict.settings.hotkeys.btnReset}
+          title={dict.settings.hotkeys.btnReset}
           onClick={() => {
             resetCustomHotkeys();
             setCustomHotkeys(getCustomHotkeys());
           }}
-          style={{
-            background: "rgba(255, 255, 255, 0.1)",
-            border: "1px solid var(--border)",
-            color: "var(--text-primary)",
-            borderRadius: "var(--radius-sm)",
-            padding: "4px 8px",
-            fontSize: "var(--fs-xs)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "var(--space-2)",
-            flexShrink: 0,
-          }}
-          >
-          <RotateCcw size={14} aria-hidden="true" />
-        </button>
-      </div>
-
-      <div
-        className="modal__section-title"
-        style={{ fontSize: "var(--fs-md)", color: "var(--text-secondary)", fontWeight: 600, textTransform: "none", letterSpacing: "normal", marginBottom: 0 }}
         >
-        {dict.settings.hotkeys.sectionTitle}
+          <RotateCcw size={16} aria-hidden="true" />
+        </button>
       </div>
 
       <div className="settings-stack">

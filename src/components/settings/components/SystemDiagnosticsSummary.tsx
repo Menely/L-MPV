@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { showOsd } from "../../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
-import { Check, CheckCircle2, Copy, Cpu, FileText, FolderOpen, HardDrive, Layers, Loader2, RotateCw, Sparkles } from "lucide-react";
+import { CheckCircle2, Cpu, FileText, FolderOpen, HardDrive, Layers, Loader2, RotateCw, Sparkles } from "lucide-react";
+import { CopyCheckMorphIcon } from "../../common/CopyCheckMorphIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import type { SystemDiagnosticsInfo } from "../lib/systemDiagnostics";
 
@@ -21,9 +22,21 @@ function DiagnosticRow({ icon, label, status, children, onOpenFolder, path }: {
   children: ReactNode; onOpenFolder?: () => Promise<void>; path?: string;
 }) {
   const { dict } = useTranslation();
+  const [pathCopied, setPathCopied] = useState(false);
+  const timerRef = useRef<number | null>(null);
+
+  useEffect(() => () => {
+    if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+  }, []);
+
   const copyPath = useCallback(() => {
     if (path) void navigator.clipboard.writeText(path)
-      .then(() => showOsd(dict.settings.systemFields.pathCopied))
+      .then(() => {
+        setPathCopied(true);
+        if (timerRef.current !== null) window.clearTimeout(timerRef.current);
+        timerRef.current = window.setTimeout(() => setPathCopied(false), 2000);
+        showOsd(dict.settings.systemFields.pathCopied);
+      })
       .catch(error => showOsd(dict.settings.systemFields.pathActionError(String(error)), { isError: true }));
   }, [path, dict]);
   return <div className="system-diagnostics__row" data-status={status}>
@@ -33,7 +46,7 @@ function DiagnosticRow({ icon, label, status, children, onOpenFolder, path }: {
       {path && path !== "missing" && path !== "Отсутствует" && path !== "Missing" && (
         <span className="system-diagnostics__actions">
           {onOpenFolder && <button type="button" className="system-diagnostics__mini-btn" onClick={() => void onOpenFolder().catch(error => showOsd(dict.settings.systemFields.pathActionError(String(error)), { isError: true }))} title={dict.settings.systemFields.btnOpenFolder} aria-label={`${dict.settings.systemFields.btnOpenFolder}: ${label}`}><FolderOpen size={12} aria-hidden /></button>}
-          <button type="button" className="system-diagnostics__mini-btn" onClick={copyPath} title={dict.settings.systemFields.btnCopyPath} aria-label={`${dict.settings.systemFields.btnCopyPath}: ${label}`}><Copy size={12} aria-hidden /></button>
+          <button type="button" className="system-diagnostics__mini-btn" onClick={copyPath} title={dict.settings.systemFields.btnCopyPath} aria-label={`${dict.settings.systemFields.btnCopyPath}: ${label}`}><CopyCheckMorphIcon copied={pathCopied} size={12} /></button>
         </span>
       )}
     </dd>
@@ -130,7 +143,7 @@ export function SystemDiagnosticsSummary({ info, loading, copied, onRefresh, onC
       </button>
       <button type="button" disabled={!info || loading} onClick={onCopy}
         className="system-settings__tool" title={f.btnCopyReportTooltip}>
-        {copied ? <Check size={13} aria-hidden /> : <Copy size={13} aria-hidden />}
+        <CopyCheckMorphIcon copied={copied} size={13} />
         {copied ? f.reportCopied : f.btnCopyReport}
       </button>
       {actions}

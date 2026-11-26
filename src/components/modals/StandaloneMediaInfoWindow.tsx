@@ -6,8 +6,6 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import {
   FileText,
   X,
-  Copy,
-  Check,
   Download,
   Search,
   Loader2,
@@ -17,11 +15,12 @@ import {
   Square,
   Minimize2,
   RefreshCw,
-  Pin,
   FileUp,
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { CopyCheckMorphIcon } from "../common/CopyCheckMorphIcon";
+import { PinMorphIcon } from "../player/controls/PinMorphIcon";
 import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
 import {
   CategoryKey,
@@ -476,7 +475,10 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             }
             onClick={handleToggleAlwaysOnTop}
           >
-            <Pin size={13} style={{ transform: isAlwaysOnTop ? "rotate(45deg)" : "none", color: isAlwaysOnTop ? "var(--accent-text)" : "inherit" }} />
+            <PinMorphIcon
+              pinned={isAlwaysOnTop}
+              size={14}
+            />
           </button>
           <button
             type="button"
@@ -581,7 +583,7 @@ export const StandaloneMediaInfoWindow: React.FC = () => {
             onClick={handleCopy}
             disabled={!baseReport.rawText}
           >
-            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
+            <CopyCheckMorphIcon copied={copied} size={15} />
           </button>
 
           <button

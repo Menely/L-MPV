@@ -9,7 +9,8 @@ import { showOsd } from "../../hooks/useOsd";
 import { AnimatePresence } from "motion/react";
 import { MotionSurface } from "../motion/MotionSurface";
 import { getActiveUiScale } from "../../theme/tokens";
-import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
+import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, GripVertical } from "lucide-react";
+import { PinMorphIcon } from "./controls/PinMorphIcon";
 import { EmptyState } from "../settings/components/SettingBlocks";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { SavedPlaylistPanel } from "./SavedPlaylistPanel";
@@ -525,7 +526,7 @@ export function PlaylistDrawer() {
               <button id="navigation-panel-pin" type="button" className="playlist-drawer__action-btn navigation-panel__pin"
                 aria-pressed={pinnedPanel.pinned} aria-label={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin}
                 title={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin} onClick={pinnedPanel.togglePinned}>
-                <Pin size={15} />
+                <PinMorphIcon pinned={pinnedPanel.pinned} size={16} />
               </button>
               <button
                 type="button"

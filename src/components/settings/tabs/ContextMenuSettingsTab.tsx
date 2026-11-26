@@ -383,7 +383,7 @@ export function ContextMenuSettingsTab() {
             onClick={handleReset}
 
             >
-            <RotateCcw size={13} /> {dict.settings.contextMenuConfig.btnReset}
+            <RotateCcw size={13} strokeWidth={2.55} /> {dict.settings.contextMenuConfig.btnReset}
           </button>
           <button
             type="button"

@@ -182,8 +182,8 @@
 }
 
 .player-controls--docked .control-btn--play svg.control-btn__app-play-icon {
-  width: 31px;
-  height: 31px;
+  width: 32px;
+  height: 32px;
 }
 
 /* Кнопки переключения дорожек (с подписями): сбалансированная ширина и защита от переполнения */
@@ -321,7 +321,7 @@
     height: 22px;
   }
   .player-controls--docked .control-btn--play svg.control-btn__app-play-icon {
-    width: 27px;
-    height: 27px;
+    width: 28px;
+    height: 28px;
   }
 }

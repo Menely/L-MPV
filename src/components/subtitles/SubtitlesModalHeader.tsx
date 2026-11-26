@@ -5,14 +5,14 @@ import { SelectionRail } from "../motion/SelectionRail";
  * - В стилях «Модерн» и «Классический»: монолитная интегрированная шапка внутри единого окна.
  */
 
+import { useState, useCallback } from "react";
 import {
   Subtitles,
-  RefreshCw,
-  Eye,
-  EyeOff,
   X,
   SlidersHorizontal,
 } from "lucide-react";
+import { EyeMorphIcon } from "../common/EyeMorphIcon";
+import { RefreshMorphIcon } from "../common/RefreshMorphIcon";
 import type { SubtitleViewMode } from "./subtitleTypes";
 import { useTranslation } from "../../i18n/LanguageContext";
 
@@ -42,6 +42,12 @@ export function SubtitlesModalHeader({
   onResetPosition,
 }: SubtitlesModalHeaderProps) {
   const { dict } = useTranslation();
+  const [refreshTriggerKey, setRefreshTriggerKey] = useState(0);
+
+  const handleRefreshClick = useCallback(() => {
+    setRefreshTriggerKey((prev) => prev + 1);
+    onReanalyze();
+  }, [onReanalyze]);
 
   // ─── Островная шапка для стиля «Капсула» (3 карточки) ──────────────────────
   if (isCapsule) {
@@ -114,19 +120,20 @@ export function SubtitlesModalHeader({
               color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
             }}
           >
-            {isOpaque ? <EyeOff size={15} /> : <Eye size={15} />}
+            <EyeMorphIcon off={isOpaque} size={16} />
           </button>
 
           <button
             className="modal__close"
-            onClick={onReanalyze}
+            onClick={handleRefreshClick}
             title={dict.subtitlesSearch.rescanTrack}
             aria-label={dict.subtitlesSearch.rescanTrack}
             style={{ width: 28, height: 28 }}
           >
-            <RefreshCw
-              size={14}
-              className={isAnalyzing ? "spin-animation" : ""}
+            <RefreshMorphIcon
+              spinning={isAnalyzing}
+              triggerKey={refreshTriggerKey}
+              size={16}
             />
           </button>
 
@@ -251,20 +258,21 @@ export function SubtitlesModalHeader({
             color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
           }}
         >
-          {isOpaque ? <EyeOff size={15} /> : <Eye size={15} />}
+          <EyeMorphIcon off={isOpaque} size={16} />
         </button>
 
         {/* Пересканировать */}
         <button
           className="modal__close"
-          onClick={onReanalyze}
+          onClick={handleRefreshClick}
           title={dict.subtitlesSearch.rescanTrack}
           aria-label={dict.subtitlesSearch.rescanTrack}
           style={{ width: 28, height: 28 }}
         >
-          <RefreshCw
-            size={14}
-            className={isAnalyzing ? "spin-animation" : ""}
+          <RefreshMorphIcon
+            spinning={isAnalyzing}
+            triggerKey={refreshTriggerKey}
+            size={16}
           />
         </button>
 

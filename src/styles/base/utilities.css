@@ -70,6 +70,11 @@
   flex-shrink: 0;
   width: 16px;
   height: 16px;
+  stroke-width: 2.55;
+}
+
+.ui-reset-btn > svg * {
+  stroke-width: 2.55;
 }
 
 .ui-reset-btn:hover:not(:disabled) {
@@ -178,4 +183,19 @@
 .model-hotkey-btn:hover:not(.is-recording) {
   background: var(--hover-veil) !important;
   border-color: var(--border-pill-hover) !important;
+}
+
+/* ── Анимация непрерывного вращения иконки обновления ── */
+@keyframes refresh-morph-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.refresh-morph-icon--spinning {
+  animation: refresh-morph-spin 0.8s linear infinite;
+  transform-origin: center;
 }

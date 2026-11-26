@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Copy, Check } from "lucide-react";
+import { CopyCheckMorphIcon } from "../../common/CopyCheckMorphIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
 
 interface ValuesCardProps {
@@ -60,7 +60,7 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
       if (copyHexTimeoutRef.current !== null) {
         window.clearTimeout(copyHexTimeoutRef.current);
       }
-      copyHexTimeoutRef.current = window.setTimeout(() => setCopiedHex(false), 1600);
+      copyHexTimeoutRef.current = window.setTimeout(() => setCopiedHex(false), 2000);
     } catch (_) {}
   };
 
@@ -72,7 +72,7 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
       if (copyRgbTimeoutRef.current !== null) {
         window.clearTimeout(copyRgbTimeoutRef.current);
       }
-      copyRgbTimeoutRef.current = window.setTimeout(() => setCopiedRgb(false), 1600);
+      copyRgbTimeoutRef.current = window.setTimeout(() => setCopiedRgb(false), 2000);
     } catch (_) {}
   };
 
@@ -138,7 +138,7 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
               title={copiedHex ? cs.copiedLabel : cs.copyHexLabel}
               aria-label={cs.copyHexLabel}
             >
-              {copiedHex ? <Check size={13} className="t-accent" /> : <Copy size={13} />}
+              <CopyCheckMorphIcon copied={copiedHex} size={13} />
             </button>
           </div>
         </div>
@@ -186,7 +186,7 @@ export const ValuesCard: React.FC<ValuesCardProps> = ({
               title={copiedRgb ? cs.copiedLabel : `${cs.copyRgbLabel}: rgb(${rInput}, ${gInput}, ${bInput})`}
               aria-label={cs.copyRgbLabel}
             >
-              {copiedRgb ? <Check size={13} className="t-accent" /> : <Copy size={13} />}
+              <CopyCheckMorphIcon copied={copiedRgb} size={13} />
             </button>
           </div>
         </div>

@@ -12,7 +12,7 @@ import {
   useRef,
   useEffect,
 } from "react";
-import { Copy, Check } from "lucide-react";
+import { CopyCheckMorphIcon } from "../common/CopyCheckMorphIcon";
 import {
   toAegisubMarkup,
   toHtmlMarkup,
@@ -75,7 +75,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
           copyTimerRef.current = setTimeout(() => {
             setIsCopied(false);
             copyTimerRef.current = null;
-          }, 1500);
+          }, 2000);
         })
         .catch((err) => {
           console.error(
@@ -197,7 +197,7 @@ export const SubtitleRawBlock = memo(function SubtitleRawBlock({
               : dict.subtitlesSearch.rawCopyCode
           }
           >
-          {isCopied ? <Check size={11} /> : <Copy size={11} />}
+          <CopyCheckMorphIcon copied={isCopied} size={12} />
         </button>
       </div>
 

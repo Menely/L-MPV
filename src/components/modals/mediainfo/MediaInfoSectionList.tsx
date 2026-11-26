@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { ChevronDown, ChevronRight, Copy, Check } from "lucide-react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { CopyCheckMorphIcon } from "../../common/CopyCheckMorphIcon";
 import { MediaInfoProcessedSection, getSectionCategoryKey } from "./mediaInfoTypes";
 
 interface MediaInfoSectionItemProps {
@@ -99,7 +100,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
           }
           onClick={() => onCopySection(section.title, section.cleanText)}
         >
-          {isCopied ? <Check size={13} color="var(--success-text)" /> : <Copy size={13} />}
+          <CopyCheckMorphIcon copied={isCopied} size={14} />
         </button>
       </div>
 
@@ -134,7 +135,7 @@ export const MediaInfoSectionItem: React.FC<MediaInfoSectionItemProps> = React.m
                       onCopyRow(row.id, row.value);
                     }}
                   >
-                    {isRowCopied ? <Check size={11} color="var(--success-text)" /> : <Copy size={11} />}
+                    <CopyCheckMorphIcon copied={isRowCopied} size={12} />
                   </button>
                 )}
               </div>
@@ -180,7 +181,7 @@ export const MediaInfoSectionList: React.FC<MediaInfoSectionListProps> = React.m
       await navigator.clipboard.writeText(value);
       setCopiedRowId(rowId);
       if (copyRowTimerRef.current) clearTimeout(copyRowTimerRef.current);
-      copyRowTimerRef.current = setTimeout(() => setCopiedRowId(null), 1500);
+      copyRowTimerRef.current = setTimeout(() => setCopiedRowId(null), 2000);
     } catch (e) {
       console.error("Ошибка копирования значения свойства:", e);
     }

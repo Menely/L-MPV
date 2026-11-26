@@ -1,8 +1,9 @@
 import { useEffect, useRef, type ReactNode, type RefObject } from "react";
-import { Check, Settings, Volume2, VolumeX } from "lucide-react";
+import { Check, Settings } from "lucide-react";
 import { MotionSurface } from "../../motion/MotionSurface";
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { SPEED_PRESETS, formatSpeedValue } from "./SpeedPopover";
+import { VolumeMorphIcon } from "./VolumeMorphIcon";
 
 export interface OverflowAction {
   id: string;
@@ -101,7 +102,7 @@ export function ControlsOverflow({
           <button type="button" className="controls-overflow__mute" onClick={onMute}
             aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
             aria-pressed={volume === 0}>
-            {volume === 0 ? <VolumeX size={18} aria-hidden="true" /> : <Volume2 size={18} aria-hidden="true" />}
+            <VolumeMorphIcon volume={volume} size={18} />
           </button>
           <input id="overflow-volume" className="ui-premium-slider" type="range"
             min={0} max={150} value={volume}

@@ -1,7 +1,6 @@
 // Scrollports defined by the shared styles, plus locally styled scrollports.
 const SCROLLPORTS = [
   ".chapters-list", ".cmenu-editor__list", ".cmenu-editor__available-list",
-  ".context-menu", ".context-menu__group", ".context-menu__submenu--solid",
   ".controls-overflow", ".explorer-panel__entries", ".navigation-popover",
   ".modal__body", ".version-picker-list",
   ".player-appearance__details", ".player-appearance__selector",
@@ -17,8 +16,8 @@ const ATTRIBUTE = "data-scroll-fade";
 const isScrollable = (overflow: string) => overflow === "auto" || overflow === "scroll";
 
 function updateEdges(element: HTMLElement) {
-  // Окно обновления и окно MediaInfo не должны иметь затемнений краев при скролле
-  if (element.closest(".update-modal-capsule, .update-modal-card, .update-modal-container, .update-card__notes-wrap, .update-modal-notes-wrap, .mediainfo-standalone, .mediainfo-floating-window, .media-info-overlay, .media-info-modal")) {
+  // Контекстное меню, окно обновления и окно MediaInfo не должны иметь затемнений краев при скролле
+  if (element.closest(".context-menu, .context-menu__group, .context-menu__submenu, .update-modal-capsule, .update-modal-card, .update-modal-container, .update-card__notes-wrap, .update-modal-notes-wrap, .mediainfo-standalone, .mediainfo-floating-window, .media-info-overlay, .media-info-modal")) {
     element.removeAttribute(ATTRIBUTE);
     return;
   }

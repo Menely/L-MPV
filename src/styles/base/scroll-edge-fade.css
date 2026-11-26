@@ -24,8 +24,13 @@
   [data-scroll-fade] { mask-image: none; }
 }
 
-/* Окно MediaInfo не использует градиентные маски затемнения при прокрутке */
+/* Контекстное меню и окно MediaInfo не используют градиентные маски затемнения при прокрутке */
+.context-menu,
+.context-menu__group,
+.context-menu__submenu,
+.context-menu [data-scroll-fade],
 :where(
+  .context-menu,
   .mediainfo-standalone,
   .mediainfo-floating-window,
   .media-info-overlay,
