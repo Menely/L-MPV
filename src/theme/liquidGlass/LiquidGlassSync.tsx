@@ -31,6 +31,19 @@ interface TopBlurRect {
 interface LiquidGlassConfigureResult {
   ready: boolean;
   supported: boolean;
+  videoBounds?: [number, number, number, number] | null;
+}
+
+interface SurfaceTarget {
+  el: HTMLElement;
+  rect: DOMRect;
+  clipRect?: DOMRect | null;
+  nested: boolean;
+}
+
+interface CollectedGlassSurfaces {
+  surfaces: SurfaceRect[];
+  targets: SurfaceTarget[];
 }
 
 interface Props {
@@ -116,13 +129,19 @@ function measureEffectiveOpacity(el: HTMLElement, root: HTMLElement): number {
   return opacity;
 }
 
+interface CollectedElementSurface {
+  surface: SurfaceRect;
+  rect: DOMRect;
+  el: HTMLElement;
+}
+
 function collectElementSurface(
   el: Element | null,
   root: HTMLElement,
   frost: number,
   dockedBottom = false,
   clipRect?: DOMRect | null,
-): SurfaceRect | null {
+): CollectedElementSurface | null {
   if (!(el instanceof HTMLElement)) return null;
   const style = getComputedStyle(el);
   if (style.display === "none" || style.visibility === "hidden") return null;
@@ -161,12 +180,13 @@ function collectElementSurface(
     f: frost,
   };
   if (dockedBottom) surface.dockedBottom = true;
-  return surface;
+  return { surface, rect, el };
 }
 
-function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
+function collectGlassSurfaces(appContainer: HTMLElement | null): CollectedGlassSurfaces {
   const root = appContainer ?? document.body;
   const surfaces: SurfaceRect[] = [];
+  const targets: SurfaceTarget[] = [];
   const push = (
     el: Element | null,
     frost: number,
@@ -175,7 +195,15 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
   ) => {
     if (surfaces.length >= MAX_SLOTS) return;
     const item = collectElementSurface(el, root, frost, dockedBottom, clipRect);
-    if (item) surfaces.push(item);
+    if (item) {
+      surfaces.push(item.surface);
+      targets.push({
+        el: item.el,
+        rect: item.rect,
+        clipRect,
+        nested: frost >= 1.5,
+      });
+    }
   };
 
   let capsuleRow: Element | null = null;
@@ -367,7 +395,7 @@ function collectGlassSurfaces(appContainer: HTMLElement | null): SurfaceRect[] {
       .forEach((island) => push(island, 2));
   }
 
-  return surfaces;
+  return { surfaces, targets };
 }
 
 function collectTopBlur(appContainer: HTMLElement | null): TopBlurRect | null {
@@ -405,8 +433,51 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
 
   useEffect(() => {
     const root = document.documentElement;
+    const trackedBarTargets = new Set<HTMLElement>();
+    const lastBarStyleCache = new WeakMap<HTMLElement, string>();
+    const selfStyledNodes = new Set<Node>();
+    let clearSelfStyledScheduled = false;
+
+    const markSelfStyled = (node: Node) => {
+      selfStyledNodes.add(node);
+    };
+
+    const scheduleClearSelfStyled = () => {
+      if (selfStyledNodes.size === 0 || clearSelfStyledScheduled) return;
+      clearSelfStyledScheduled = true;
+      queueMicrotask(() => {
+        clearSelfStyledScheduled = false;
+        selfStyledNodes.clear();
+      });
+    };
+
+    const clearTargetHybrid = (el: HTMLElement) => {
+      if (el.hasAttribute("data-lg-bar")) {
+        el.removeAttribute("data-lg-bar");
+      }
+      if (el.hasAttribute("data-lg-nested")) {
+        el.removeAttribute("data-lg-nested");
+      }
+      if (lastBarStyleCache.has(el)) {
+        markSelfStyled(el);
+        el.style.removeProperty("--lg-bar-t");
+        el.style.removeProperty("--lg-bar-b");
+        el.style.removeProperty("--lg-bar-l");
+        el.style.removeProperty("--lg-bar-r");
+        lastBarStyleCache.delete(el);
+      }
+    };
+
+    const clearAllHybrids = () => {
+      root.removeAttribute("data-lg-top-bar");
+      trackedBarTargets.forEach((el) => clearTargetHybrid(el));
+      trackedBarTargets.clear();
+      scheduleClearSelfStyled();
+    };
+
     if (!enabled) {
       root.removeAttribute("data-liquid-glass-active");
+      clearAllHybrids();
       if (getPlayerTheme() === "glass") {
         root.setAttribute("data-interface-theme", "glass");
         root.style.setProperty(
@@ -432,36 +503,208 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
     let disposed = false;
     let rafId = 0;
     let retryTimer = 0;
+    let boundsRefreshTimer = 0;
     let unsupportedRetries = 0;
     let lastSignature = "";
     let lastTintRgbApplied = "";
+    let latestVideoBounds: [number, number, number, number] | null = null;
+    let forceBoundsNext = false;
+
+    // Гибридная CSS-подложка (Вариант 1):
+    // Если панель или её часть выходит за пределы активного видеокадра (в чёрные полосы
+    // или область Blur, где GLSL OUTPUT не вызывается), на выступающем участке включается
+    // соответствующая матовая стеклянная подложка и хрустальная окантовка.
+    const applyVideoBarHybrids = (
+      targets: SurfaceTarget[],
+      bounds: [number, number, number, number] | null,
+      vw: number,
+      vh: number,
+    ) => {
+      if (!bounds || root.getAttribute("data-liquid-glass-active") !== "true") {
+        clearAllHybrids();
+        return;
+      }
+
+      const [nl, nt, nr, nb] = bounds;
+      const vL = nl * vw;
+      const vT = nt * vh;
+      const vR = nr * vw;
+      const vB = nb * vh;
+
+      const hasTopBar = vT > 8;
+      if (hasTopBar) {
+        if (root.getAttribute("data-lg-top-bar") !== "true") {
+          root.setAttribute("data-lg-top-bar", "true");
+        }
+      } else if (root.hasAttribute("data-lg-top-bar")) {
+        root.removeAttribute("data-lg-top-bar");
+      }
+
+      const hasBars = vL > 1.5 || vT > 1.5 || vw - vR > 1.5 || vh - vB > 1.5;
+      if (!hasBars) {
+        trackedBarTargets.forEach((el) => clearTargetHybrid(el));
+        trackedBarTargets.clear();
+        scheduleClearSelfStyled();
+        return;
+      }
+
+      const nextTracked = new Set<HTMLElement>();
+      for (const { el, rect, clipRect, nested } of targets) {
+        const eL = clipRect ? Math.max(rect.left, clipRect.left) : rect.left;
+        const eT = clipRect ? Math.max(rect.top, clipRect.top) : rect.top;
+        const eR = clipRect ? Math.min(rect.right, clipRect.right) : rect.right;
+        const eB = clipRect ? Math.min(rect.bottom, clipRect.bottom) : rect.bottom;
+
+        const insideAll =
+          eL >= vL - 1 && eR <= vR + 1 && eT >= vT - 1 && eB <= vB + 1;
+        if (insideAll) {
+          if (trackedBarTargets.has(el)) {
+            clearTargetHybrid(el);
+          }
+          continue;
+        }
+
+        const outsideAll =
+          eR <= vL + 1 || eL >= vR - 1 || eB <= vT + 1 || eT >= vB - 1;
+        if (outsideAll) {
+          nextTracked.add(el);
+          if (el.getAttribute("data-lg-bar") !== "full") {
+            el.setAttribute("data-lg-bar", "full");
+          }
+          if (nested) {
+            if (el.getAttribute("data-lg-nested") !== "true") {
+              el.setAttribute("data-lg-nested", "true");
+            }
+          } else if (el.hasAttribute("data-lg-nested")) {
+            el.removeAttribute("data-lg-nested");
+          }
+          if (lastBarStyleCache.has(el)) {
+            markSelfStyled(el);
+            el.style.removeProperty("--lg-bar-t");
+            el.style.removeProperty("--lg-bar-b");
+            el.style.removeProperty("--lg-bar-l");
+            el.style.removeProperty("--lg-bar-r");
+            lastBarStyleCache.delete(el);
+          }
+          continue;
+        }
+
+        const rawT = Math.max(0, Math.min(rect.height, vT - rect.top));
+        const rawB = Math.max(0, Math.min(rect.height, rect.bottom - vB));
+        const rawL = Math.max(0, Math.min(rect.width, vL - rect.left));
+        const rawR = Math.max(0, Math.min(rect.width, rect.right - vR));
+
+        if (rawT < 1 && rawB < 1 && rawL < 1 && rawR < 1) {
+          if (trackedBarTargets.has(el)) {
+            clearTargetHybrid(el);
+          }
+          continue;
+        }
+
+        const almostFull =
+          rawT >= rect.height - 1 ||
+          rawB >= rect.height - 1 ||
+          rawL >= rect.width - 1 ||
+          rawR >= rect.width - 1;
+        if (almostFull) {
+          nextTracked.add(el);
+          if (el.getAttribute("data-lg-bar") !== "full") {
+            el.setAttribute("data-lg-bar", "full");
+          }
+          if (nested) {
+            if (el.getAttribute("data-lg-nested") !== "true") {
+              el.setAttribute("data-lg-nested", "true");
+            }
+          } else if (el.hasAttribute("data-lg-nested")) {
+            el.removeAttribute("data-lg-nested");
+          }
+          if (lastBarStyleCache.has(el)) {
+            markSelfStyled(el);
+            el.style.removeProperty("--lg-bar-t");
+            el.style.removeProperty("--lg-bar-b");
+            el.style.removeProperty("--lg-bar-l");
+            el.style.removeProperty("--lg-bar-r");
+            lastBarStyleCache.delete(el);
+          }
+          continue;
+        }
+
+        const rawZoom = el.offsetWidth > 0 ? rect.width / el.offsetWidth : 1;
+        const zoomScale = Number.isFinite(rawZoom) && rawZoom > 0 ? rawZoom : 1;
+        const tStr = `${(rawT < 1 ? 0 : rawT / zoomScale).toFixed(1)}px`;
+        const bStr = `${(rawB < 1 ? 0 : rawB / zoomScale).toFixed(1)}px`;
+        const lStr = `${(rawL < 1 ? 0 : rawL / zoomScale).toFixed(1)}px`;
+        const rStr = `${(rawR < 1 ? 0 : rawR / zoomScale).toFixed(1)}px`;
+        const cacheKey = `${tStr}|${bStr}|${lStr}|${rStr}`;
+
+        nextTracked.add(el);
+        if (el.getAttribute("data-lg-bar") !== "partial") {
+          el.setAttribute("data-lg-bar", "partial");
+        }
+        if (nested) {
+          if (el.getAttribute("data-lg-nested") !== "true") {
+            el.setAttribute("data-lg-nested", "true");
+          }
+        } else if (el.hasAttribute("data-lg-nested")) {
+          el.removeAttribute("data-lg-nested");
+        }
+        if (lastBarStyleCache.get(el) !== cacheKey) {
+          markSelfStyled(el);
+          el.style.setProperty("--lg-bar-t", tStr);
+          el.style.setProperty("--lg-bar-b", bStr);
+          el.style.setProperty("--lg-bar-l", lStr);
+          el.style.setProperty("--lg-bar-r", rStr);
+          lastBarStyleCache.set(el, cacheKey);
+        }
+      }
+
+      trackedBarTargets.forEach((el) => {
+        if (!nextTracked.has(el)) {
+          clearTargetHybrid(el);
+        }
+      });
+      trackedBarTargets.clear();
+      nextTracked.forEach((el) => trackedBarTargets.add(el));
+      scheduleClearSelfStyled();
+    };
+
+    const boundsKey = (b: [number, number, number, number] | null | undefined) =>
+      b ? b.map((n) => n.toFixed(5)).join(",") : "";
 
     const flush = () => {
       if (disposed) return;
       const appContainer = document.querySelector<HTMLElement>(".app-container");
-      const surfaces = collectGlassSurfaces(appContainer);
+      const { surfaces, targets } = collectGlassSurfaces(appContainer);
       const topBlur = collectTopBlur(appContainer);
       const tint = getGlassTintShaderParams(getGlassTint());
       if (tint.fallbackRgb !== lastTintRgbApplied) {
         lastTintRgbApplied = tint.fallbackRgb;
         root.style.setProperty("--glass-tint-rgb", tint.fallbackRgb);
       }
+      const viewportW = Math.max(1, window.innerWidth);
+      const viewportH = Math.max(1, window.innerHeight);
+
+      applyVideoBarHybrids(targets, latestVideoBounds, viewportW, viewportH);
+
+      const shouldForceBounds = forceBoundsNext;
+      forceBoundsNext = false;
       const options = {
         active: true,
         blur: getGlassBlur(),
         refraction: getGlassRefraction(),
         dispersion: getGlassDispersion(),
-        viewportW: Math.max(1, window.innerWidth),
-        viewportH: Math.max(1, window.innerHeight),
+        viewportW,
+        viewportH,
         dpr: Number((window.devicePixelRatio || 1).toFixed(4)),
         surfaces,
         topBlur,
         tint: { r: tint.r, g: tint.g, b: tint.b, a: tint.a },
       };
       const signature = JSON.stringify(options);
-      if (signature !== lastSignature) {
+      if (signature !== lastSignature || shouldForceBounds) {
         lastSignature = signature;
-        dispatchGlassConfig(options, (res) => {
+        const payload = shouldForceBounds ? { ...options, forceBounds: true } : options;
+        dispatchGlassConfig(payload, (res) => {
           if (disposed) return;
           if (!res.ready) {
             lastSignature = "";
@@ -472,6 +715,19 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
             }, 30);
           } else {
             root.setAttribute("data-liquid-glass-active", res.supported ? "true" : "false");
+            const nextBounds = res.supported ? (res.videoBounds ?? null) : null;
+            const changedBounds = boundsKey(nextBounds) !== boundsKey(latestVideoBounds);
+            latestVideoBounds = nextBounds;
+            if (changedBounds || !res.supported) {
+              const curApp = document.querySelector<HTMLElement>(".app-container");
+              const curCollected = collectGlassSurfaces(curApp);
+              applyVideoBarHybrids(
+                curCollected.targets,
+                latestVideoBounds,
+                Math.max(1, window.innerWidth),
+                Math.max(1, window.innerHeight),
+              );
+            }
             if (!res.supported && unsupportedRetries < 36) {
               // При старте видео mpv создаёт gpu-next и video-out-params асинхронно;
               // используем мягкий шаг опроса без шторма блокировок мьютекса mpv.
@@ -624,7 +880,17 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
     };
 
     const mutationObserver = new MutationObserver((records) => {
-      if (records.every(isHighFrequencyPlaybackMutation)) return;
+      const hasRealMutation = records.some((record) => {
+        if (
+          record.type === "attributes" &&
+          record.attributeName === "style" &&
+          selfStyledNodes.has(record.target)
+        ) {
+          return false;
+        }
+        return !isHighFrequencyPlaybackMutation(record);
+      });
+      if (!hasRealMutation) return;
       syncNow();
       scheduleFrame(ANIMATION_TRACK_MS);
     });
@@ -638,8 +904,24 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
       });
     }
 
+    const handleVideoBoundsChanged = () => {
+      forceBoundsNext = true;
+      lastSignature = "";
+      syncNow();
+      scheduleFrame(160);
+      window.clearTimeout(boundsRefreshTimer);
+      boundsRefreshTimer = window.setTimeout(() => {
+        if (!disposed) {
+          forceBoundsNext = true;
+          lastSignature = "";
+          syncNow();
+        }
+      }, 65);
+    };
+
     const unsubscribeTheme = subscribePlayerTheme(handleSettings);
     window.addEventListener("l-mpv-glass-tint-changed", handleSettings);
+    window.addEventListener("l-mpv-video-bounds-changed", handleVideoBoundsChanged);
     window.addEventListener("resize", handleResize);
     window.addEventListener("l-mpv-ui-scale-changed", handleSettings);
     window.addEventListener("l-mpv-ui-radius-changed", handleSettings);
@@ -654,17 +936,20 @@ export function LiquidGlassSync({ enabled, visible, videoReady = false, mediaPat
 
     return () => {
       disposed = true;
+      clearAllHybrids();
       if (immediateFlushCallback === syncNow) {
         immediateFlushCallback = null;
       }
       animationFlushCallback = null;
       window.cancelAnimationFrame(rafId);
       window.clearTimeout(retryTimer);
+      window.clearTimeout(boundsRefreshTimer);
       clearResizeTimers();
       resizeObserver.disconnect();
       mutationObserver.disconnect();
       unsubscribeTheme();
       window.removeEventListener("l-mpv-glass-tint-changed", handleSettings);
+      window.removeEventListener("l-mpv-video-bounds-changed", handleVideoBoundsChanged);
       if (appContainer) {
         appContainer.removeEventListener("scroll", handleScroll, { capture: true });
       }

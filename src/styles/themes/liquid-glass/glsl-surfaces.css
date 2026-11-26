@@ -68,6 +68,85 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .playlist-dr
   -webkit-backdrop-filter: none !important;
 }
 
+/* ─── Умная гибридная CSS-подложка для поверхностей, попадающих на полосы letterbox/pillarbox ───
+   В областях чёрных полос и Blur шейдер GLSL OUTPUT физически не вызывается.
+   Если элемент полностью находится в полосе (`data-lg-bar="full"`), возвращается цельное матовое стекло.
+   Если элемент пересекает границу видео (`data-lg-bar="partial"`), закрашиваются строго выступающие края
+   без перекрытия GLSL-стекла на самом видео. */
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .app-container [data-lg-bar="full"]:not([data-lg-off]):not([hidden]) {
+  background:
+    linear-gradient(
+      155deg,
+      rgba(255, 255, 255, 0.22) 0%,
+      rgba(255, 255, 255, 0.14) 52%,
+      rgba(255, 255, 255, 0.18) 100%
+    ),
+    rgba(var(--glass-tint-rgb, 20, 22, 28), 0.36) !important;
+  border-color: rgba(255, 255, 255, 0.24) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), inset 0 -1px 0 rgba(255, 255, 255, 0.08) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .app-container [data-lg-bar="full"][data-lg-nested="true"]:not([data-lg-off]):not([hidden]) {
+  background: linear-gradient(
+    160deg,
+    rgba(255, 255, 255, 0.17) 0%,
+    rgba(255, 255, 255, 0.10) 100%
+  ) !important;
+  border-color: rgba(255, 255, 255, 0.22) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.20) !important;
+}
+
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .app-container [data-lg-bar="partial"]:not([data-lg-off]):not([hidden]) {
+  --lg-bar-fill: color-mix(in srgb, rgba(var(--glass-tint-rgb, 20, 22, 28), 0.44) 64%, rgba(255, 255, 255, 0.16));
+  --lg-bar-rim: rgba(255, 255, 255, 0.24);
+  border-color: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  background-color: transparent !important;
+  background-image:
+    linear-gradient(var(--lg-bar-fill), var(--lg-bar-fill)),
+    linear-gradient(var(--lg-bar-fill), var(--lg-bar-fill)),
+    linear-gradient(var(--lg-bar-fill), var(--lg-bar-fill)),
+    linear-gradient(var(--lg-bar-fill), var(--lg-bar-fill)),
+    linear-gradient(var(--lg-bar-rim), var(--lg-bar-rim)),
+    linear-gradient(var(--lg-bar-rim), var(--lg-bar-rim)),
+    linear-gradient(var(--lg-bar-rim), var(--lg-bar-rim)),
+    linear-gradient(var(--lg-bar-rim), var(--lg-bar-rim)) !important;
+  background-origin:
+    border-box, border-box, border-box, border-box,
+    border-box, border-box, border-box, border-box !important;
+  background-clip:
+    padding-box, padding-box, padding-box, padding-box,
+    border-box, border-box, border-box, border-box !important;
+  background-repeat: no-repeat !important;
+  background-position:
+    var(--lg-bar-l, 0px) 0,
+    var(--lg-bar-l, 0px) 100%,
+    0 0,
+    100% 0,
+    var(--lg-bar-l, 0px) 0,
+    var(--lg-bar-l, 0px) 100%,
+    0 0,
+    100% 0 !important;
+  background-size:
+    calc(100% - var(--lg-bar-l, 0px) - var(--lg-bar-r, 0px)) var(--lg-bar-t, 0px),
+    calc(100% - var(--lg-bar-l, 0px) - var(--lg-bar-r, 0px)) var(--lg-bar-b, 0px),
+    var(--lg-bar-l, 0px) 100%,
+    var(--lg-bar-r, 0px) 100%,
+    calc(100% - var(--lg-bar-l, 0px) - var(--lg-bar-r, 0px)) var(--lg-bar-t, 0px),
+    calc(100% - var(--lg-bar-l, 0px) - var(--lg-bar-r, 0px)) var(--lg-bar-b, 0px),
+    var(--lg-bar-l, 0px) 100%,
+    var(--lg-bar-r, 0px) 100% !important;
+}
+
+html[data-interface-theme="glass"][data-liquid-glass-active="true"] .app-container [data-lg-bar="partial"][data-lg-nested="true"]:not([data-lg-off]):not([hidden]) {
+  --lg-bar-fill: rgba(255, 255, 255, 0.15);
+  --lg-bar-rim: rgba(255, 255, 255, 0.22);
+}
+
 /* Исключаем конфликтующие CSS-переходы подложки при покадровом трекинге GLSL */
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__heading,
 html[data-interface-theme="glass"][data-liquid-glass-active="true"] .player-controls-wrapper .track-popover--capsule .track-popover__header-actions,

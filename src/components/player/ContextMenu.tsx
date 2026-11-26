@@ -557,6 +557,7 @@ export function ContextMenu({
     try {
       await invoke("set_frame_mode", { mode });
       setFrameMode(mode);
+      window.dispatchEvent(new Event("l-mpv-video-bounds-changed"));
       const labels = {
         stretch: dict.settings.cmenuUI.frameStretch,
         fit: dict.settings.cmenuUI.frameFit,
@@ -573,6 +574,7 @@ export function ContextMenu({
     try {
       await invoke("set_rotation", { degrees });
       window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
+      window.dispatchEvent(new Event("l-mpv-video-bounds-changed"));
       setCurrentRotation(degrees);
     } catch (e) {
       console.error("Ошибка установки поворота видео:", e);

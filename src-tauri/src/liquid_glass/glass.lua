@@ -27,6 +27,7 @@ local type = type
 local Glass = {}
 local STATUS = "user-data/lmpv-liquid-glass"
 local SUPPORTED = "user-data/lmpv-liquid-glass-supported"
+local VIDEO_BOUNDS = "user-data/lmpv-liquid-glass-video-bounds"
 local MAX_SLOTS = 24
 local REDRAW_OVERLAY_ID = 63
 
@@ -44,9 +45,17 @@ function Glass.new(directory)
     local loaded = false
     local active = false
     local last_sig = nil
+    local last_bounds = nil
     local redraw_toggle = false
     ---@type GlassMaterial
     local material = {}
+
+    local function set_video_bounds(value)
+        if value ~= last_bounds then
+            last_bounds = value
+            mp.set_property_native(VIDEO_BOUNDS, value)
+        end
+    end
 
     local function send(...)
         mp.command_native_async({ "change-list", ... }, noop)
@@ -90,7 +99,11 @@ function Glass.new(directory)
         return true
     end
 
-    function material.clear()
+    ---@param reset_bounds boolean|nil
+    function material.clear(reset_bounds)
+        if reset_bounds then
+            set_video_bounds("")
+        end
         if active or (last_sig ~= nil and last_sig ~= "mzg_on=0") then
             if loaded then
                 send("glsl-shader-opts", "add", "mzg_on=0")
@@ -118,7 +131,7 @@ function Glass.new(directory)
         mp.set_property_native(SUPPORTED, supported)
 
         if not supported or not dimensions then
-            material.clear()
+            material.clear(true)
             return supported
         end
 
@@ -126,9 +139,16 @@ function Glass.new(directory)
         local ml, mr, mt, mb = dimensions.ml or 0, dimensions.mr or 0, dimensions.mt or 0, dimensions.mb or 0
         local vw, vh = W - ml - mr, H - mt - mb
         if W <= 0 or H <= 0 or vw <= 0 or vh <= 0 then
-            material.clear()
+            material.clear(true)
             return supported
         end
+
+        -- Передаём нормализованные границы активного видеокадра [0..1] для гибридной CSS-подложки на полосах
+        local b_left = math_max(0, math_min(1, ml / W))
+        local b_top = math_max(0, math_min(1, mt / H))
+        local b_right = math_max(0, math_min(1, (W - mr) / W))
+        local b_bottom = math_max(0, math_min(1, (H - mb) / H))
+        set_video_bounds(string_format("%.5f,%.5f,%.5f,%.5f", b_left, b_top, b_right, b_bottom))
 
         local list = type(surfaces) == "table" and surfaces or {}
         local vw_css = (viewport_w and viewport_w > 0) and viewport_w or W
@@ -266,7 +286,7 @@ function Glass.new(directory)
         end
 
         if not overlaps then
-            material.clear()
+            material.clear(false)
             return supported
         end
 
@@ -292,6 +312,7 @@ function Glass.new(directory)
     end
 
     function material.shutdown()
+        set_video_bounds("")
         if active or loaded then
             send("glsl-shader-opts", "add", "mzg_on=0")
             clear_redraw_overlay()

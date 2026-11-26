@@ -14,6 +14,7 @@ use tauri::State;
 const SCRIPT: &str = "lmpv_liquid_glass";
 const READY: &str = "user-data/lmpv-liquid-glass-ready";
 const SUPPORTED: &str = "user-data/lmpv-liquid-glass-supported";
+const VIDEO_BOUNDS: &str = "user-data/lmpv-liquid-glass-video-bounds";
 const HASH_FILE: &str = ".assets-hash";
 const SUPPORTED_REFRESH_MS: u128 = 80;
 const ASSETS: &[(&str, &str)] = &[
@@ -40,8 +41,35 @@ pub fn mark_assets_stale() {
 pub struct LiquidGlassState {
     ready: bool,
     supported: bool,
+    video_bounds: Option<[f64; 4]>,
+    last_viewport: (u64, u64),
     last_supported_check: Option<Instant>,
     display_sync_active: Option<bool>,
+}
+
+/// Разбирает строку границ активного видеокадра `left,top,right,bottom` из Lua-модуля mpv.
+fn parse_video_bounds(raw: &str) -> Option<[f64; 4]> {
+    let trimmed = raw.trim().trim_matches('"');
+    if trimmed.is_empty() {
+        return None;
+    }
+    let mut parts = trimmed.split(',').filter_map(|p| p.trim().parse::<f64>().ok());
+    let left = parts.next()?;
+    let top = parts.next()?;
+    let right = parts.next()?;
+    let bottom = parts.next()?;
+    if !(left.is_finite() && top.is_finite() && right.is_finite() && bottom.is_finite()) {
+        return None;
+    }
+    if right <= left || bottom <= top {
+        return None;
+    }
+    Some([
+        left.clamp(0.0, 1.0),
+        top.clamp(0.0, 1.0),
+        right.clamp(0.0, 1.0),
+        bottom.clamp(0.0, 1.0),
+    ])
 }
 
 /// Хранилище состояния Liquid Glass в managed state Tauri.
@@ -141,6 +169,8 @@ pub fn prewarm_liquid_glass(
             *guard = Some(LiquidGlassState {
                 ready,
                 supported: false,
+                video_bounds: None,
+                last_viewport: (0, 0),
                 last_supported_check: None,
                 display_sync_active: Some(use_display_sync),
             });
@@ -180,6 +210,8 @@ pub async fn configure_liquid_glass(
             *guard = Some(LiquidGlassState {
                 ready,
                 supported: false,
+                video_bounds: None,
+                last_viewport: (0, 0),
                 last_supported_check: None,
                 display_sync_active: None,
             });
@@ -245,15 +277,22 @@ pub async fn configure_liquid_glass(
         .mpv
         .command(&format!("script-message-to {SCRIPT} config {argument}"))?;
 
+    let viewport_w = payload.get("viewportW").and_then(|v| v.as_u64()).unwrap_or(0);
+    let viewport_h = payload.get("viewportH").and_then(|v| v.as_u64()).unwrap_or(0);
+    let force_bounds = payload.get("forceBounds").and_then(|v| v.as_bool()) == Some(true);
+
     // Минимизируем синхронные чтения свойств mpv при быстром движении карточки превью:
     // пока шейдер ещё не подтвердил поддержку (при старте видео), проверяем каждый раз;
-    // после успешной активации перепроверяем не чаще раза в SUPPORTED_REFRESH_MS (80 мс).
+    // при изменении размера окна или принудительном запросе обновляем сразу;
+    // в остальное время перепроверяем не чаще раза в SUPPORTED_REFRESH_MS (80 мс).
     let should_refresh_supported = {
         let guard = glass.0.lock().map_err(|error| error.to_string())?;
         guard
             .as_ref()
             .map(|s| {
                 !s.supported
+                    || force_bounds
+                    || s.last_viewport != (viewport_w, viewport_h)
                     || s.last_supported_check
                         .map(|t| t.elapsed().as_millis() >= SUPPORTED_REFRESH_MS)
                         .unwrap_or(true)
@@ -261,7 +300,7 @@ pub async fn configure_liquid_glass(
             .unwrap_or(true)
     };
 
-    let supported = if should_refresh_supported {
+    let (supported, video_bounds) = if should_refresh_supported {
         let mut fresh = player
             .mpv
             .get_property_bool(SUPPORTED)
@@ -273,23 +312,38 @@ pub async fn configure_liquid_glass(
                 .get_property_bool(SUPPORTED)
                 .unwrap_or(false);
         }
+        let fresh_bounds = if fresh {
+            player
+                .mpv
+                .get_property_string(VIDEO_BOUNDS)
+                .ok()
+                .and_then(|raw| parse_video_bounds(&raw))
+        } else {
+            None
+        };
         if let Ok(mut guard) = glass.0.lock() {
             if let Some(state) = guard.as_mut() {
                 state.supported = fresh;
+                state.video_bounds = fresh_bounds;
+                state.last_viewport = (viewport_w, viewport_h);
                 state.last_supported_check = Some(Instant::now());
             }
         }
-        fresh
+        (fresh, fresh_bounds)
     } else {
         glass
             .0
             .lock()
             .ok()
-            .and_then(|g| g.as_ref().map(|s| s.supported))
-            .unwrap_or(false)
+            .and_then(|g| g.as_ref().map(|s| (s.supported, s.video_bounds)))
+            .unwrap_or((false, None))
     };
 
-    Ok(json!({ "ready": true, "supported": supported }))
+    Ok(json!({
+        "ready": true,
+        "supported": supported,
+        "videoBounds": video_bounds
+    }))
 }
 
 #[cfg(test)]
@@ -317,5 +371,20 @@ mod tests {
         assert!(dir.join("glass.lua").is_file());
 
         let _ = fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn parses_valid_video_bounds_and_rejects_invalid() {
+        assert_eq!(
+            parse_video_bounds("\"0.00000,0.12500,1.00000,0.87500\""),
+            Some([0.0, 0.125, 1.0, 0.875])
+        );
+        assert_eq!(
+            parse_video_bounds("-0.1, 0.0, 1.2, 1.0"),
+            Some([0.0, 0.0, 1.0, 1.0])
+        );
+        assert_eq!(parse_video_bounds(""), None);
+        assert_eq!(parse_video_bounds("0.5,0.5,0.5,1.0"), None);
+        assert_eq!(parse_video_bounds("abc,0.1,0.9,1.0"), None);
     }
 }

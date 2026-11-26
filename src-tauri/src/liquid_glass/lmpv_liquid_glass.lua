@@ -12,7 +12,7 @@ local config = nil
 
 local function refresh()
     if not (config and config.active and loaded_media) then
-        glass.clear()
+        glass.clear(true)
         return
     end
     glass.update(
@@ -33,7 +33,7 @@ mp.register_script_message("config", function(json)
     local parsed = utils.parse_json(json)
     if type(parsed) ~= "table" or not parsed.active then
         config = nil
-        glass.clear()
+        glass.clear(true)
         return
     end
     config = {
@@ -77,7 +77,7 @@ end)
 
 mp.register_event("end-file", function()
     loaded_media = false
-    glass.clear()
+    glass.clear(true)
 end)
 
 mp.register_event("shutdown", function()

@@ -106,6 +106,10 @@ html[data-interface-theme="glass"][data-liquid-glass-active="true"] .titlebar::b
   opacity: 0;
 }
 
+html[data-interface-theme="glass"][data-liquid-glass-active="true"][data-lg-top-bar="true"] .titlebar::before {
+  opacity: 0.55;
+}
+
 html[data-interface-theme="glass"] .time-display--titlebar {
   background: rgba(255, 255, 255, 0.10);
 }
