@@ -1,8 +1,7 @@
 /* ─── Тема Liquid Glass (гибрид: GLSL-стекло в mpv + адаптированные акценты L-MPV) ─── */
 
 /* Полное удаление затеняющих теней (box-shadow) во всех стилях темы Liquid Glass */
-html[data-interface-theme="glass"],
-html[data-interface-theme="glass"][data-glow="off"] {
+html[data-interface-theme="glass"] {
   --shadow-sm: none;
   --shadow-md: none;
   --shadow-lg: none;
@@ -16,6 +15,14 @@ html[data-interface-theme="glass"][data-glow="off"] {
   --shadow-glow: none;
   --btn-glow: none;
   --selection-shadow: none;
+  --hover-icon-glow: var(--glass-hover-icon-glow, none);
+  --timeline-glow: none;
+  --thumb-glow: none;
+  --active-icon-glow: none;
+  --play-icon-glow: none;
+}
+
+html[data-interface-theme="glass"][data-glow="off"] {
   --hover-icon-glow: none;
   --timeline-glow: none;
   --thumb-glow: none;
@@ -80,7 +87,7 @@ html[data-interface-theme="glass"] .preset-toast {
   --thumb-glow: var(--glass-thumb-glow, none);
   --active-icon-glow: var(--glass-active-icon-glow, none);
   --play-icon-glow: var(--glass-play-icon-glow, none);
-  --hover-icon-glow: none;
+  --hover-icon-glow: var(--glass-hover-icon-glow, none);
 }
 
 /* В Liquid Glass убраны все тени под окнами, карточками, поповерами и элементами во всех стилях */
@@ -255,11 +262,29 @@ html[data-interface-theme="glass"] :is(.update-modal-card, .update-modal-capsule
   box-shadow: none !important;
 }
 
-/* В Liquid Glass иконки не имеют паразитного свечения и bitmap-фильтров (исключает белые/серые ореолы) */
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn svg,
-html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg,
-html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):hover svg,
+/* В Liquid Glass иконки в покое не имеют паразитного свечения и bitmap-фильтров (исключает белые/серые ореолы) */
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:not(:hover) svg,
+html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):not(:hover) svg,
 html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__icon,
 html[data-interface-theme="glass"] .settings-accordion--open .settings-accordion__chevron {
+  filter: none !important;
+}
+
+/* Подсветка иконок при наведении по глобальной настройке свечения */
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn:hover svg {
+  filter: var(--hover-icon-glow, none);
+}
+
+html[data-interface-theme="glass"] .player-controls-wrapper .control-btn--play:hover svg {
+  filter: var(--hover-icon-glow, var(--play-icon-glow, none));
+}
+
+html[data-interface-theme="glass"] .titlebar__btn:not(.titlebar__btn--close):hover svg {
+  filter: var(--hover-icon-glow, drop-shadow(0 1px 4px rgba(0, 0, 0, 0.8)));
+}
+
+html[data-interface-theme="glass"][data-glow="off"] .player-controls-wrapper .control-btn:hover svg,
+html[data-interface-theme="glass"][data-glow="off"] .player-controls-wrapper .control-btn--play:hover svg,
+html[data-interface-theme="glass"][data-glow="off"] .titlebar__btn:not(.titlebar__btn--close):hover svg {
   filter: none !important;
 }
