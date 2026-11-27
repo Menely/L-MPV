@@ -734,6 +734,7 @@ export const en: TranslationDict = {
       neonTitle: "Neon glow intensity",
       neonSoft: "Soft glow",
       neonBalance: "Balance",
+      neonIntense: "Intense",
       ambientTitle: "Blur",
       ambientOff: "Off",
       ambientBlur: "Blur",
@@ -741,6 +742,8 @@ export const en: TranslationDict = {
       visualizerMode: (mode) => `Spectrum: ${mode}`,
 
       visualizerOff: "Spectrum: Off",
+      heatmapTitle: "Timeline Activity Heatmap",
+      heatmapLabel: (style) => `Heatmap: ${style}`,
       opacityTitle: "Interface Opacity",
       radiusTitleTooltip: "Corner Radius",
       scaleTitle: "Interface Scale",
@@ -773,23 +776,23 @@ export const en: TranslationDict = {
       builtinPresets: {
         builtin_classic: {
           name: "Classic L-MPV",
-          description: "Dark graphite, sky-blue accents, and a floating Classic toolbar",
+          description: "Dark graphite, sky-blue accents, floating Classic toolbar, and subtle background Blur",
         },
         builtin_cyberpunk: {
           name: "Twilight Iris",
-          description: "Inky indigo, rose accents, and capsules with a matching spectrum",
+          description: "Inky indigo, rose neon, pill capsules, and toolbar audio spectrum",
         },
         builtin_cinema: {
           name: "Midnight Cinema",
-          description: "Deep OLED, amber details, and a quiet classic toolbar",
+          description: "Deep OLED, amber details, docked toolbar, and movie finish time display",
         },
         builtin_minimal: {
           name: "Quiet Titanium",
-          description: "Warm mineral grey, silver accents, and crisp geometry",
+          description: "Warm mineral grey, silver accents, sidebar settings, and crisp zero-distraction layout",
         },
         builtin_forest: {
           name: "Forest Jade",
-          description: "Forest sage, mint jade accents, and soft floating capsules",
+          description: "Forest sage, mint jade accents, pill capsules, and flowing ribbon spectrum",
         },
         builtin_liquid_glass: {
           name: "Liquid Glass",
@@ -797,7 +800,47 @@ export const en: TranslationDict = {
         },
         builtin_sapphire_glass: {
           name: "Sapphire Crystal",
-          description: "Sapphire tinted Liquid Glass, floating Classic toolbar, and icy cyan accents",
+          description: "Sapphire tinted Liquid Glass with rich refraction, Classic toolbar, and icy cyan accents",
+        },
+        builtin_neon_tokyo: {
+          name: "Neon Tokyo",
+          description: "Pure OLED black, intense fuchsia neon, titlebar clock, Cyberpunk heatmap, and live spectrum",
+        },
+        builtin_prismatic_aurora: {
+          name: "Aurora Prism",
+          description: "Deep abyss Liquid Glass with maximum chromatic dispersion, centered clock, and Aurora spline heatmap",
+        },
+        builtin_amethyst_velvet: {
+          name: "Velvet Amethyst",
+          description: "Deep amethyst velvet, lilac silk, plasma Blob visualizer, bitrate area heatmap, and full toolbar",
+        },
+        builtin_nordic_ice: {
+          name: "Nordic Frost",
+          description: "Matte steel Nord palette with zero glow, crisp minimal corners, remaining timer, and ice Strings wave",
+        },
+        builtin_obsidian_telemetry: {
+          name: "Obsidian Studio",
+          description: "Precision 0 px studio geometry, JetBrains Mono font, matrix spectrum, and Thermal bitrate blocks",
+        },
+        builtin_espresso_lounge: {
+          name: "Espresso Lounge",
+          description: "Warm dark bronze, honey gold accents, finish-time clock, deep 130 px Blur, and golden waveform",
+        },
+        builtin_ruby_glass: {
+          name: "Ruby Wine Glass",
+          description: "Warm plum-tinted Liquid Glass in floating Classic style, terracotta-peach accents, and circular spectrum",
+        },
+        builtin_emerald_pulse: {
+          name: "Emerald Pulse",
+          description: "Rich evergreen emerald, intense mint glow, particle spectrum, dotted Aurora heatmap, and sidebar settings",
+        },
+        builtin_smoked_oled_glass: {
+          name: "Smoked Obsidian",
+          description: "Smoked OLED-tinted Liquid Glass with strong refraction, amber highlights, and titlebar timer",
+        },
+        builtin_solar_sunset: {
+          name: "Solar Horizon",
+          description: "Terracotta clay, coral flame accents, compact 85% UI scale, centered timer, and fire Ribbon spectrum",
         },
       },
     },
@@ -1313,6 +1356,7 @@ export const en: TranslationDict = {
     cpu: "CPU:",
     ram: "RAM:",
     gpu: "GPU:",
+    gpuLoad: "GPU Load:",
     vram: "VRAM:",
     hwdec: "Decoder:",
     pixelFormat: "Pixel format:",

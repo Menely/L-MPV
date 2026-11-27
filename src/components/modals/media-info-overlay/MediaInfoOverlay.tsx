@@ -117,6 +117,12 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   }, [activeTab, controlBarStyle, isStatsLoading, Boolean(renderingStats), tracks.length, chapters.length]);
 
   useEffect(() => {
+    // Предварительно прогреваем базовые замеры CPU/GPU при открытии окна MediaInfo,
+    // чтобы при переходе на вкладку «Рендеринг» сразу отображалась реальная нагрузка.
+    invoke("get_rendering_and_system_stats").catch(() => {});
+  }, []);
+
+  useEffect(() => {
     if (activeTab !== "rendering") {
       return;
     }

@@ -74,7 +74,7 @@
 ### 3. Цвета, акценты OKLCH и пресеты
 
 - **Цвет стекла (`l-mpv-liquid-glass-tint`) и адаптация акцентов ([colorMath.ts](src/theme/colorMath.ts), [colors.ts](src/theme/colors.ts)):** доступно чистое бесцветное стекло `transparent` и все 15 оттенков из `PLAYER_THEMES` (перевод в кристаллический оптический фильтр через OKLCH в `getGlassTintShaderParams()`). Для читаемости поверх живого видео акцентные цвета автоматически адаптируются через `readableColor` в переменные `--glass-accent`, `--glass-accent-hover`, `--glass-accent-text`, `--glass-accent-rgb`, `--glass-on-accent`.
-- **Пресеты ([presetsUtils.ts](src/utils/presetsUtils.ts), [PresetsSection.tsx](src/components/settings/sections/PresetsSection.tsx)):** `SettingsPresetData` хранит `playerInterfaceTheme`, `liquidGlassStyle`, `liquidGlassBlur`, `liquidGlassRefraction`, `liquidGlassTint`. Встроенные пресеты (`BUILT_IN_PRESETS`) включают классические стили с явным `playerInterfaceTheme: "lmpv"` и два стеклянных пресета (`builtin_liquid_glass`, `builtin_sapphire_glass`); карточки отображают бейджи темы, стиля, оттенка/шашечки прозрачности, размытия и степени преломления.
+- **Пресеты ([presetsUtils.ts](src/utils/presetsUtils.ts), [PresetsSection.tsx](src/components/settings/sections/PresetsSection.tsx)):** `SettingsPresetData` хранит `playerInterfaceTheme`, `liquidGlassStyle`, `liquidGlassBlur`, `liquidGlassRefraction`, `liquidGlassTint`, шрифт, радиус скруглений, свечение, параметры тепловой карты таймлайна (`heatmap`) и аудио-визуализатора (`visualizer`). Встроенная библиотека насчитывает 17 уникальных авторских стилей оформления (7 базовых + 10 новых: `Neon Tokyo`, `Prismatic Aurora`, `Amethyst Velvet`, `Nordic Ice`, `Obsidian Telemetry`, `Espresso Lounge`, `Ruby Glass`, `Emerald Pulse`, `Smoked OLED Glass`, `Solar Sunset`), охватывающих все вариации тем, шрифтов, Liquid Glass и визуализации; карточки отображают бейджи темы, стиля, оттенка/шашечки прозрачности, радиуса (`0px / 8px / 16px / 22px / 30px`), свечения, тепловой карты таймлайна, размытия и степени преломления. Функция `isSettingsMatchingPreset` осуществляет глубокую сверку всех визуальных параметров.
 
 <details>
 <summary><strong>1. Стек технологий и Портативность</strong></summary>
@@ -202,7 +202,7 @@ L-MPV/
 │   │   │   │   ├── index.ts              # Фасад и реэкспорт
 │   │   │   │   ├── MediaInfoHeader.tsx   # Фиксированная шапка с заголовком и кнопкой закрытия
 │   │   │   │   ├── MediaInfoTabs.tsx     # Вкладки Сводка / Рендеринг / Дорожки
-│   │   │   │   ├── MediaInfoRenderingSection.tsx # Статистика оборудования и рендерера
+│   │   │   │   ├── MediaInfoRenderingSection.tsx # Статистика оборудования и рендерера (активный GPU, телеметрия нагрузки L-MPV и системы в целом через Windows PDH API, D3D11/Vulkan, драйвер)
 │   │   │   │   ├── MediaInfoGeneralSection.tsx # Карточка общих параметров файла (имя, размер, тайминги)
 │   │   │   │   ├── MediaInfoVideoSection.tsx   # Карточка видеопотока (кодек, разрешение, FPS/HDR, Sparkline-график битрейта, дропы)
 │   │   │   │   ├── MediaInfoAudioSection.tsx   # Карточка аудиопотока (кодек, каналы, битрейт, громкость)
@@ -564,7 +564,8 @@ L-MPV/
 <summary><strong>3.1. <code>mpv_manager.rs</code></strong></summary>
 
 - Динамически загружает `libmpv-2.dll` (с поддержкой `vf_animejanai`) через `libloading`.
-- **Рендеринг и видео:** Рендерер `vo=gpu-next`, `gpu-api=d3d11,auto`, `hwdec=auto-safe`, `scale=spline36`, `cscale=spline36`, `correct-downscaling=yes`, `linear-downscaling=yes`, `auto-window-resize=no`.
+- **Рендеринг и видео:** Рендерер `vo=gpu-next`, `gpu-api=d3d11,auto`, `hwdec=auto-safe`, `scale=spline36`, `cscale=spline36`, `scaler-resizes-only=yes` (отключение скейлинга при совпадении геометрии 1:1 без интерполяции), `sigmoid-upscaling=yes` (защита от ореолов/звона на контрастных границах без замыливания), `correct-downscaling=yes`, `linear-downscaling=yes`, `auto-window-resize=no`. Гарантирована попиксельная нейтральность цвета: аппаратная фиксация `sharpen=0`, `brightness=0`, `contrast=0`, `saturation=0`, `gamma=0`, `hue=0`.
+- **Телеметрия GPU в MediaInfo (`rendering_stats.rs`):** Сбор метрик утилизации активной видеокарты (доля самого процесса L-MPV и суммарная загрузка ПК в процентах) через Windows Performance Data Helper (PDH API `\GPU Engine(*)\Utilization Percentage` с фильтрацией по LUID DXGI-адаптера и PID, агрегацией движков 3D/Compute/Video Decode и фоновым прогревом при открытии оверлея).
 - **Приоритизация потоков и устранение микрофризов (Anti-Stuttering):**
   - Опция `priority`: устанавливает приоритет процесса воспроизведения (по умолчанию `"abovenormal"` с возможностью переопределения через `AppSettings.process_priority`).
   - Опция `vo-mmcss-profile=Playback` выбирает мультимедийный профиль планировщика Windows для видеовывода. Она не гарантирует отсутствие пропусков кадров при фоновой нагрузке.

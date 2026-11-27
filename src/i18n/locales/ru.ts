@@ -738,6 +738,7 @@ export const ru: TranslationDict = {
       neonTitle: "Интенсивность неонового свечения",
       neonSoft: "Мягкое свечение",
       neonBalance: "Баланс",
+      neonIntense: "Яркое",
       ambientTitle: "Blur",
       ambientOff: "Выключено",
       ambientBlur: "Blur",
@@ -745,6 +746,8 @@ export const ru: TranslationDict = {
       visualizerMode: (mode) => `Спектр: ${mode}`,
 
       visualizerOff: "Спектр: Выкл",
+      heatmapTitle: "Тепловая карта активности таймлайна",
+      heatmapLabel: (style) => `Карта: ${style}`,
       opacityTitle: "Прозрачность интерфейса",
       radiusTitleTooltip: "Скругление углов элементов",
       scaleTitle: "Масштаб интерфейса",
@@ -777,31 +780,71 @@ export const ru: TranslationDict = {
       builtinPresets: {
         builtin_classic: {
           name: "Классический L-MPV",
-          description: "Тёмный графит, небесный акцент и плавающая панель Classic",
+          description: "Тёмный графит, небесный акцент, плавающая панель Classic и фоновый Blur",
         },
         builtin_cyberpunk: {
           name: "Сумеречный ирис",
-          description: "Чернильный индиго, розовый акцент и капсулы со спектром в тон",
+          description: "Чернильный индиго, розовый неон, капсулы и спектр в панели инструментов",
         },
         builtin_cinema: {
           name: "Ночной кинозал",
-          description: "Глубокий OLED, янтарные детали и спокойная классическая панель",
+          description: "Глубокий OLED, янтарные детали, пристыкованная панель и время окончания фильма",
         },
         builtin_minimal: {
           name: "Тихий титан",
-          description: "Тёплый минеральный серый, серебряный акцент и строгая геометрия",
+          description: "Тёплый минеральный серый, серебряный акцент, боковые настройки и ноль визуального шума",
         },
         builtin_forest: {
           name: "Лесной нефрит",
-          description: "Лесной шалфей, мятный нефритовый акцент и мягкие парящие капсулы",
+          description: "Лесной шалфей, мятный акцент, округлые капсулы и мягкий ленточный спектр",
         },
         builtin_liquid_glass: {
           name: "Жидкое стекло",
-          description: "Кристально прозрачное стекло Liquid Glass, капсулы с преломлением и мягкий небесный акцент",
+          description: "Кристально чистое стекло Liquid Glass, капсулы с преломлением и небесный акцент",
         },
         builtin_sapphire_glass: {
           name: "Сапфировый кристалл",
-          description: "Сапфировое тонированное стекло Liquid Glass, парящая классика и ледяной бирюзовый акцент",
+          description: "Сапфировое тонированное стекло Liquid Glass с усиленным преломлением и бирюзовым акцентом",
+        },
+        builtin_neon_tokyo: {
+          name: "Неоновый Токио",
+          description: "Чёрный OLED, яркая фуксия, таймер в Titlebar, тепловая карта Cyberpunk и спектр в реальном времени",
+        },
+        builtin_prismatic_aurora: {
+          name: "Призма Авроры",
+          description: "Тонированное стекло бездны Liquid Glass с максимальной призматической дисперсией, таймером по центру и картой Aurora",
+        },
+        builtin_amethyst_velvet: {
+          name: "Бархатный аметист",
+          description: "Глубокий аметист, сиреневый шёлк, плазменный визуализатор Blob, карта битрейта и полный набор кнопок",
+        },
+        builtin_nordic_ice: {
+          name: "Нордический лёд",
+          description: "Матовый стальной Nord без неона, минимальные скругления, оставшееся время и волна Strings",
+        },
+        builtin_obsidian_telemetry: {
+          name: "Обсидиан Студио",
+          description: "Строгая студийная геометрия 0 px, шрифт JetBrains Mono, матричный спектр и блоки битрейта Thermal",
+        },
+        builtin_espresso_lounge: {
+          name: "Эспрессо Лаунж",
+          description: "Тёплая бронза, медовый акцент, время окончания сеанса, глубокий Blur 130 px и золотая волна",
+        },
+        builtin_ruby_glass: {
+          name: "Рубиновое стекло",
+          description: "Сливово-бордовое тонированное стекло Liquid Glass в стиле Classic, персиковый акцент и круговой спектр",
+        },
+        builtin_emerald_pulse: {
+          name: "Изумрудный пульс",
+          description: "Тёмный изумруд, неоново-зелёные капсулы, частицы спектра, точечная тепловая карта и боковое меню",
+        },
+        builtin_smoked_oled_glass: {
+          name: "Дымчатый обсидиан",
+          description: "Тонированное дымчатое стекло OLED Liquid Glass с сильным преломлением, янтарём и таймером в шапке",
+        },
+        builtin_solar_sunset: {
+          name: "Солнечный горизонт",
+          description: "Терракота, коралловый акцент, компактный масштаб 85%, таймер по центру и огненный спектр Ribbon",
         },
       },
     },
@@ -1317,6 +1360,7 @@ export const ru: TranslationDict = {
     cpu: "CPU:",
     ram: "RAM:",
     gpu: "GPU:",
+    gpuLoad: "Нагрузка GPU:",
     vram: "VRAM:",
     hwdec: "Декодер:",
     pixelFormat: "Формат пикселей:",

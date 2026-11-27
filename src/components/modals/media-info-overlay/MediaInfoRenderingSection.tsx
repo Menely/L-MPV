@@ -49,6 +49,10 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
     : "—";
 
   const gpuName = stats?.gpu_name || "Direct3D 11";
+  const gpuLoadText =
+    stats && stats.gpu_load_available
+      ? `L-MPV: ${stats.gpu_app_percent.toFixed(1)}% | ${dict.mediaInfoModal.pcLabel}: ${stats.gpu_total_percent.toFixed(1)}%`
+      : "—";
   const vramText =
     stats && stats.vram_total_bytes > 0
       ? stats.vram_used_bytes > 0
@@ -106,6 +110,10 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
           <span className="media-info__value" title={gpuName}>
             {gpuName}
           </span>
+        </div>
+        <div className="media-info__row">
+          <span className="media-info__label">{dict.mediaInfoModal.gpuLoad}</span>
+          <span className="media-info__value">{gpuLoadText}</span>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.vram}</span>

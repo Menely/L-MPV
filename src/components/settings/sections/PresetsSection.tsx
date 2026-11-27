@@ -26,6 +26,7 @@ import {
   Globe,
   Droplets,
   Aperture,
+  BarChart3,
 } from "lucide-react";
 import {
   SettingsPreset,
@@ -489,15 +490,15 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
     const colorHex = isWindows ? "#7fc7ff" : data.accentColor;
     const themeConfig = data.playerTheme ? PLAYER_THEMES[data.playerTheme as PlayerThemeId] : null;
 
-    // Определение описания скругления
+    // Определение описания скругления согласно актуальным токенам UI_RADIUS_PRESETS
     let radiusText = "";
     if (data.uiRadius) {
       if (typeof data.uiRadius === "string") {
         const rStr = data.uiRadius as string;
-        const valMap: Record<string, string> = { none: "0px", minimal: "4px", default: "10px", smooth: "16px", pill: "24px" };
+        const valMap: Record<string, string> = { none: "0px", minimal: "8px", default: "16px", smooth: "22px", pill: "30px" };
         radiusText = dict.settings.presets.radiusLabel(valMap[rStr] || rStr);
       } else {
-        radiusText = dict.settings.presets.radiusLabel(`${data.uiRadius.value ?? 10}px`);
+        radiusText = dict.settings.presets.radiusLabel(`${data.uiRadius.value ?? 16}px`);
       }
     }
 
@@ -628,7 +629,7 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 ? dict.settings.presets.neonSoft
                 : data.glowIntensity === "medium"
                 ? dict.settings.presets.neonBalance
-                : "High"}
+                : dict.settings.presets.neonIntense}
             </span>
           </div>
         )}
@@ -655,6 +656,14 @@ export const PresetsSection: React.FC<PresetsSectionProps> = ({ onPresetApplied 
                 ? dict.settings.presets.visualizerMode(data.visualizer.mode)
                 : dict.settings.presets.visualizerOff}
             </span>
+          </div>
+        )}
+
+        {/* 5.1. Тепловая карта таймлайна */}
+        {data.heatmap?.enabled && (
+          <div className="preset-tag" title={dict.settings.presets.heatmapTitle}>
+            <BarChart3 size={12} />
+            <span>{dict.settings.presets.heatmapLabel(data.heatmap.style)}</span>
           </div>
         )}
 

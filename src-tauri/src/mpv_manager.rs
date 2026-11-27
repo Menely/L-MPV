@@ -614,13 +614,21 @@ impl MpvManager {
             // ─── Поведение при конце файла ──────────────
             Self::set_option(&api, handle, "keep-open", "yes");
 
-            // ─── Масштабирование без тяжелых фильтров ───
+            // ─── Масштабирование и эталонная цветопередача без искажений ───
             Self::set_option(&api, handle, "auto-window-resize", "no");
+            Self::set_option(&api, handle, "scaler-resizes-only", "yes"); // 1:1 без фильтрации при совпадении разрешений
             Self::set_option(&api, handle, "scale", "spline36");
             Self::set_option(&api, handle, "cscale", "spline36");
             Self::set_option(&api, handle, "dscale", "mitchell");
             Self::set_option(&api, handle, "correct-downscaling", "yes");
             Self::set_option(&api, handle, "linear-downscaling", "yes");
+            Self::set_option(&api, handle, "sigmoid-upscaling", "yes"); // Подавление ореолов контрастных границ без мыла
+            Self::set_option(&api, handle, "sharpen", "0"); // Нулевая искусственная резкость
+            Self::set_option(&api, handle, "brightness", "0");
+            Self::set_option(&api, handle, "contrast", "0");
+            Self::set_option(&api, handle, "saturation", "0");
+            Self::set_option(&api, handle, "gamma", "0");
+            Self::set_option(&api, handle, "hue", "0");
             Self::set_option(&api, handle, "deband", "no"); // Отключаем дебандинг для 0% просадок FPS при обычном воспроизведении
 
             // ─── Переопределение пользовательскими настройками поверх дефолтов ───
@@ -2287,5 +2295,50 @@ mod tests {
         assert_eq!(resolve_audio_channel_count("0", "6"), "6");
         assert_eq!(resolve_audio_channel_count("0", "0"), "");
         assert_eq!(resolve_audio_channel_count("", ""), "");
+    }
+
+    #[test]
+    fn neutral_video_fidelity_options_are_accepted_by_libmpv() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if !manifest_dir.join("libmpv-2.dll").exists() {
+            return;
+        }
+        unsafe {
+            let api = MpvManager::load_mpv_api(&manifest_dir).unwrap();
+            let handle = (api.create)();
+            assert!(!handle.is_null());
+            let options = [
+                ("vo", "null"),
+                ("ao", "null"),
+                ("terminal", "no"),
+                ("scaler-resizes-only", "yes"),
+                ("scale", "spline36"),
+                ("cscale", "spline36"),
+                ("dscale", "mitchell"),
+                ("correct-downscaling", "yes"),
+                ("linear-downscaling", "yes"),
+                ("sigmoid-upscaling", "yes"),
+                ("sharpen", "0"),
+                ("brightness", "0"),
+                ("contrast", "0"),
+                ("saturation", "0"),
+                ("gamma", "0"),
+                ("hue", "0"),
+                ("deband", "no"),
+                ("interpolation", "no"),
+                ("target-colorspace-hint", "yes"),
+                ("tone-mapping", "auto"),
+                ("hdr-compute-peak", "yes"),
+                ("gamut-mapping-mode", "perceptual"),
+            ];
+            for (k, v) in options {
+                let ck = CString::new(k).unwrap();
+                let cv = CString::new(v).unwrap();
+                let rc = (api.set_option_string)(handle, ck.as_ptr(), cv.as_ptr());
+                assert!(rc >= 0, "libmpv rejected option {k}={v}: code {rc}");
+            }
+            assert_eq!((api.initialize)(handle), 0);
+            (api.destroy)(handle);
+        }
     }
 }

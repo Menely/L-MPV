@@ -636,12 +636,15 @@ export interface TranslationDict {
       neonTitle: string;
       neonSoft: string;
       neonBalance: string;
+      neonIntense: string;
       ambientTitle: string;
       ambientOff: string;
       ambientBlur: string;
       visualizerTitle: string;
       visualizerMode: (mode: string) => string;
       visualizerOff: string;
+      heatmapTitle: string;
+      heatmapLabel: (style: string) => string;
 
       opacityTitle: string;
       radiusTitleTooltip: string;
@@ -1126,6 +1129,7 @@ export interface TranslationDict {
     cpu: string;
     ram: string;
     gpu: string;
+    gpuLoad: string;
     vram: string;
     hwdec: string;
     pixelFormat: string;
