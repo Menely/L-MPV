@@ -31,7 +31,7 @@
 
 ## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable interface supporting **Glassmorphism** and **Liquid Glass** styles, crafted in **React 19** and **TypeScript**.
 
 L-MPV keeps its settings, cache, screenshots, ONNX models and native libraries in the application folder. WebView2 Runtime is required; AI components are downloaded separately. File associations and Explorer integration are optional.
 
@@ -73,11 +73,11 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
   <tr>
     <td width="50%" align="center" valign="top">
       <b>Player Interface & MediaInfo Overlay:</b><br><br>
-      <a href="./assets/theme-lmpv-demo.gif"><img src="./assets/theme-lmpv-demo.gif" alt="L-MPV Theme Demo" width="100%" style="border-radius: 8px;"></a>
+      <a href="./assets/theme-lmpv-mediainfo.png"><img src="./assets/theme-lmpv-mediainfo.png" alt="L-MPV Theme with MediaInfo" width="100%" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center" valign="top">
       <b>Player Interface & MediaInfo Overlay:</b><br><br>
-      <a href="./assets/theme-liquid-glass-demo.gif"><img src="./assets/theme-liquid-glass-demo.gif" alt="Liquid Glass Theme Demo" width="100%" style="border-radius: 8px;"></a>
+      <a href="./assets/theme-liquid-glass-mediainfo.png"><img src="./assets/theme-liquid-glass-mediainfo.png" alt="Liquid Glass Theme with MediaInfo" width="100%" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>

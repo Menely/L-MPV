@@ -31,7 +31,7 @@
 
 ## 🌟 О проекте
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** — это современный настольный медиаплеер для Windows, объединяющий возможности нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** (ONNX инференс через DirectML и TensorRT) и настраиваемый интерфейс в стиле **Glassmorphism**, созданный на **React 19** и **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** — это современный настольный медиаплеер для Windows, объединяющий возможности нативного видеодвижка **MPV** (`vo=gpu-next`, Direct3D 11, HDR, WASAPI, sinc-ресемплинг), аппаратный **Real-Time 4K AI Апскейлинг** (ONNX инференс через DirectML и TensorRT) и настраиваемый интерфейс в стилях **Glassmorphism** и **Liquid Glass** («Жидкое стекло»), созданный на **React 19** и **TypeScript**.
 
 L-MPV хранит настройки, кэш, скриншоты, ONNX-модели и нативные библиотеки в папке приложения. Для работы нужен WebView2 Runtime; AI-компоненты загружаются отдельно. Ассоциации файлов и интеграция с Проводником включаются по желанию пользователя.
 
@@ -73,11 +73,11 @@ L-MPV хранит настройки, кэш, скриншоты, ONNX-моде
   <tr>
     <td width="50%" align="center" valign="top">
       <b>Интерфейс плеера и окно MediaInfo:</b><br><br>
-      <a href="./assets/theme-lmpv-demo.gif"><img src="./assets/theme-lmpv-demo.gif" alt="Демонстрация темы L-MPV" width="100%" style="border-radius: 8px;"></a>
+      <a href="./assets/theme-lmpv-mediainfo.png"><img src="./assets/theme-lmpv-mediainfo.png" alt="Тема L-MPV с окном MediaInfo" width="100%" style="border-radius: 8px;"></a>
     </td>
     <td width="50%" align="center" valign="top">
       <b>Интерфейс плеера и окно MediaInfo:</b><br><br>
-      <a href="./assets/theme-liquid-glass-demo.gif"><img src="./assets/theme-liquid-glass-demo.gif" alt="Демонстрация темы Liquid Glass" width="100%" style="border-radius: 8px;"></a>
+      <a href="./assets/theme-liquid-glass-mediainfo.png"><img src="./assets/theme-liquid-glass-mediainfo.png" alt="Тема Liquid Glass с окном MediaInfo" width="100%" style="border-radius: 8px;"></a>
     </td>
   </tr>
   <tr>
