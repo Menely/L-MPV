@@ -805,7 +805,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 /* ─── Футер настроек ─────────────────────────────────── */
 .settings-footer {
-  padding: 6px 14px;
+  padding: 0 14px;
   border-top: 1px solid var(--border);
   background: rgba(0, 0, 0, 0.25);
   display: flex;
@@ -813,26 +813,41 @@ html.no-animations .color-circle--palette { will-change: auto; }
   align-items: center;
   flex-wrap: nowrap;
   gap: var(--space-4);
-  font-size: 14px;
+  font-size: 13.5px;
   color: var(--text-muted);
   flex-shrink: 0;
-  /* Высота равна шапке окна настроек (44px): контент 32px + паддинги 6px. */
+  /* Шапка и футер в классическом стиле строго одинаковой высоты (44px) */
   min-height: 44px;
+  height: 44px;
   box-sizing: border-box;
   /* Внешний контур обрезается родительской панелью с overflow: hidden. */
   border-radius: 0;
 }
 
-/* Шапка окна настроек (Модерн/Классика) той же высоты, что и футер: 44px. */
+/* Шапка окна настроек (Классический / Модерн) равна по высоте нижнему футеру */
 .modal--settings .modal__header {
-  padding-block: 10px;
+  padding: 0 14px;
   min-height: 44px;
+  height: 44px;
+  box-sizing: border-box;
+}
+
+.modal--settings .modal__header .modal__title {
+  font-size: var(--fs-lg, 17px);
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.modal--settings .modal__header .modal__close {
+  width: 30px;
+  height: 30px;
 }
 
 .settings-footer__left {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
   flex-wrap: nowrap;
   min-width: 0;
 }
@@ -841,7 +856,27 @@ html.no-animations .color-circle--palette { will-change: auto; }
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-inline: -2px;
   flex-shrink: 0;
+}
+
+.settings-footer__version-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -7px;
+  flex-shrink: 0;
+}
+
+.settings-footer__version-group .settings-card-btn--version {
+  height: 30px;
+  padding: 0 7px;
+}
+
+.settings-footer__version-group .settings-footer__btn {
+  height: 30px;
+  padding: 0 7px;
+  gap: 6px;
 }
 
 .settings-footer__icon-btn {
@@ -883,14 +918,14 @@ html.no-animations .color-circle--palette { will-change: auto; }
   font-family: 'Permanent Marker', cursive;
   font-weight: 400;
   color: var(--text-secondary);
-  font-size: 17px;
+  font-size: 16px;
+  height: 30px;
   letter-spacing: 0.02em;
-  height: 32px;
   line-height: 1;
   display: inline-flex;
   align-items: center;
   user-select: none;
-  margin: 0 2px 0 0;
+  margin: 0;
   flex-shrink: 0;
 }
 
@@ -902,10 +937,10 @@ html.no-animations .color-circle--palette { will-change: auto; }
 
 .settings-footer__divider {
   width: 1px;
-  height: 16px;
+  height: 14px;
   background: var(--border, rgba(255, 255, 255, 0.14));
   flex-shrink: 0;
-  margin: 0 2px;
+  margin: 0;
 }
 
 .settings-footer__btn {
@@ -1046,7 +1081,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   gap: 12px;
   box-sizing: border-box;
   justify-content: space-between;
-  padding: 12px var(--settings-section-padding);
+  padding: 12px 14px;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -1072,7 +1107,8 @@ html.no-animations .color-circle--palette { will-change: auto; }
   align-items: center;
   min-width: 0;
   line-height: 22px;
-  gap: var(--space-5);
+  /* Отступ слева (14px + 2px внутри слота = 16px) и справа до надписи (14px + 2px = 16px) строго равны */
+  gap: 14px;
   font-size: var(--fs-md);
   font-weight: 600;
   color: var(--text-primary);
@@ -1175,7 +1211,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   grid-template-columns: repeat(6, minmax(0, 1fr));
   align-items: center;
   border-bottom: 1px solid var(--border);
-  padding: 5px 6px;
+  padding: 4px 6px;
   background: rgba(0, 0, 0, 0.15);
   flex-shrink: 0;
   gap: var(--space-2);
@@ -1189,7 +1225,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   flex: 1 1 0;
   min-width: 0;
   gap: 4px;
-  padding: 5px 3px;
+  padding: 4px 3px;
   background: transparent;
   /* Рамка всегда целочисленная 1px: переключение active
      не меняет геометрию и обеспечивает четкое субпиксельное сглаживание углов. */
@@ -1197,7 +1233,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
   background-clip: padding-box;
   box-sizing: border-box;
   color: var(--text-secondary);
-  font-size: var(--fs-sm);
+  font-size: var(--fs-xs, 12px);
   font-weight: 500;
   cursor: pointer;
   user-select: none;
@@ -1210,10 +1246,10 @@ html.no-animations .color-circle--palette { will-change: auto; }
 }
 
 .settings-tab-icon {
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  min-height: 16px;
+  width: 15px;
+  height: 15px;
+  min-width: 15px;
+  min-height: 15px;
   display: block;
   flex-shrink: 0;
 }
@@ -2374,7 +2410,7 @@ html.no-animations .color-circle--palette { will-change: auto; }
 .cmenu-available-item {
   display: flex;
   align-items: center;
-  gap: var(--space-3);
+  gap: 8px;
   padding: var(--space-2) 8px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;

@@ -7,8 +7,6 @@ import {
   Zap,
   FolderOpen,
   Layers,
-  Eye,
-  EyeOff,
   ChevronDown,
 } from "lucide-react";
 import {
@@ -44,6 +42,7 @@ import {
 } from "@dnd-kit/sortable";
 import { BackendSelector } from "../../upscale/BackendSelector";
 import { ModelListItem } from "../../upscale/ModelListItem";
+import { EyeMorphIcon } from "../../common/EyeMorphIcon";
 import {
   getPreloadedUpscaleStatus,
   loadPreloadedUpscaleStatus,
@@ -692,8 +691,8 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   setIsModelsListOpen((prev) => !prev);
                 }}
                 aria-expanded={isModelsListOpen}
-        aria-controls={modelListId}
-
+                aria-controls={modelListId}
+                style={{ width: 28, height: 28, minWidth: 28, padding: 0 }}
                 >
                 <ChevronDown
                   size={16}
@@ -712,8 +711,9 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                   toggleHideModelNames();
                 }}
                 title={hideModelNames ? dict.settings.upscaling.btnShowNames : dict.settings.upscaling.btnHideNames}
+                style={{ width: 28, height: 28, minWidth: 28, padding: 0 }}
                 >
-                {hideModelNames ? <EyeOff size={16} /> : <Eye size={16} />}
+                <EyeMorphIcon off={hideModelNames} size={16} />
               </button>
 
               <button
@@ -721,6 +721,7 @@ export const UpscalingSettingsSection: React.FC<UpscalingSettingsSectionProps> =
                 className="btn btn--secondary btn--icon"
                 onClick={handleOpenModelsFolder}
                 title={dict.settings.upscaling.btnOpenFolderTitle}
+                style={{ width: 28, height: 28, minWidth: 28, padding: 0 }}
                 >
                 <FolderOpen size={16} />
               </button>

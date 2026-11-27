@@ -1,5 +1,6 @@
 import React from "react";
 import { Download, Loader2, RotateCw } from "lucide-react";
+import { TrackLiquidProgressFill } from "../../player/controls/track-popover/TrackDownloadVisuals";
 import { formatBytes } from "./updateTypes";
 import type { TranslationDict } from "../../../i18n/types";
 
@@ -159,21 +160,19 @@ export const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo((
     : 0;
 
   return (
-    <div style={{ marginBottom: "var(--space-7)" }}>
+    <div style={{ flexShrink: 0, marginBottom: 0 }}>
       <div
         style={{
           display: "flex",
           justifyContent: "space-between",
           fontSize: "var(--fs-sm)",
           color: "var(--text-secondary, #d1d5db)",
-          marginBottom: "var(--space-4)",
+          marginBottom: "var(--space-3)",
         }}
       >
         <span>
           {isDone
             ? dict.updateModal.toastReadyTitle
-            : totalBytes > 0
-            ? dict.updateModal.downloadProgress(progress)
             : dict.updateModal.downloading}
         </span>
         {(totalBytes > 0 || downloadedBytes > 0) && (
@@ -186,33 +185,56 @@ export const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo((
       </div>
 
       <div
+        className="update-modal__progress-track"
         style={{
           width: "100%",
-          height: 8,
-          borderRadius: "var(--radius-xs)",
-          background: "var(--surface-level-3-hover)",
+          height: 28,
+          borderRadius: "var(--radius-control, 8px)",
+          background: "rgba(255, 255, 255, 0.06)",
           overflow: "hidden",
           position: "relative",
+          display: "flex",
+          alignItems: "center",
+          border: "none",
           transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
+        <TrackLiquidProgressFill
+          progress={effectivePct}
+          status={isDone ? "completed" : "running"}
+          className="track-liquid-fill--vivid"
+        />
         <div
           style={{
-            width: `${effectivePct}%`,
-            height: "100%",
-            background: "var(--accent-gradient, linear-gradient(90deg, var(--accent) 0%, var(--accent-hover) 100%))",
-            borderRadius: "var(--radius-xs)",
-            transition: "width 0.2s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
-            boxShadow: "none",
+            position: "relative",
+            zIndex: 1,
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "flex-end",
+            padding: "0 12px",
+            boxSizing: "border-box",
           }}
-        />
+        >
+          <span
+            style={{
+              fontVariantNumeric: "tabular-nums",
+              fontSize: "var(--fs-xs, 12px)",
+              fontWeight: 700,
+              color: "#ffffff",
+              textShadow: "0 1px 2px rgba(0, 0, 0, 0.5)",
+            }}
+          >
+            {Math.round(effectivePct)}%
+          </span>
+        </div>
       </div>
 
       <p
         style={{
           fontSize: "var(--fs-xs)",
           color: "var(--text-muted, #9ca3af)",
-          marginTop: "var(--space-4)",
+          marginTop: "var(--space-2)",
           marginBottom: "var(--space-0)",
           textAlign: "center",
         }}

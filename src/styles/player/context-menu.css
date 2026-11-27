@@ -336,7 +336,7 @@
 
 .context-menu__track-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: var(--space-2);
   width: 100%;
 }
@@ -372,8 +372,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  align-self: stretch;
+  width: 30px;
+  min-height: 28px;
+  height: auto;
   padding: 0;
   flex-shrink: 0;
   border-radius: var(--menu-item-radius);

@@ -175,10 +175,13 @@ export function SettingsFooter({
     <div className="settings-footer">
       <div className="settings-footer__left">
         {brandNode}
-        <div className="settings-footer__icons">{socialButtonsNode}</div>
-        {versionButtonNode}
         <span className="settings-footer__divider" aria-hidden="true" />
-        {updateActionNode}
+        <div className="settings-footer__icons">{socialButtonsNode}</div>
+        <span className="settings-footer__divider" aria-hidden="true" />
+        <div className="settings-footer__version-group">
+          {versionButtonNode}
+          {updateActionNode}
+        </div>
       </div>
       {editionNode}
     </div>

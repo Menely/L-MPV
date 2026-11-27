@@ -40,7 +40,11 @@ html[data-interface-theme="glass"] .track-liquid-fill {
   --track-liquid-opacity: 0.22;
 }
 
-html[data-interface-theme="glass"] .track-liquid-fill__bar {
+html[data-interface-theme="glass"] .track-liquid-fill.track-liquid-fill--vivid {
+  --track-liquid-opacity: 0.82;
+}
+
+html[data-interface-theme="glass"] .track-liquid-fill__svg {
   color: rgb(var(--glass-accent-rgb, 127, 199, 255));
 }
 

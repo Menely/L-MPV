@@ -394,7 +394,7 @@ body.settings-open .player-controls-wrapper--docked {
   }
 
   .settings-side-panel .settings-footer__left {
-    gap: 4px;
+    gap: 8px;
   }
 
   .settings-side-panel .settings-footer__edition {

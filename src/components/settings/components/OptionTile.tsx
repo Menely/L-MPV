@@ -205,7 +205,7 @@ const cardHeaderStyle: React.CSSProperties = {
   alignItems: "flex-start",
   minHeight: 20,
   lineHeight: "20px",
-  gap: 6,
+  gap: 12,
   minWidth: 0,
 };
 

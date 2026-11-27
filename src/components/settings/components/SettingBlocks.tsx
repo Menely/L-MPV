@@ -35,7 +35,7 @@ export function SectionHeader({ icon, title, right, desc }: SectionHeaderProps) 
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "var(--space-3)",
+            gap: 12,
             minHeight: 20,
             lineHeight: "20px",
             minWidth: 0,

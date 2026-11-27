@@ -16,7 +16,7 @@ export function AppearanceSetting({ title, icon, resetTitle, changed, onReset, c
   return (
     <div className="player-appearance__setting">
       <div className="block-head">
-        <div className="row-center row-gap-3"><SettingsIcon>{icon}</SettingsIcon><span className="t-label">{title}</span></div>
+        <div className="row-center" style={{ gap: 12 }}><SettingsIcon>{icon}</SettingsIcon><span className="t-label">{title}</span></div>
         <button type="button" className="ui-reset-btn player-appearance__reset"
           data-reset-hidden={!changed} tabIndex={changed ? 0 : -1} disabled={!changed}
           aria-label={resetTitle} onClick={onReset}><RotateCcw size={16} /></button>

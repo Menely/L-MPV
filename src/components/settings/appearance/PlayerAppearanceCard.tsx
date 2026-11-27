@@ -39,7 +39,7 @@ export function PlayerAppearanceCard(props: PlayerAppearanceProps) {
       aria-label={dict.settings.appearance.controlBarStyleTitle}
     >
       <div className="player-appearance__header">
-        <div className="row-center row-gap-3"><SettingsIcon><PanelBottom size={16} /></SettingsIcon>
+        <div className="row-center" style={{ gap: 12 }}><SettingsIcon><PanelBottom size={16} /></SettingsIcon>
           <span className="t-label">{dict.settings.appearance.controlBarStyleTitle}</span>
         </div>
       </div>

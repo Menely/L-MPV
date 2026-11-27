@@ -8,6 +8,7 @@ import {
   getSavedControlBarStyle,
 } from "../../../theme/controlBarStyle";
 import type { AppUpdaterController } from "../../../hooks/useAppUpdater";
+import { TrackLiquidProgressFill } from "../../player/controls/track-popover/TrackDownloadVisuals";
 import { AppLogoIcon } from "./AppLogoIcon";
 import { UpdateInfo, formatBytes, normalizeVersion } from "./updateTypes";
 
@@ -117,26 +118,27 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
 
   const bodyContent = isDownloading ? (
     <div className="update-toast__progress">
-      <div className="update-toast__progress-meta">
-        <span>
-          {hasKnownTotal
-            ? `${formatBytes(updater.downloadedBytes, locale)} / ${formatBytes(
-                updater.totalBytes,
-                locale
-              )}`
-            : updater.downloadedBytes > 0
-            ? formatBytes(updater.downloadedBytes, locale)
-            : dict.updateModal.downloading}
-        </span>
-        {hasKnownTotal && (
-          <span className="update-toast__progress-pct">{progressRounded}%</span>
-        )}
-      </div>
       <div className="update-toast__progress-track">
-        <div
-          className="update-toast__progress-fill"
-          style={{ width: `${progressBarWidth}%` }}
+        <TrackLiquidProgressFill
+          progress={progressBarWidth}
+          status="running"
+          className="track-liquid-fill--vivid"
         />
+        <div className="update-toast__progress-overlay">
+          <span className="update-toast__progress-bytes">
+            {hasKnownTotal
+              ? `${formatBytes(updater.downloadedBytes, locale)} / ${formatBytes(
+                  updater.totalBytes,
+                  locale
+                )}`
+              : updater.downloadedBytes > 0
+              ? formatBytes(updater.downloadedBytes, locale)
+              : dict.updateModal.downloading}
+          </span>
+          {hasKnownTotal && (
+            <span className="update-toast__progress-pct">{progressRounded}%</span>
+          )}
+        </div>
       </div>
     </div>
   ) : isReady ? (

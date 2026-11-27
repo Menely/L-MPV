@@ -113,7 +113,7 @@ export const TrackRow: React.FC<TrackRowProps> = ({
           completedLabel={completedLabel}
           status={actionStatus}
           progress={downloadProgress}
-          iconSize={14}
+          iconSize={16}
           onDownload={onDownload}
           onCancel={onCancelDownload}
         />

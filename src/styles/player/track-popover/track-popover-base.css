@@ -149,7 +149,7 @@
 /* ─── Строка списка: кнопка дорожки + кнопка скачивания ──────── */
 .track-popover__row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 4px;
   width: 100%;
 }
@@ -307,11 +307,12 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: var(--size-action-compact);
-  height: var(--size-action-compact);
-  min-width: var(--size-action-compact);
-  min-height: var(--size-action-compact);
-  border-radius: var(--radius-list-row);
+  align-self: stretch;
+  width: var(--size-menu-row);
+  min-width: var(--size-menu-row);
+  min-height: var(--size-menu-row);
+  height: auto;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px));
   border: 1px solid transparent;
   background: transparent;
   color: var(--text-muted);
@@ -356,7 +357,7 @@
 }
 
 .track-download-btn__percent {
-  font-size: var(--fs-2xs);
+  font-size: var(--fs-xs);
   font-weight: 700;
   line-height: 1;
   color: var(--accent-text);
@@ -420,11 +421,9 @@
   }
 }
 
-/* ─── Жидкая лента прогресса выкачивания дорожки (Вариант 1: Мягкая волна) ───
-   В точности повторяет геометрию, скругление и плоский акцентный цвет фона
-   наведения (.track-popover__item:hover -> var(--hover-veil-float)).
-   Единая групповая прозрачность (--track-liquid-opacity) на уровне .track-liquid-fill__bar
-   гарантирует полное отсутствие вертикального шва между телом полосы и SVG-мениском. */
+/* ─── Бесшовная жидкая лента прогресса выкачивания дорожки и компиляции моделей ───
+   Вся заливка, плавные округлые волны, внутренний световой поток и блеск мениска
+   рендерятся в едином SVG-контуре без стыков и перегородок. */
 .track-liquid-fill {
   --track-liquid-opacity: 0.18;
   position: absolute;
@@ -436,59 +435,21 @@
   transition: opacity 360ms var(--ease-smooth);
 }
 
+.track-liquid-fill--vivid {
+  --track-liquid-opacity: 0.82;
+}
+
 .track-liquid-fill--completed {
   animation: trackLiquidFadeOut 500ms var(--ease-smooth) 850ms forwards;
 }
 
-.track-liquid-fill__bar {
-  position: relative;
-  display: flex;
-  align-items: stretch;
-  height: 100%;
-  min-width: 0;
-  opacity: var(--track-liquid-opacity);
-  color: rgb(var(--accent-rgb, 127, 199, 255));
-  transition: width 220ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: width;
-}
-
-.track-liquid-fill__body {
-  flex: 1 1 auto;
-  min-width: 10px;
-  background: currentColor;
-  margin-right: -0.5px;
-}
-
-.track-liquid-fill__meniscus {
-  position: relative;
-  flex: 0 0 14px;
-  width: 14px;
-  height: 100%;
-  overflow: hidden;
-  pointer-events: none;
-  transition: flex-basis 240ms var(--ease-smooth),
-              width 240ms var(--ease-smooth),
-              opacity 240ms var(--ease-smooth);
-}
-
-.track-liquid-fill--completed .track-liquid-fill__meniscus {
-  flex-basis: 0;
-  width: 0;
-  opacity: 0;
-}
-
-.track-liquid-fill__wave-svg {
+.track-liquid-fill__svg {
   display: block;
   width: 100%;
   height: 100%;
-}
-
-.track-liquid-fill__wave-main {
-  opacity: 1;
-}
-
-.track-liquid-fill__wave-sub {
-  opacity: 0.45;
+  opacity: var(--track-liquid-opacity);
+  color: rgb(var(--accent-rgb, 127, 199, 255));
+  pointer-events: none;
 }
 
 @keyframes trackLiquidFadeOut {
@@ -500,17 +461,9 @@
   }
 }
 
-html.no-animations .track-liquid-fill__meniscus,
+html.no-animations .track-liquid-fill--completed,
 html.no-animations .track-download-btn__done {
   animation: none !important;
-}
-
-html.no-animations .track-liquid-fill__meniscus {
-  display: none !important;
-}
-
-html.no-animations .track-liquid-fill__bar {
-  transition: none !important;
 }
 
 .track-popover__divider {

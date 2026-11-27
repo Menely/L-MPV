@@ -390,7 +390,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
           >
             <div
               style={{
-                marginBottom: errorMessage || showProgressArea ? 14 : 0,
+                marginBottom: errorMessage || showProgressArea ? 10 : 0,
                 display: "flex",
                 flexDirection: "column",
                 flex: 1,
@@ -587,7 +587,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
             )}
 
             {showProgressArea && (
-              <div style={{ marginTop: "12px" }}>
+              <div style={{ marginTop: "10px", flexShrink: 0 }}>
                 <DownloadProgressBar
                   progress={progress}
                   downloadedBytes={downloadedBytes}

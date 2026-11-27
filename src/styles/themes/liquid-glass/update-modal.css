@@ -73,6 +73,7 @@ html[data-interface-theme="glass"] .update-toast .update-toast__btn--primary:hov
   color: var(--accent-text);
 }
 
-html[data-interface-theme="glass"] .update-toast .update-toast__progress-track {
-  background: rgba(255, 255, 255, 0.22);
+html[data-interface-theme="glass"] .update-toast .update-toast__progress-track,
+html[data-interface-theme="glass"] .update-modal__progress-track {
+  background: rgba(255, 255, 255, 0.08) !important;
 }

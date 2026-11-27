@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useId, useRef, useState } from "react";
 import * as m from "motion/react-m";
 import type { Transition } from "motion/react";
 import { X } from "lucide-react";
@@ -12,104 +12,333 @@ export interface TrackLiquidProgressFillProps {
   progress: number;
   /** Состояние загрузки дорожки. */
   status: "running" | "completed";
+  /** Дополнительный CSS-класс. */
+  className?: string;
+}
+
+/** Точка профиля волны по высоте элемента. */
+interface WavePoint {
+  x: number;
+  y: number;
+}
+
+const WAVE_SEGMENTS = 8;
+
+/**
+ * Строит C1-гладкий замкнутый SVG-контур жидкости от левой стенки (x = 0)
+ * до правого волнового фронта через кубический сплайн Catmull-Rom.
+ */
+function buildLiquidWavePath(points: ReadonlyArray<WavePoint>, height: number): string {
+  const count = points.length;
+  if (count < 2) {
+    return "";
+  }
+
+  const parts: string[] = [
+    `M 0,-2`,
+    `L ${points[0].x.toFixed(2)},${points[0].y.toFixed(2)}`,
+  ];
+
+  for (let i = 0; i < count - 1; i += 1) {
+    const p0 = points[i === 0 ? 0 : i - 1];
+    const p1 = points[i];
+    const p2 = points[i + 1];
+    const p3 = points[i + 2 >= count ? count - 1 : i + 2];
+
+    const cp1x = p1.x + (p2.x - p0.x) / 6;
+    const cp1y = p1.y + (p2.y - p0.y) / 6;
+    const cp2x = p2.x - (p3.x - p1.x) / 6;
+    const cp2y = p2.y - (p3.y - p1.y) / 6;
+
+    parts.push(
+      `C ${cp1x.toFixed(2)},${cp1y.toFixed(2)} ${cp2x.toFixed(2)},${cp2y.toFixed(2)} ${p2.x.toFixed(2)},${p2.y.toFixed(2)}`
+    );
+  }
+
+  parts.push(`L 0,${(height + 2).toFixed(2)}`, "Z");
+  return parts.join(" ");
 }
 
 /**
- * Пути ключевых фаз основного фронта жидкости (C1-гладкие кубические кривые Безье: x3 = (x2 + x4) / 2).
- * Имитируют нелинейное перекатывание, инерционный всплеск у стенок и распад на две мягкие волны.
+ * Вычисляет мягкую органическую X-координату передней волны.
+ * Низкие волновые числа (меньше одного цикла на высоту) исключают острые зубцы,
+ * а несоизмеримые частоты создают непрерывное нелинейное перекатывание.
  */
-const PRIMARY_WAVE_VALUES = [
-  "M 0,0 L 6,0 C 16,22 15,36 9,50 C 3,64 2,78 5,100 L 0,100 Z",
-  "M 0,0 L 3,0 C 9,22 16,36 15.5,50 C 15,64 7,78 3,100 L 0,100 Z",
-  "M 0,0 L 5,0 C 2,22 3,36 9,50 C 15,64 16.5,78 8,100 L 0,100 Z",
-  "M 0,0 L 8,0 C 15,22 5,36 5,50 C 5,64 14.5,78 6,100 L 0,100 Z",
-  "M 0,0 L 4,0 C 3,22 7,36 11.5,50 C 16,64 12,78 4,100 L 0,100 Z",
-  "M 0,0 L 5,0 C 13,22 16,36 11,50 C 6,64 3,78 6,100 L 0,100 Z",
-  "M 0,0 L 6,0 C 16,22 15,36 9,50 C 3,64 2,78 5,100 L 0,100 Z",
-].join("; ");
+function evaluateMainWaveX(
+  baseFrontX: number,
+  u: number,
+  timeSec: number,
+  ampScale: number,
+  maxWidth: number
+): number {
+  const swell = Math.sin(timeSec * 1.07 + 0.55 * Math.sin(timeSec * 0.41));
+  const arc = Math.sin(u * 3.6 - timeSec * 1.38 + 0.3);
+  const cross = Math.sin(u * 5.6 + timeSec * 2.04 + 1.85);
+  const tilt = Math.sin(u * 2.1 + timeSec * 0.79 + 3.2);
+
+  const delta = (2.35 * arc + 1.05 * cross + 0.85 * tilt + 1.35 * swell) * ampScale;
+  return Math.max(2, Math.min(maxWidth + 4, baseFrontX + delta));
+}
 
 /**
- * Пути ключевых фаз вторичной глубинной волны, движущейся в несинхронном ритме (2.1с против 3.2с)
- * для создания живого апериодического и слегка хаотичного поведения жидкости.
+ * Вычисляет хаотично отстающую и опережающую X-координату задней глубинной волны.
  */
-const SECONDARY_WAVE_VALUES = [
-  "M 0,0 L 5,0 C 2,22 4,36 10,50 C 16,64 17.5,78 8,100 L 0,100 Z",
-  "M 0,0 L 8,0 C 16.5,22 6,36 6,50 C 6,64 15.5,78 7,100 L 0,100 Z",
-  "M 0,0 L 7,0 C 17.5,22 15,36 9,50 C 3,64 2,78 5,100 L 0,100 Z",
-  "M 0,0 L 3,0 C 8,22 17,36 16.5,50 C 16,64 8,78 3,100 L 0,100 Z",
-  "M 0,0 L 6,0 C 4,22 5,36 10,50 C 15,64 13,78 5,100 L 0,100 Z",
-  "M 0,0 L 5,0 C 2,22 4,36 10,50 C 16,64 17.5,78 8,100 L 0,100 Z",
-].join("; ");
+function evaluateSubWaveX(
+  baseFrontX: number,
+  u: number,
+  timeSec: number,
+  ampScale: number,
+  maxWidth: number
+): number {
+  const swell = Math.cos(timeSec * 0.89 + 0.6 * Math.sin(timeSec * 0.34));
+  const arc = Math.sin(u * 3.25 + timeSec * 1.13 + 2.4);
+  const cross = Math.sin(u * 5.15 - timeSec * 1.76 + 0.7);
+  const tilt = Math.sin(u * 2.35 - timeSec * 0.71 + 4.1);
+
+  const delta =
+    (2.1 + 2.45 * arc + 1.15 * cross + 0.95 * tilt + 1.45 * swell) * ampScale;
+  return Math.max(2, Math.min(maxWidth + 6, baseFrontX + delta));
+}
 
 /**
- * Анимированная лента загрузки дорожки:
- * - Точно повторяет форму, размер, скругление и плоский акцентный цвет фона наведения (`--hover-veil-float`).
- * - Не содержит белых полос, рамок или линейных бликов — используется исключительно акцентный цвет.
- * - Передний край формируется бесшовным двухслойным SVG-мениском с нелинейной сплайн-деформацией.
+ * Бесшовная физическая анимация жидкой ленты прогресса:
+ * - Единый SVG на всю область контейнера исключает любой вертикальный шов или зазор.
+ * - Пологие C1-кривые Catmull-Rom с несоизмеримыми гармониками создают живые округлые волны.
+ * - Внутренний переливающийся свет и поверхностное свечение мениска накладываются строго
+ *   по контуру самих волн и плавно доходят до их вершин.
  */
 export const TrackLiquidProgressFill: React.FC<TrackLiquidProgressFillProps> = ({
   progress,
   status,
+  className,
 }) => {
-  const clampedProgress = Math.max(0, Math.min(100, progress));
-  const visualWidth =
+  const motionAllowed = useMotionAllowed();
+  const rawUid = useId().replace(/:/g, "");
+  const shineGradId = `liquid-shine-${rawUid}`;
+  const rimGradId = `liquid-rim-${rawUid}`;
+
+  const containerRef = useRef<HTMLSpanElement | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const subWaveRef = useRef<SVGPathElement | null>(null);
+  const mainWaveRef = useRef<SVGPathElement | null>(null);
+  const shineWaveRef = useRef<SVGPathElement | null>(null);
+  const rimWaveRef = useRef<SVGPathElement | null>(null);
+  const shineGradRef = useRef<SVGLinearGradientElement | null>(null);
+  const rimGradRef = useRef<SVGLinearGradientElement | null>(null);
+
+  const clampedTarget =
     status === "completed"
       ? 100
-      : clampedProgress <= 0
-      ? 9
-      : Math.max(9, clampedProgress);
+      : Math.max(9, Math.min(100, progress <= 0 ? 9 : progress));
+
+  const targetProgressRef = useRef<number>(clampedTarget);
+  const statusRef = useRef<"running" | "completed">(status);
+  const smoothProgressRef = useRef<number>(clampedTarget);
+  const sizeRef = useRef<{ width: number; height: number }>({
+    width: 148,
+    height: 28,
+  });
+
+  targetProgressRef.current = clampedTarget;
+  statusRef.current = status;
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) {
+      return;
+    }
+
+    const updateSize = (w: number, h: number) => {
+      if (w > 1 && h > 1) {
+        sizeRef.current = { width: w, height: h };
+        svgRef.current?.setAttribute(
+          "viewBox",
+          `0 0 ${w.toFixed(1)} ${h.toFixed(1)}`
+        );
+      }
+    };
+
+    const rect = container.getBoundingClientRect();
+    updateSize(rect.width, rect.height);
+
+    const observer = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        updateSize(entry.contentRect.width, entry.contentRect.height);
+      }
+    });
+    observer.observe(container);
+
+    return () => observer.disconnect();
+  }, []);
+
+  useEffect(() => {
+    const applyFrame = (timeSec: number, dt: number) => {
+      const { width, height } = sizeRef.current;
+      const target = targetProgressRef.current;
+      const prev = smoothProgressRef.current;
+
+      let current = prev;
+      if (motionAllowed) {
+        // Экспоненциальное сглаживание уровня, независимое от частоты обновления монитора
+        const factor = 1 - Math.exp(-dt * 5.6);
+        current = prev + (target - prev) * factor;
+        if (Math.abs(target - current) < 0.03) {
+          current = target;
+        }
+      } else {
+        current = target;
+      }
+      smoothProgressRef.current = current;
+
+      const velocityPxPerSec =
+        dt > 0.0001 ? ((current - prev) / 100) * width / dt : 0;
+      const frontX = Math.max(6, (width * current) / 100);
+
+      // Волны мягко выравниваются при полном заполнении и слегка колышутся при росте уровня
+      const edgeFade = Math.max(0, Math.min(1, (width - frontX + 4) / 12));
+      const completeFade = statusRef.current === "completed" && current > 98.5 ? 0 : 1;
+      const motionAmplitude = motionAllowed
+        ? edgeFade *
+          completeFade *
+          (1 + Math.min(0.45, Math.abs(velocityPxPerSec) * 0.008))
+        : 0;
+
+      const mainPoints: WavePoint[] = [];
+      const subPoints: WavePoint[] = [];
+      const totalSpan = height + 4;
+
+      for (let i = 0; i <= WAVE_SEGMENTS; i += 1) {
+        const y = -2 + (totalSpan * i) / WAVE_SEGMENTS;
+        const u = Math.max(0, Math.min(1, y / Math.max(1, height)));
+        mainPoints.push({
+          x: evaluateMainWaveX(frontX, u, timeSec, motionAmplitude, width),
+          y,
+        });
+        subPoints.push({
+          x: evaluateSubWaveX(frontX, u, timeSec, motionAmplitude, width),
+          y,
+        });
+      }
+
+      const mainD = buildLiquidWavePath(mainPoints, height);
+      const subD = buildLiquidWavePath(subPoints, height);
+
+      subWaveRef.current?.setAttribute("d", subD);
+      mainWaveRef.current?.setAttribute("d", mainD);
+      shineWaveRef.current?.setAttribute("d", mainD);
+      rimWaveRef.current?.setAttribute("d", mainD);
+
+      // Бегущий нелинейный поток света, проходящий сквозь всю длину до самых вершин волн
+      if (shineGradRef.current && motionAllowed) {
+        const shineSpan = Math.max(54, frontX * 0.72);
+        const linearPhase = (timeSec * 0.34) % 1;
+        // Мягкое естественное замедление-ускорение вместо жёсткого метронома
+        const organicPhase =
+          linearPhase - 0.055 * Math.sin(linearPhase * Math.PI * 2);
+        const travelStart = -shineSpan * 1.05;
+        const travelEnd = frontX + Math.max(20, shineSpan * 0.35);
+        const shineStartX = travelStart + (travelEnd - travelStart) * organicPhase;
+
+        shineGradRef.current.setAttribute("x1", shineStartX.toFixed(1));
+        shineGradRef.current.setAttribute("y1", "0");
+        shineGradRef.current.setAttribute(
+          "x2",
+          (shineStartX + shineSpan).toFixed(1)
+        );
+        shineGradRef.current.setAttribute("y2", height.toFixed(1));
+      }
+
+      // Световой ореол мениска строго по изогнутой передней кромке воды
+      if (rimGradRef.current) {
+        const rimAlphaScale = edgeFade * completeFade;
+        const rimX1 = Math.max(-4, frontX - 16);
+        const rimX2 = frontX + 6;
+        rimGradRef.current.setAttribute("x1", rimX1.toFixed(1));
+        rimGradRef.current.setAttribute("y1", "0");
+        rimGradRef.current.setAttribute("x2", rimX2.toFixed(1));
+        rimGradRef.current.setAttribute("y2", "0");
+        rimWaveRef.current?.setAttribute("opacity", rimAlphaScale.toFixed(3));
+      }
+    };
+
+    if (!motionAllowed) {
+      applyFrame(0, 0);
+      return;
+    }
+
+    let rafId = 0;
+    let lastTime = performance.now();
+    // Индивидуальный случайный сдвиг фазы от времени старта, чтобы соседние прогресс-бары двигались хаотично
+    const phaseOffset = (lastTime % 10000) * 0.001;
+
+    // Синхронно рисуем первый кадр без мерцания при монтировании
+    applyFrame(lastTime * 0.001 + phaseOffset, 0.016);
+
+    const tick = (now: number) => {
+      const dt = Math.min(0.05, Math.max(0.001, (now - lastTime) * 0.001));
+      lastTime = now;
+      applyFrame(now * 0.00134 + phaseOffset, dt);
+      rafId = window.requestAnimationFrame(tick);
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(rafId);
+  }, [motionAllowed]);
 
   return (
     <span
+      ref={containerRef}
       className={`track-liquid-fill ${
         status === "completed" ? "track-liquid-fill--completed" : ""
-      }`}
+      } ${className || ""}`.trim()}
       aria-hidden="true"
     >
-      <span
-        className="track-liquid-fill__bar"
-        style={{ width: `${visualWidth}%` }}
+      <svg
+        ref={svgRef}
+        className="track-liquid-fill__svg"
+        viewBox="0 0 148 28"
+        preserveAspectRatio="none"
       >
-        <span className="track-liquid-fill__body" />
-        <span className="track-liquid-fill__meniscus">
-          <svg
-            className="track-liquid-fill__wave-svg"
-            viewBox="0 0 18 100"
-            preserveAspectRatio="none"
+        <defs>
+          <linearGradient
+            ref={shineGradRef}
+            id={shineGradId}
+            gradientUnits="userSpaceOnUse"
+            x1="-60"
+            y1="0"
+            x2="20"
+            y2="28"
           >
-            <path
-              className="track-liquid-fill__wave-sub"
-              d="M 0,0 L 5,0 C 2,22 4,36 10,50 C 16,64 17.5,78 8,100 L 0,100 Z"
-              fill="currentColor"
-            >
-              <animate
-                attributeName="d"
-                dur="2.1s"
-                repeatCount="indefinite"
-                calcMode="spline"
-                keyTimes="0; 0.22; 0.41; 0.63; 0.82; 1"
-                keySplines="0.42 0 0.58 1; 0.34 0.06 0.28 1; 0.45 0.05 0.55 0.95; 0.28 0.12 0.36 1; 0.4 0 0.6 1"
-                values={SECONDARY_WAVE_VALUES}
-              />
-            </path>
-            <path
-              className="track-liquid-fill__wave-main"
-              d="M 0,0 L 6,0 C 16,22 15,36 9,50 C 3,64 2,78 5,100 L 0,100 Z"
-              fill="currentColor"
-            >
-              <animate
-                attributeName="d"
-                dur="3.2s"
-                repeatCount="indefinite"
-                calcMode="spline"
-                keyTimes="0; 0.17; 0.35; 0.52; 0.68; 0.84; 1"
-                keySplines="0.42 0 0.24 1; 0.28 0.08 0.26 1; 0.45 0.05 0.55 0.95; 0.35 0 0.65 1; 0.22 0.68 0.38 0.98; 0.4 0 0.6 1"
-                values={PRIMARY_WAVE_VALUES}
-              />
-            </path>
-          </svg>
-        </span>
-      </span>
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="28%" stopColor="#ffffff" stopOpacity="0.06" />
+            <stop offset="50%" stopColor="#ffffff" stopOpacity="0.22" />
+            <stop offset="72%" stopColor="#ffffff" stopOpacity="0.06" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
+          </linearGradient>
+
+          <linearGradient
+            ref={rimGradRef}
+            id={rimGradId}
+            gradientUnits="userSpaceOnUse"
+            x1="0"
+            y1="0"
+            x2="20"
+            y2="0"
+          >
+            <stop offset="0%" stopColor="#ffffff" stopOpacity="0" />
+            <stop offset="55%" stopColor="#ffffff" stopOpacity="0.06" />
+            <stop offset="88%" stopColor="#ffffff" stopOpacity="0.18" />
+            <stop offset="100%" stopColor="#ffffff" stopOpacity="0.22" />
+          </linearGradient>
+        </defs>
+
+        <path ref={subWaveRef} fill="currentColor" fillOpacity="0.48" />
+        <path ref={mainWaveRef} fill="currentColor" />
+        {motionAllowed && (
+          <path ref={shineWaveRef} fill={`url(#${shineGradId})`} />
+        )}
+        <path ref={rimWaveRef} fill={`url(#${rimGradId})`} />
+      </svg>
     </span>
   );
 };

@@ -822,15 +822,14 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
           onClick={(e) => e.stopPropagation()}
         >
           {/* Шапка модального окна с шестерёнкой */}
-          <div className="modal__header" style={{ padding: "14px 18px", flexShrink: 0 }}>
+          <div className="modal__header" style={{ flexShrink: 0 }}>
             <h2
               id="settings-modal-title"
               className="modal__title"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: "var(--space-5)",
-                fontSize: "var(--fs-xl)",
+                gap: "10px",
               }}
             >
               <Settings size={20} color="var(--accent-text, var(--accent))" /> {dict.settings.title}
