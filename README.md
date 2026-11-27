@@ -57,6 +57,43 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 
 ## 📸 Interface Screenshots
 
+### 🎭 Visual Themes Showcase
+
+<table width="100%">
+  <tr>
+    <th width="50%" align="center">
+      <h3>🌑 Signature "L-MPV" Theme</h3>
+      <sub>Deep dark minimalism, sharp geometric forms, and neon accents</sub>
+    </th>
+    <th width="50%" align="center">
+      <h3>💎 "Liquid Glass" Theme</h3>
+      <sub>Aerodynamic glassmorphism, dynamic backdrop blur, and fluid highlights</sub>
+    </th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Player Interface & MediaInfo Overlay:</b><br><br>
+      <a href="./assets/theme-lmpv-demo.gif"><img src="./assets/theme-lmpv-demo.gif" alt="L-MPV Theme Demo" width="100%" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Player Interface & MediaInfo Overlay:</b><br><br>
+      <a href="./assets/theme-liquid-glass-demo.gif"><img src="./assets/theme-liquid-glass-demo.gif" alt="Liquid Glass Theme Demo" width="100%" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Signature Context Menu:</b><br><br>
+      <a href="./assets/theme-lmpv-context.png"><img src="./assets/theme-lmpv-context.png" alt="L-MPV Context Menu" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Glass Context Menu:</b><br><br>
+      <a href="./assets/theme-liquid-glass-context.png"><img src="./assets/theme-liquid-glass-context.png" alt="Liquid Glass Context Menu" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+  </tr>
+</table>
+
+### 🧩 Core Features & Functional Windows
+
 <table width="100%">
   <tr>
     <td width="50%" align="center">

@@ -57,6 +57,43 @@ L-MPV хранит настройки, кэш, скриншоты, ONNX-моде
 
 ## 📸 Скриншоты Интерфейса
 
+### 🎭 Демонстрация Тем Оформления
+
+<table width="100%">
+  <tr>
+    <th width="50%" align="center">
+      <h3>🌑 Фирменная тема «L-MPV»</h3>
+      <sub>Глубокий тёмный минимализм, строгие формы и неоновые акценты</sub>
+    </th>
+    <th width="50%" align="center">
+      <h3>💎 Тема «Liquid Glass»</h3>
+      <sub>Аэродинамический стеклянный стиль, глубина размытия и живые блики</sub>
+    </th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Интерфейс плеера и окно MediaInfo:</b><br><br>
+      <a href="./assets/theme-lmpv-demo.gif"><img src="./assets/theme-lmpv-demo.gif" alt="Демонстрация темы L-MPV" width="100%" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Интерфейс плеера и окно MediaInfo:</b><br><br>
+      <a href="./assets/theme-liquid-glass-demo.gif"><img src="./assets/theme-liquid-glass-demo.gif" alt="Демонстрация темы Liquid Glass" width="100%" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Фирменное контекстное меню:</b><br><br>
+      <a href="./assets/theme-lmpv-context.png"><img src="./assets/theme-lmpv-context.png" alt="Контекстное меню темы L-MPV" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Стеклянное контекстное меню:</b><br><br>
+      <a href="./assets/theme-liquid-glass-context.png"><img src="./assets/theme-liquid-glass-context.png" alt="Контекстное меню темы Liquid Glass" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+  </tr>
+</table>
+
+### 🧩 Возможности и Функциональные Окна
+
 <table width="100%">
   <tr>
     <td width="50%" align="center">
