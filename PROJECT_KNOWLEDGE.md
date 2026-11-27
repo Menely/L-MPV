@@ -74,7 +74,7 @@
 ### 3. Цвета, акценты OKLCH и пресеты
 
 - **Цвет стекла (`l-mpv-liquid-glass-tint`) и адаптация акцентов ([colorMath.ts](src/theme/colorMath.ts), [colors.ts](src/theme/colors.ts)):** доступно чистое бесцветное стекло `transparent` и все 15 оттенков из `PLAYER_THEMES` (перевод в кристаллический оптический фильтр через OKLCH в `getGlassTintShaderParams()`). Для читаемости поверх живого видео акцентные цвета автоматически адаптируются через `readableColor` в переменные `--glass-accent`, `--glass-accent-hover`, `--glass-accent-text`, `--glass-accent-rgb`, `--glass-on-accent`.
-- **Пресеты ([presetsUtils.ts](src/utils/presetsUtils.ts), [PresetsSection.tsx](src/components/settings/sections/PresetsSection.tsx)):** `SettingsPresetData` хранит `playerInterfaceTheme`, `liquidGlassStyle`, `liquidGlassBlur`, `liquidGlassRefraction`, `liquidGlassTint`, шрифт, радиус скруглений, свечение, параметры тепловой карты таймлайна (`heatmap`) и аудио-визуализатора (`visualizer`). Встроенная библиотека насчитывает 17 уникальных авторских стилей оформления (7 базовых + 10 новых: `Neon Tokyo`, `Prismatic Aurora`, `Amethyst Velvet`, `Nordic Ice`, `Obsidian Telemetry`, `Espresso Lounge`, `Ruby Glass`, `Emerald Pulse`, `Smoked OLED Glass`, `Solar Sunset`), охватывающих все вариации тем, шрифтов, Liquid Glass и визуализации; карточки отображают бейджи темы, стиля, оттенка/шашечки прозрачности, радиуса (`0px / 8px / 16px / 22px / 30px`), свечения, тепловой карты таймлайна, размытия и степени преломления. Функция `isSettingsMatchingPreset` осуществляет глубокую сверку всех визуальных параметров.
+- **Пресеты ([presetsUtils.ts](src/utils/presetsUtils.ts), [PresetsSection.tsx](src/components/settings/sections/PresetsSection.tsx)):** `SettingsPresetData` хранит `playerInterfaceTheme`, `liquidGlassStyle`, `liquidGlassBlur`, `liquidGlassRefraction`, `liquidGlassTint`, шрифт, радиус скруглений, свечение, параметры тепловой карты таймлайна (`heatmap`) и аудио-визуализатора (`visualizer`). Встроенная библиотека насчитывает 10 уникальных авторских стилей оформления (`Neon Tokyo`, `Prismatic Aurora`, `Amethyst Velvet`, `Nordic Ice`, `Obsidian Telemetry`, `Espresso Lounge`, `Ruby Glass`, `Emerald Pulse`, `Smoked OLED Glass`, `Solar Sunset`), охватывающих все вариации тем, шрифтов, Liquid Glass и визуализации; карточки отображают бейджи темы, стиля, оттенка/шашечки прозрачности, радиуса (`0px / 8px / 16px / 22px / 30px`), свечения, тепловой карты таймлайна, размытия и степени преломления. Функция `isSettingsMatchingPreset` осуществляет глубокую сверку всех визуальных параметров.
 
 <details>
 <summary><strong>1. Стек технологий и Портативность</strong></summary>
@@ -202,11 +202,12 @@ L-MPV/
 │   │   │   │   ├── index.ts              # Фасад и реэкспорт
 │   │   │   │   ├── MediaInfoHeader.tsx   # Фиксированная шапка с заголовком и кнопкой закрытия
 │   │   │   │   ├── MediaInfoTabs.tsx     # Вкладки Сводка / Рендеринг / Дорожки
-│   │   │   │   ├── MediaInfoRenderingSection.tsx # Статистика оборудования и рендерера (активный GPU, телеметрия нагрузки L-MPV и системы в целом через Windows PDH API, D3D11/Vulkan, драйвер)
+│   │   │   │   ├── MediaInfoRenderingSection.tsx # Статистика оборудования и рендерера (строка GPU с телеметрией нагрузки L-MPV и ПК через Windows PDH API, D3D11/Vulkan)
 │   │   │   │   ├── MediaInfoGeneralSection.tsx # Карточка общих параметров файла (имя, размер, тайминги)
 │   │   │   │   ├── MediaInfoVideoSection.tsx   # Карточка видеопотока (кодек, разрешение, FPS/HDR, Sparkline-график битрейта, дропы)
 │   │   │   │   ├── MediaInfoAudioSection.tsx   # Карточка аудиопотока (кодек, каналы, битрейт, громкость)
-│   │   │   │   ├── MediaInfoOverlay.tsx  # Контейнер с изолированным скроллом и безопасной подушкой отступов
+│   │   │   │   ├── MediaInfoOverlay.tsx  # Контейнер с изолированным скроллом, кэшем метрик и безопасной подушкой отступов
+│   │   │   │   ├── mediaInfoPreload.ts   # Фоновый прогрев чанка MediaInfoModal после старта воспроизведения
 │   │   │   │   └── mediaInfoOverlayUtils.ts # Утилиты форматирования и локализации параметров оверлея
 │   │   │   ├── BitrateSparkline.tsx      # Мемоизированный векторный SVG Sparkline-график битрейта (изолирован от тиков воспроизведения)
 │   │   │   ├── DetailedMediaInfoModal.tsx # Резервное модальное окно MediaInfo внутри плеера
@@ -248,7 +249,7 @@ L-MPV/
 │   │   │   │   ├── GeneralSettingsTab.tsx    # Основные настройки (6 эргономичных блоков: язык, скриншоты, воспроизведение и окна, аудиодорожки и субтитры, качество видео и звука, контекстное меню ПКМ). Блок видео/аудио собран на тайлах OptionTile (4 карточки в сетке auto-fit 240px)
 │   │   │   │   ├── AppearanceSettingsTab.tsx # Эргономичный дизайн: темы, прозрачность, скругление, масштаб, шрифты, стиль панели, 6 позиций времени, 4 формата
 │   │   │   │   ├── HotkeysSettingsTab.tsx    # Управление горячими клавишами и биндами
-│   │   │   │   ├── SystemSettingsTab.tsx     # Вкладка «Система»: сворачиваемые характеристики, кеш и интеграции Windows и журнал операций; сводку рисует SystemDiagnosticsSummary
+│   │   │   │   ├── SystemSettingsTab.tsx     # Вкладка «Система»: по умолчанию свёрнутые характеристики, кеш, интеграции Windows и журнал операций; модульный дашборд SystemDiagnosticsSummary + diagnostics/ (3 смысловых блока, уникальные иконки без точек, кнопки действий)
 │   │   │   │   └── ContextMenuSettingsTab.tsx # Интерактивный Drag-and-Drop редактор контекстного меню ПКМ (@dnd-kit)
 │   │   │   ├── sections/                  # Секции настроек:
 │   │   │   │   ├── PresetsSection.tsx        # Секция управления пресетами («Мои пресеты» и «Готовые стили») с унифицированными кнопками
@@ -1339,9 +1340,10 @@ L-MPV/
   - активное аппаратное декодирование, формат пикселей и цветовые характеристики;
   - частота дисплея и доступные показатели A/V-синхронизации.
   Значения зависят от доступности системных/медиа-данных; отсутствие показателя не означает нулевую нагрузку. Это отдельный источник от подробного отчёта C-API MediaInfo.
-  - Опрос запускается сразу при открытии вкладки «Рендеринг», затем каждые 1200 мс; при уходе с вкладки интервал удаляется, поздние ответы не обновляют её состояние. CPU рассчитывается по Win32-счётчикам времени, RAM — по Working Set и системной памяти, VRAM — через DXGI; процент загрузки GPU не собирается. Некоторые недоступные свойства MPV возвращаются как ноль или пустая строка, поэтому нулевое значение само по себе не подтверждает отсутствие рассинхронизации.
+  - Чанк `MediaInfoModal` предварительно прогревается в фоне после старта воспроизведения (`mediaInfoPreload.ts`), а команда `get_rendering_and_system_stats` выполняется асинхронно через `tokio::task::spawn_blocking` (переиспользуя PDH-запрос без пересоздания), поэтому открытие оверлея `I` не блокирует UI-поток; последние метрики кэшируются в `MediaInfoOverlay.tsx`, а в блоке «Оборудование» строка `GPU:` отображает нагрузку L-MPV и ПК.
+  - Опрос запускается сразу при открытии вкладки «Рендеринг», затем каждые 1200 мс; при уходе с вкладки интервал удаляется, поздние ответы не обновляют её состояние. CPU рассчитывается по Win32-счётчикам времени, RAM — по Working Set и системной памяти, VRAM — через DXGI, нагрузка GPU (процесс L-MPV и вся система по активному LUID) — через Windows PDH API (`\GPU Engine(*)\Utilization Percentage`). Некоторые недоступные свойства MPV возвращаются как ноль или пустая строка, поэтому нулевое значение само по себе не подтверждает отсутствие рассинхронизации.
   - Динамический замер VRAM (`sample_vram` в `rendering_stats.rs`): DXGI опрашивает все доступные видеоадаптеры в системе и определяет активный GPU рендеринга, на котором процесс L-MPV фактически выделяет видеопамять (`CurrentUsage > 0`), исключая программные эмуляторы. Для дискретных видеокарт общим объёмом памяти считается `DedicatedVideoMemory`, а для встроенной графики (iGPU / APU, где выделенная память равна 0 или 128 МБ) — доступная разделяемая системная видеопамять `SharedSystemMemory`. Используемый объём `vram_used_bytes` суммирует локальную память (`DXGI_MEMORY_SEGMENT_GROUP_LOCAL`) и системную память адаптера (`DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL`), гарантируя высокую точность показаний затрат видеопамяти как на дискретных GPU, так и на интегрированных чипах. Если использование равно нулю, интерфейс показывает только общий объём; если общий объём недоступен — «—». Первый замер CPU и замер после перерыва более 5 целых секунд возвращают нули; CPU процесса нормирован на суммарное процессорное время системы. Working Set относится к нативному процессу L-MPV и не суммирует отдельные процессы WebView2.
-  - **Контракт `RenderingAndSystemStats`:** `cpu_app_percent`, `cpu_total_percent` — `f64`, проценты; `ram_app_bytes`, `ram_total_used_bytes`, `ram_total_bytes`, `vram_used_bytes`, `vram_total_bytes` — `u64`, байты; `gpu_name` — `String`. `hwdec_current`, `pixel_format`, `color_range`, `color_space`, `color_primaries`, `color_transfer` — `String`, `hwdec_active` — `bool`; `max_cll`, `max_fall` — `f64`, ниты. `display_fps` — `f64`, Гц; `av_sync_ms` — `f64`, миллисекунды (`avsync` MPV × 1000); `vo_delayed_frames`, `vo_mistimed_frames`, `drop_frame_count` — `i64`, счётчики кадров. На фронтенде числовые поля представлены как `number` в `mediaInfoOverlayUtils.ts`; `drop_frame_count` передаётся в ответе, но вкладка «Рендеринг» его не выводит.
+  - **Контракт `RenderingAndSystemStats`:** `cpu_app_percent`, `cpu_total_percent` — `f64`, проценты; `ram_app_bytes`, `ram_total_used_bytes`, `ram_total_bytes`, `vram_used_bytes`, `vram_total_bytes` — `u64`, байты; `gpu_name` — `String`, `gpu_app_percent`, `gpu_total_percent` — `f64`, `gpu_load_available` — `bool`. `hwdec_current`, `pixel_format`, `color_range`, `color_space`, `color_primaries`, `color_transfer` — `String`, `hwdec_active` — `bool`; `max_cll`, `max_fall` — `f64`, ниты. `display_fps` — `f64`, Гц; `av_sync_ms` — `f64`, миллисекунды (`avsync` MPV × 1000); `vo_delayed_frames`, `vo_mistimed_frames`, `drop_frame_count` — `i64`, счётчики кадров. На фронтенде числовые поля представлены как `number` в `mediaInfoOverlayUtils.ts`; `drop_frame_count` передаётся в ответе, но вкладка «Рендеринг» его не выводит.
   - `MediaInfoTracksSection.tsx` получает дорожки и главы из `PlayerStateContext`: выбор вызывает `selectAudioTrack` / `selectSubTrack`, повторный клик по активному аудио передаёт ID `0`, по активным субтитрам — `disableSubtitles`. Переход к главе вызывает `seekTo` и `seek_chapter`; текущая глава определяется по позиции воспроизведения.
   - Вкладки переключаются клавишами `1` / `2` / `3`, кроме ввода в редактируемые поля и комбинаций с Ctrl/Alt/Meta. В стиле «Капсула» шапка и секции оформлены отдельными островками; подробное окно MediaInfo и его фильтры потоков остаются отдельным интерфейсом.
 
@@ -1355,17 +1357,22 @@ L-MPV/
 - **Автоматическая синхронизация:** Список пресетов обновляется при возврате фокуса в окно плеера или изменении параметров.
 - **Унифицированная геометрия кнопок и статуса:** Кнопка «Применить» и индикаторный бейдж «Активен» обладают идентичными размерами, а векторная иконка галочки `Check` защищена от сжатия (`flexShrink: 0`).
 
-- **Готовые стили:** пять встроенных пресетов в `presetsUtils.ts`; имена локализованы в словарях `builtinPresets`.
+- **Готовые стили:** 10 встроенных пресетов в `presetsUtils.ts`; имена локализованы в словарях `builtinPresets`.
 
-| Стиль | Тема | Акцент | Панель |
+| Стиль | Режим / Тема | Акцент | Панель |
 |---|---|---|---|
-| Классический L-MPV | `graphite` | `#7fc7ff` | `modern` |
-| Сумеречный ирис | `indigo` | `#f9a8d4` | `capsule` |
-| Ночной кинозал | `oled` | `#e8a236` | `docked` |
-| Тихий титан | `slate` | `#c3c8d0` | `docked` |
-| Лесной нефрит | `pine` | `#a7f3d0` | `capsule` |
+| Неоновый Токио | `lmpv` / `oled` | `#e52d79` | `capsule` |
+| Призма Авроры | `glass` / `abyss` | `#00c98d` | `capsule` |
+| Бархатный аметист | `lmpv` / `amethyst` | `#c7b5ec` | `capsule` |
+| Нордический лёд | `lmpv` / `nord` | `#a6c7d2` | `modern` |
+| Обсидиан Студио | `lmpv` / `graphite` | `#00bed6` | `docked` |
+| Эспрессо Лаунж | `lmpv` / `coffee` | `#e5d2a3` | `modern` |
+| Рубиновое стекло | `glass` / `bordeaux` | `#dca9a1` | `modern` |
+| Изумрудный пульс | `lmpv` / `emerald` | `#00c98d` | `capsule` |
+| Дымчатый обсидиан | `glass` / `oled` | `#f5ad18` | `capsule` |
+| Солнечный горизонт | `lmpv` / `ruby` | `#f05a28` | `capsule` |
 
-- Каждый готовый стиль задаёт также скругление, шрифт, масштаб, прозрачность и визуальные эффекты; тепловая карта в них явно выключена. Глобальное значение `DEFAULT_HEATMAP_CONFIG.enabled` также равно `false`.
+- Каждый готовый стиль явно задаёт полную визуальную конфигурацию: тему, параметры Liquid Glass, скругление, шрифт, масштаб, прозрачность, расположение и формат времени, тепловую карту (`heatmap`) и визуализатор (`visualizer`). Глобальное значение `DEFAULT_HEATMAP_CONFIG.enabled` равно `false`.
 - Пользовательский пресет может включать поведение плеера и горячие клавиши, а не только оформление.
 
 </details>
@@ -2827,7 +2834,7 @@ node scripts/check-surface-opacity.cjs
   - `--selection-shadow` — тень выделения (текущий режим «без дымки»: `none`; откат: `0 0 8px var(--surface-accent-glow), inset 0 0 0 1.5px transparent`).
   Правила всех стилей и tsx-компоненты ссылаются только на эти токены. **Запрещено** хардкодить `var(--accent)` в рамке/тени выделенного элемента и оставлять внешний акцентный ореол (`var(--surface-accent-glow)`) — именно он давал «дымку» вокруг краёв. Гард `scripts/check-interaction-states.cjs` это проверяет на каждом прогоне.
 - **Ховер всегда несёт акцент:** `--hover-veil` = `rgba(accent, 0.08)` (плотные поверхности: настройки, панели), `--hover-veil-float` = `rgba(accent, 0.18)` (стекло поверх видео: контекстное меню, поповеры, окно сабов, плейлист, MediaInfo) — на видео 8% не читается. Нейтральное затемнение `--surface-level-3-hover` в hover-правилах запрещено (гард проверяет). Токен `--bg-hover` переопределён на `--hover-veil` во всех 5 глубинах.
-- **Контракт наведения:** фон — `--hover-veil` (8% на плотной поверхности) или `--hover-veil-float` (18% поверх видео), рамка — `--border-pill-hover` / `--hover-frame` (45% акцента), если она предусмотрена данным контролом. Выбранные опции, сегменты, шрифты, стили панели, вкладки настроек и применённые пресеты из списка `utilities.css` получают рамку при hover и возвращаются к `--selection-frame` после ухода курсора. Это правило не переносится автоматически на все выбранные строки и поповеры.
+- **Контракт наведения и безрамочное выделение:** фон — `--hover-veil` (8% на плотной поверхности) или `--hover-veil-float` (18% поверх видео), рамка невыбранных элементов — `--border-pill-hover` / `--hover-frame` (45% акцента). Все выбранные элементы (кнопки стиля «Капсула», «Модерн», «Стандартный», позиции и форматы времени в `SelectionRail`, стиль окна настроек, языковые кнопки, опции и сегменты) остаются строго безрамочными (`border-color: transparent !important`) как в покое, так и при наведении (`hover`), сохраняя чистый монолитный вид без появления обводки.
 - **Классы состояний вместо инлайна:** кнопки-опции с инлайн-стилями (`optionBtnStyle`) получают класс `ui-option-btn` (+ `ui-option-btn--selected`), потому что инлайн-стиль нельзя переопределить обычным CSS. Аналогично: `ui-font-choice(--active)`, `ambient-choice(--active)`, `glow-choice(--active)`, `hotkey-chip` (+ `data-hotkey-recorder`), `model-hotkey-btn.is-recording`.
 - **Кнопки действий окон** используют `--action-hover-veil` (=18% акцента): закрытие/разворачивание карточек, обновление, очистка, действия в поповерах и тостах. Системные кнопки заголовка выделены отдельно: обычный hover — `--window-control-hover` (14% акцента), закрытие — красный фон Windows. Соответствие токенам проверяет `check-interaction-states.cjs`.
 - **Никаких хардкодов альфы акцента в hover-правилах** (`rgba(var(--accent-rgb), 0.08)` и т.п.) — только токены: `--hover-veil` (0.08, плотные поверхности), `--hover-veil-float` (0.18, окна поверх видео), `--action-hover-veil` (кнопки действий). Использование единых токенов исключает расхождение фонов между соседними кнопками в одном окне.

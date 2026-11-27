@@ -774,34 +774,6 @@ export const en: TranslationDict = {
       noPresetsDesc: "Configure the desired visual style of the player and save it using the form above.",
       builtinLabel: (count) => `Preset styles (${count})`,
       builtinPresets: {
-        builtin_classic: {
-          name: "Classic L-MPV",
-          description: "Dark graphite, sky-blue accents, floating Classic toolbar, and subtle background Blur",
-        },
-        builtin_cyberpunk: {
-          name: "Twilight Iris",
-          description: "Inky indigo, rose neon, pill capsules, and toolbar audio spectrum",
-        },
-        builtin_cinema: {
-          name: "Midnight Cinema",
-          description: "Deep OLED, amber details, docked toolbar, and movie finish time display",
-        },
-        builtin_minimal: {
-          name: "Quiet Titanium",
-          description: "Warm mineral grey, silver accents, sidebar settings, and crisp zero-distraction layout",
-        },
-        builtin_forest: {
-          name: "Forest Jade",
-          description: "Forest sage, mint jade accents, pill capsules, and flowing ribbon spectrum",
-        },
-        builtin_liquid_glass: {
-          name: "Liquid Glass",
-          description: "Crystal-clear transparent Liquid Glass, refractive capsules, and soft sky-blue accents",
-        },
-        builtin_sapphire_glass: {
-          name: "Sapphire Crystal",
-          description: "Sapphire tinted Liquid Glass with rich refraction, Classic toolbar, and icy cyan accents",
-        },
         builtin_neon_tokyo: {
           name: "Neon Tokyo",
           description: "Pure OLED black, intense fuchsia neon, titlebar clock, Cyberpunk heatmap, and live spectrum",
@@ -1080,7 +1052,10 @@ export const en: TranslationDict = {
       statusUnknown: "Unknown",
       mediainfoTitle: "MediaInfo Library",
       mediainfoDesc: "Container and codec parsing",
-      aiInferenceTitle: "Neural Inference (AnimeJaNai / aji)",
+      groupCoreTitle: "Engine & Libraries",
+      groupGraphicsTitle: "Graphics & AI",
+      groupEnvTitle: "Environment & Resources",
+      aiInferenceTitle: "AI Upscaling",
       aiInferenceDesc: "Installed neural runtimes and models",
       aiInstalledBadge: (count) => `${count} installed`,
       ajiBridge: "aji.dll",
@@ -1356,7 +1331,6 @@ export const en: TranslationDict = {
     cpu: "CPU:",
     ram: "RAM:",
     gpu: "GPU:",
-    gpuLoad: "GPU Load:",
     vram: "VRAM:",
     hwdec: "Decoder:",
     pixelFormat: "Pixel format:",

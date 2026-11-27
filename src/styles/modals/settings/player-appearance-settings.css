@@ -157,15 +157,16 @@
 }
 
 /* Selected buttons retain their geometry but never paint an outline. */
-.player-appearance .compact-segment-btn[aria-pressed="true"] {
-  background: var(--surface-accent-subtle);
-  color: var(--text-primary);
-  border-color: transparent;
-  box-shadow: none;
+:is(.player-appearance, .player-appearance-window) .compact-segment-btn:is([aria-pressed="true"], [aria-selected="true"], .compact-segment-btn--active) {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--text-primary) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
-.player-appearance .compact-segment-btn[aria-pressed="true"]:hover {
-  background: var(--surface-accent-hover);
-  border-color: transparent;
+:is(.player-appearance, .player-appearance-window) .compact-segment-btn:is([aria-pressed="true"], [aria-selected="true"], .compact-segment-btn--active):hover {
+  background: var(--surface-accent-hover) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
 }
 
 @container player-appearance (max-width: 540px) {

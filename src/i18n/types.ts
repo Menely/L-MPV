@@ -852,6 +852,9 @@ export interface TranslationDict {
       statusUnknown: string;
       mediainfoTitle: string;
       mediainfoDesc: string;
+      groupCoreTitle: string;
+      groupGraphicsTitle: string;
+      groupEnvTitle: string;
       aiInferenceTitle: string;
       aiInferenceDesc: string;
       aiInstalledBadge: (count: number) => string;
@@ -1129,7 +1132,6 @@ export interface TranslationDict {
     cpu: string;
     ram: string;
     gpu: string;
-    gpuLoad: string;
     vram: string;
     hwdec: string;
     pixelFormat: string;

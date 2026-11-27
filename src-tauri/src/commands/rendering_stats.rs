@@ -500,6 +500,17 @@ mod win_hardware {
             }
         }
 
+        fn refresh_baseline(&mut self) -> bool {
+            let status = unsafe { (self.api.collect_query_data)(self.query) };
+            if status != 0 {
+                return false;
+            }
+            self.has_baseline = true;
+            self.app_seen = false;
+            self.last_sample_at = Instant::now();
+            true
+        }
+
         fn sample(&mut self, pid: u32, active_luid: Option<u64>) -> Option<(f64, f64, bool)> {
             const PDH_FMT_DOUBLE: u32 = 0x0000_0200;
             const PDH_MORE_DATA: i32 = 0x8000_07D2_u32 as i32;
@@ -638,29 +649,28 @@ mod win_hardware {
         let pid = std::process::id();
         let mut guard = GPU_MONITOR.lock().unwrap_or_else(|e| e.into_inner());
 
-        let need_reset = match guard.as_ref() {
-            None => true,
-            Some(mon) => {
-                let elapsed = mon.last_sample_at.elapsed();
-                elapsed.as_secs() > 6 || (!mon.app_seen && elapsed.as_secs_f64() > 2.5)
-            }
+        let Some(mon) = guard.as_mut() else {
+            *guard = PdhGpuMonitor::new(api);
+            return (0.0, 0.0, false);
         };
 
-        if need_reset {
-            *guard = PdhGpuMonitor::new(api);
+        // Не пересоздаём дорогостоящий PDH wildcard-запрос при простое: достаточно обновить базовый срез.
+        let elapsed = mon.last_sample_at.elapsed();
+        if elapsed.as_secs() > 6 || (!mon.app_seen && elapsed.as_secs_f64() > 2.5) {
+            if !mon.refresh_baseline() {
+                *guard = None;
+            }
             return (0.0, 0.0, false);
         }
 
-        if let Some(mon) = guard.as_mut() {
-            if !mon.has_baseline {
-                return (0.0, 0.0, false);
-            }
-            if let Some((app_pct, total_pct, _found)) = mon.sample(pid, active_luid) {
-                return (app_pct, total_pct, true);
-            }
-            // Сбой чтения счётчика (например, сброс драйвера GPU) — пересоздадим при следующем опросе
-            *guard = None;
+        if !mon.has_baseline {
+            return (0.0, 0.0, false);
         }
+        if let Some((app_pct, total_pct, _found)) = mon.sample(pid, active_luid) {
+            return (app_pct, total_pct, true);
+        }
+        // Сбой чтения счётчика (например, сброс драйвера GPU) — пересоздадим при следующем опросе
+        *guard = None;
 
         (0.0, 0.0, false)
     }
@@ -701,13 +711,10 @@ fn parse_gpu_engine_instance(name: &str) -> Option<(u32, u64, u32)> {
     Some((pid, packed_luid, eng_id))
 }
 
-/// Получение комплексного отчёта о производительности и рендеринге в реальном времени.
-#[tauri::command]
-pub fn get_rendering_and_system_stats(
-    state: State<'_, PlayerState>,
-) -> Result<RenderingAndSystemStats, String> {
-    let mpv = &state.mpv;
-
+/// Синхронный сбор метрик оборудования и рендеринга (выполняется в фоновом пуле потоков).
+fn collect_rendering_and_system_stats(
+    mpv: &crate::mpv_manager::MpvManager,
+) -> RenderingAndSystemStats {
     // ─── Замер оборудования (Hardware) ───
     #[cfg(windows)]
     let (cpu_app_percent, cpu_total_percent) = win_hardware::sample_cpu();
@@ -781,7 +788,7 @@ pub fn get_rendering_and_system_stats(
         .get_property_double("drop-frame-count")
         .unwrap_or(0.0) as i64;
 
-    Ok(RenderingAndSystemStats {
+    RenderingAndSystemStats {
         cpu_app_percent,
         cpu_total_percent,
         ram_app_bytes,
@@ -807,7 +814,19 @@ pub fn get_rendering_and_system_stats(
         vo_delayed_frames,
         vo_mistimed_frames,
         drop_frame_count,
-    })
+    }
+}
+
+/// Получение комплексного отчёта о производительности и рендеринге в реальном времени.
+/// Выполняется асинхронно в `spawn_blocking`, не блокируя главный UI-поток Tauri/WebView2.
+#[tauri::command]
+pub async fn get_rendering_and_system_stats(
+    state: State<'_, PlayerState>,
+) -> Result<RenderingAndSystemStats, String> {
+    let mpv = std::sync::Arc::clone(&state.mpv);
+    tokio::task::spawn_blocking(move || collect_rendering_and_system_stats(&mpv))
+        .await
+        .map_err(|e| format!("Ошибка фонового замера метрик рендеринга: {e}"))
 }
 
 #[cfg(test)]

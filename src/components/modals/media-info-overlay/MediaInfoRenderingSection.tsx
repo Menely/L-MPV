@@ -9,8 +9,6 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 export interface MediaInfoRenderingSectionProps {
   /** Актуальные замеры оборудования, декодера и синхронизации. */
   stats: RenderingAndSystemStats | null;
-  /** Флаг загрузки данных. */
-  isLoading: boolean;
 }
 
 /**
@@ -22,21 +20,8 @@ export interface MediaInfoRenderingSectionProps {
  */
 export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps> = ({
   stats,
-  isLoading,
 }) => {
   const { dict } = useTranslation();
-
-  if (isLoading && !stats) {
-    return (
-      <div className="media-info__section">
-        <div className="media-info__row">
-          <span className="media-info__value media-info__value--muted">
-            {dict.mediaInfo.loading}
-          </span>
-        </div>
-      </div>
-    );
-  }
 
   const cpuText = stats
     ? `L-MPV: ${stats.cpu_app_percent.toFixed(1)}% | ${dict.mediaInfoModal.pcLabel}: ${stats.cpu_total_percent.toFixed(1)}%`
@@ -48,7 +33,7 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
       )} / ${formatBytes(stats.ram_total_bytes)}`
     : "—";
 
-  const gpuName = stats?.gpu_name || "Direct3D 11";
+  const gpuName = stats?.gpu_name || undefined;
   const gpuLoadText =
     stats && stats.gpu_load_available
       ? `L-MPV: ${stats.gpu_app_percent.toFixed(1)}% | ${dict.mediaInfoModal.pcLabel}: ${stats.gpu_total_percent.toFixed(1)}%`
@@ -108,12 +93,8 @@ export const MediaInfoRenderingSection: React.FC<MediaInfoRenderingSectionProps>
         <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.gpu}</span>
           <span className="media-info__value" title={gpuName}>
-            {gpuName}
+            {gpuLoadText}
           </span>
-        </div>
-        <div className="media-info__row">
-          <span className="media-info__label">{dict.mediaInfoModal.gpuLoad}</span>
-          <span className="media-info__value">{gpuLoadText}</span>
         </div>
         <div className="media-info__row">
           <span className="media-info__label">{dict.mediaInfoModal.vram}</span>

@@ -29,6 +29,8 @@ import type {
   RenderingAndSystemStats,
 } from "./mediaInfoOverlayUtils";
 
+let cachedRenderingStats: RenderingAndSystemStats | null = null;
+
 /**
  * Пропсы для всплывающего окна информации о медиафайле.
  */
@@ -100,10 +102,9 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
     position,
   });
 
-  // Замер системных показателей и рендеринга (только когда активна вкладка 2)
+  // Замер системных показателей и рендеринга
   const [renderingStats, setRenderingStats] =
-    useState<RenderingAndSystemStats | null>(null);
-  const [isStatsLoading, setIsStatsLoading] = useState(false);
+    useState<RenderingAndSystemStats | null>(() => cachedRenderingStats);
 
   useLayoutEffect(() => {
     notifyLiquidGlassSync();
@@ -114,12 +115,23 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
         notifyLiquidGlassAnimation(180);
       });
     };
-  }, [activeTab, controlBarStyle, isStatsLoading, Boolean(renderingStats), tracks.length, chapters.length]);
+  }, [activeTab, controlBarStyle, Boolean(renderingStats), tracks.length, chapters.length]);
 
   useEffect(() => {
-    // Предварительно прогреваем базовые замеры CPU/GPU при открытии окна MediaInfo,
-    // чтобы при переходе на вкладку «Рендеринг» сразу отображалась реальная нагрузка.
-    invoke("get_rendering_and_system_stats").catch(() => {});
+    // Асинхронный фоновый прогрев замеров при открытии MediaInfo:
+    // сразу сохраняем результат в состояние и кэш, чтобы вкладка «Рендеринг» открывалась мгновенно.
+    let isMounted = true;
+    invoke<RenderingAndSystemStats>("get_rendering_and_system_stats")
+      .then((stats) => {
+        cachedRenderingStats = stats;
+        if (isMounted) {
+          setRenderingStats(stats);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -133,19 +145,15 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
         const stats = await invoke<RenderingAndSystemStats>(
           "get_rendering_and_system_stats"
         );
+        cachedRenderingStats = stats;
         if (isMounted) {
           setRenderingStats(stats);
         }
       } catch (err) {
         console.error("Ошибка считывания системных метрик:", err);
-      } finally {
-        if (isMounted) {
-          setIsStatsLoading(false);
-        }
       }
     };
 
-    setIsStatsLoading(true);
     fetchStats();
 
     // Опрос раз в 1.2 секунды без лишней нагрузки на CPU
@@ -275,10 +283,7 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
 
         {/* Вкладка 2: Рендеринг и система */}
         {activeTab === "rendering" && (
-          <MediaInfoRenderingSection
-            stats={renderingStats}
-            isLoading={isStatsLoading}
-          />
+          <MediaInfoRenderingSection stats={renderingStats} />
         )}
 
         {/* Вкладка 3: Дорожки и главы */}

@@ -778,34 +778,6 @@ export const ru: TranslationDict = {
       noPresetsDesc: "Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.",
       builtinLabel: (count) => `Готовые стили (${count})`,
       builtinPresets: {
-        builtin_classic: {
-          name: "Классический L-MPV",
-          description: "Тёмный графит, небесный акцент, плавающая панель Classic и фоновый Blur",
-        },
-        builtin_cyberpunk: {
-          name: "Сумеречный ирис",
-          description: "Чернильный индиго, розовый неон, капсулы и спектр в панели инструментов",
-        },
-        builtin_cinema: {
-          name: "Ночной кинозал",
-          description: "Глубокий OLED, янтарные детали, пристыкованная панель и время окончания фильма",
-        },
-        builtin_minimal: {
-          name: "Тихий титан",
-          description: "Тёплый минеральный серый, серебряный акцент, боковые настройки и ноль визуального шума",
-        },
-        builtin_forest: {
-          name: "Лесной нефрит",
-          description: "Лесной шалфей, мятный акцент, округлые капсулы и мягкий ленточный спектр",
-        },
-        builtin_liquid_glass: {
-          name: "Жидкое стекло",
-          description: "Кристально чистое стекло Liquid Glass, капсулы с преломлением и небесный акцент",
-        },
-        builtin_sapphire_glass: {
-          name: "Сапфировый кристалл",
-          description: "Сапфировое тонированное стекло Liquid Glass с усиленным преломлением и бирюзовым акцентом",
-        },
         builtin_neon_tokyo: {
           name: "Неоновый Токио",
           description: "Чёрный OLED, яркая фуксия, таймер в Titlebar, тепловая карта Cyberpunk и спектр в реальном времени",
@@ -1084,7 +1056,10 @@ export const ru: TranslationDict = {
       statusUnknown: "Не определён",
       mediainfoTitle: "Библиотека MediaInfo",
       mediainfoDesc: "Детальный парсинг контейнеров и кодеков",
-      aiInferenceTitle: "Нейросетевой инференс (AnimeJaNai / aji)",
+      groupCoreTitle: "Движок и библиотеки",
+      groupGraphicsTitle: "Графика и AI",
+      groupEnvTitle: "Среда и ресурсы",
+      aiInferenceTitle: "AI-апскейлинг",
       aiInferenceDesc: "Установленные рантаймы и модели",
       aiInstalledBadge: (count) => `${count} уст.`,
       ajiBridge: "aji.dll",
@@ -1360,7 +1335,6 @@ export const ru: TranslationDict = {
     cpu: "CPU:",
     ram: "RAM:",
     gpu: "GPU:",
-    gpuLoad: "Нагрузка GPU:",
     vram: "VRAM:",
     hwdec: "Декодер:",
     pixelFormat: "Формат пикселей:",

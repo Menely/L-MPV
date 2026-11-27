@@ -176,6 +176,7 @@ html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :
   .player-appearance,
   .player-appearance-window,
   .control-buttons-preview,
+  .system-diagnostics__card,
   .cmenu-editor__header,
   .cmenu-editor__current,
   .cmenu-editor__available
@@ -190,11 +191,11 @@ html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :
 html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :is(
   .glass-tile,
   .cmenu-entry:not(.cmenu-entry--overlay):not(.cmenu-entry--divider),
-  .compact-segment-btn:not(.compact-segment-btn--active),
+  .compact-segment-btn:not(.compact-segment-btn--active):not([aria-pressed="true"]):not([aria-selected="true"]),
   .ui-font-choice:not(.ui-font-choice--active),
   .ui-option-btn:not(.ui-option-btn--selected),
   .visual-bar-card:not(.visual-bar-card--active),
-  .ambient-choice:not(.ambient-choice--active),
+  .ambient-choice:not(.ambient-choice--active):not([aria-pressed="true"]),
   .player-appearance__style:not([aria-pressed="true"])
 ) {
   background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.15);
@@ -206,13 +207,17 @@ html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :
 
 html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) :is(
   .compact-segment-btn--active,
+  .compact-segment-btn[aria-pressed="true"],
+  .compact-segment-btn[aria-selected="true"],
   .ui-font-choice--active,
   .ui-option-btn--selected,
   .visual-bar-card--active,
   .ambient-choice--active,
+  .ambient-choice[aria-pressed="true"],
   .player-appearance__style[aria-pressed="true"]
 ) {
   background: linear-gradient(var(--surface-accent-subtle), var(--surface-accent-subtle)), rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
+  border-color: transparent !important;
   backdrop-filter: blur(16px) saturate(140%);
   -webkit-backdrop-filter: blur(16px) saturate(140%);
 }
@@ -370,6 +375,42 @@ html[data-interface-theme="glass"] .color-picker-swatch-btn--active {
 
 html[data-interface-theme="glass"] .player-appearance__details {
   border-left-color: rgba(255, 255, 255, 0.12);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__card-head {
+  border-bottom-color: rgba(255, 255, 255, 0.11);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__row {
+  border-top-color: rgba(255, 255, 255, 0.08);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__btn:not(.system-diagnostics__btn--primary):not(.system-diagnostics__btn--copied) {
+  background: rgba(var(--glass-tint-rgb, 20, 22, 28), 0.22);
+  border-color: rgba(255, 255, 255, 0.15);
+  color: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__btn:not(.system-diagnostics__btn--primary):not(.system-diagnostics__btn--copied):hover:not(:disabled) {
+  background: var(--hover-veil-float);
+  border-color: var(--border-pill-hover);
+  color: #ffffff;
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__btn--primary {
+  background: var(--surface-accent-subtle);
+  border-color: transparent;
+  color: var(--accent-text);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+}
+
+html[data-interface-theme="glass"] :is(.modal--settings, .settings-side-panel) .system-diagnostics__btn--primary:hover:not(:disabled) {
+  background: var(--surface-accent-hover);
+  border-color: transparent;
+  color: #ffffff;
 }
 
 html[data-interface-theme="glass"] .player-appearance__style[data-glass-classic-preview] .visual-bar-preview__progress {

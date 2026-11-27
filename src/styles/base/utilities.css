@@ -157,15 +157,14 @@
   color: var(--text-primary) !important;
 }
 
-/* Selection stays frameless at rest; hovering the selected control restores
-   the same frame as any other enabled option. Never affect its descendants. */
+/* Selection stays frameless at all times, including hover. Never affect its descendants. */
 :is(.ui-option-btn--selected, .compact-segment-btn--active,
     .ui-font-choice--active, .ambient-choice--active, .glow-choice--active,
     .visual-bar-card--active, .viz-power-btn--active,
     .settings-tab-btn--active, .settings-side-panel__nav-btn--active,
     .preset-action-btn--applied):hover:not(:disabled):not([aria-disabled="true"]) {
   background: var(--surface-accent-hover) !important;
-  border-color: var(--hover-frame) !important;
+  border-color: transparent !important;
 }
 
 :is(.glass-tile--active, .preset-card--active):hover:not([aria-disabled="true"]):not(:has(button:hover, input:hover, select:hover, textarea:hover, a:hover, label:hover, [role="button"]:hover)) {

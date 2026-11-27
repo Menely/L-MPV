@@ -790,11 +790,22 @@ html.no-animations .color-circle--palette { will-change: auto; }
   padding-block: 5px;
 }
 
-.compact-segment-btn--active {
+.compact-segment-btn--active,
+.compact-segment-btn[aria-pressed="true"],
+.compact-segment-btn[aria-selected="true"] {
   background: rgba(var(--accent-rgb, 127, 199, 255), 0.16) !important;
   color: var(--text-primary) !important;
   border-color: var(--selection-frame) !important;
-  box-shadow: inset 0 0 0 1.5px transparent !important;
+  box-shadow: none !important;
+}
+
+.compact-segment-btn--active:hover,
+.compact-segment-btn[aria-pressed="true"]:hover,
+.compact-segment-btn[aria-selected="true"]:hover {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.22) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: none !important;
 }
 
 .compact-segment-btn--mono {

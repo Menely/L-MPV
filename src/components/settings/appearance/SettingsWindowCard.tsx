@@ -19,8 +19,8 @@ export function SettingsWindowCard() {
       <AppearanceSetting title={labels.title} icon={<SlidersHorizontal size={16} />}
         resetTitle={labels.resetTitle} changed={settingsStyle !== "modal"} onReset={() => saveUiSettingsStyle("modal")}>
         <SelectionRail activeKey={settingsStyle} className="settings-window-compact-grid" role="group" aria-label={labels.title}>
-          <button type="button" className="compact-segment-btn" aria-pressed={settingsStyle === "sidebar"} onClick={() => saveUiSettingsStyle("sidebar")}>{labels.sidebar}</button>
-          <button type="button" className="compact-segment-btn" aria-pressed={settingsStyle === "modal"} onClick={() => saveUiSettingsStyle("modal")}>{labels.modal}</button>
+          <button type="button" className={`compact-segment-btn${settingsStyle === "sidebar" ? " compact-segment-btn--active" : ""}`} aria-pressed={settingsStyle === "sidebar"} onClick={() => saveUiSettingsStyle("sidebar")}>{labels.sidebar}</button>
+          <button type="button" className={`compact-segment-btn${settingsStyle === "modal" ? " compact-segment-btn--active" : ""}`} aria-pressed={settingsStyle === "modal"} onClick={() => saveUiSettingsStyle("modal")}>{labels.modal}</button>
         </SelectionRail>
       </AppearanceSetting>
     </div>

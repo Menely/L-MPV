@@ -51,7 +51,8 @@ export function PlayerStyleDetails(props: PlayerAppearanceProps & { theme?: Play
       onReset={() => { setTimePosition("timeline_right"); saveTimePosition("timeline_right"); }}>
       <SelectionRail activeKey={timePosition} className="time-pos-compact-grid" role="group" aria-label={labels.timePositionTitle}>
         {TIME_POSITION_OPTIONS.map(option => <button key={option.id} type="button"
-          className="compact-segment-btn" aria-pressed={timePosition === option.id}
+          className={`compact-segment-btn${timePosition === option.id ? " compact-segment-btn--active" : ""}`}
+          aria-pressed={timePosition === option.id}
           onClick={() => { setTimePosition(option.id); saveTimePosition(option.id); }}>
           {positions[option.id]}
         </button>)}
@@ -62,7 +63,8 @@ export function PlayerStyleDetails(props: PlayerAppearanceProps & { theme?: Play
       onReset={() => { setTimeFormat("elapsed_total"); saveTimeFormat("elapsed_total"); }}>
       <SelectionRail activeKey={timeFormat} className="time-format-compact-grid" role="group" aria-label={labels.timeFormatTitle}>
         {TIME_FORMAT_OPTIONS.map(option => <button key={option.id} type="button"
-          className="compact-segment-btn compact-segment-btn--mono" aria-pressed={timeFormat === option.id}
+          className={`compact-segment-btn compact-segment-btn--mono${timeFormat === option.id ? " compact-segment-btn--active" : ""}`}
+          aria-pressed={timeFormat === option.id}
           onClick={() => { setTimeFormat(option.id); saveTimeFormat(option.id); }}>
           {option.id === "finish_time" ? labels.timeFormatEndsAt("22:15") : option.example}
         </button>)}

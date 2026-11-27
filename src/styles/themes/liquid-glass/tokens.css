@@ -207,6 +207,8 @@ html[data-interface-theme="glass"] :is(
   .settings-preview-card__mini-player,
   .btn,
   .settings-action-btn,
+  .system-diagnostics__card,
+  .system-diagnostics__btn,
   .ui-reset-btn,
   .hotkey-reset-btn,
   .ui-option-btn,

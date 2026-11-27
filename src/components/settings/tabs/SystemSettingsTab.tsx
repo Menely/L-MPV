@@ -1,6 +1,17 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Cpu, Download, Link2, Loader2, ExternalLink, Trash2, FileText, FolderOpen } from "lucide-react";
+import {
+  Braces,
+  Check,
+  Cpu,
+  Download,
+  Link2,
+  Loader2,
+  ExternalLink,
+  Trash2,
+  FileText,
+  FolderOpen,
+} from "lucide-react";
 import { useTranslation } from "../../../i18n/LanguageContext";
 
 import {
@@ -26,6 +37,7 @@ export function SystemSettingsTab(): React.ReactElement {
   const [diag, setDiag] = useState<SystemDiagnosticsInfo | null>(cachedDiag);
   const [isLoadingDiag, setIsLoadingDiag] = useState<boolean>(!cachedDiag);
   const [isCopied, setIsCopied] = useState<boolean>(false);
+  const [isJsonCopied, setIsJsonCopied] = useState<boolean>(false);
 
   const [integrationLogs, setIntegrationLogs] = useState<string[]>([]);
   const [isRegistering, setIsRegistering] = useState<boolean>(false);
@@ -37,6 +49,7 @@ export function SystemSettingsTab(): React.ReactElement {
 
   const isMountedRef = useRef<boolean>(true);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const jsonCopyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -44,6 +57,9 @@ export function SystemSettingsTab(): React.ReactElement {
       isMountedRef.current = false;
       if (copyTimerRef.current) {
         clearTimeout(copyTimerRef.current);
+      }
+      if (jsonCopyTimerRef.current) {
+        clearTimeout(jsonCopyTimerRef.current);
       }
     };
   }, []);
@@ -240,7 +256,7 @@ export function SystemSettingsTab(): React.ReactElement {
 
   const i = dict.settings.integrationFields;
   const f = dict.settings.systemFields;
-  const [openIntegration, setOpenIntegration] = useState<"diagnostics" | "cache" | "files" | "explorer" | null>("diagnostics");
+  const [openIntegration, setOpenIntegration] = useState<"diagnostics" | "cache" | "files" | "explorer" | null>(null);
   const [logOpen, setLogOpen] = useState(false);
   const [logFilter, setLogFilter] = useState<"all" | "ok" | "warn" | "error">("all");
   useEffect(() => {
@@ -269,7 +285,18 @@ export function SystemSettingsTab(): React.ReactElement {
     if (!diag) return;
     try {
       await navigator.clipboard.writeText(JSON.stringify(diag, null, 2));
+      if (!isMountedRef.current) return;
+      setIsJsonCopied(true);
+      if (jsonCopyTimerRef.current) {
+        clearTimeout(jsonCopyTimerRef.current);
+      }
+      jsonCopyTimerRef.current = setTimeout(() => {
+        if (isMountedRef.current) {
+          setIsJsonCopied(false);
+        }
+      }, 2500);
     } catch {
+      if (!isMountedRef.current) return;
       setIntegrationLogs((prev) => [...prev, `[ERROR] ${f.copyReportError}`]);
     }
   }, [diag, f]);
@@ -293,13 +320,19 @@ export function SystemSettingsTab(): React.ReactElement {
           void fetchDiagnostics(true);
           void checkContextMenuStatus();
         }} onCopy={copyReportToClipboard} actions={<>
-        <button type="button" className="system-settings__tool" onClick={downloadReport} disabled={!diag}>
-          <Download size={13} aria-hidden />{f.btnDownloadReport}
+        <button type="button" className="system-diagnostics__btn" onClick={downloadReport} disabled={!diag}>
+          <Download size={14} aria-hidden="true" />
+          <span>{f.btnDownloadReport}</span>
         </button>
-        <button type="button" className="system-settings__tool" onClick={copyReportJson} disabled={!diag}>
-          <FileText size={13} aria-hidden />{f.btnCopyJson}
+        <button
+          type="button"
+          className={`system-diagnostics__btn${isJsonCopied ? " system-diagnostics__btn--copied" : ""}`}
+          onClick={copyReportJson}
+          disabled={!diag}
+        >
+          {isJsonCopied ? <Check size={14} aria-hidden="true" /> : <Braces size={14} aria-hidden="true" />}
+          <span>{isJsonCopied ? f.reportCopied : f.btnCopyJson}</span>
         </button>
-
       </>} />
       </AccordionSection>
       <CacheSettingsSection open={openIntegration === "cache"}

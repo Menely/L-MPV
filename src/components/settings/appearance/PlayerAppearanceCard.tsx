@@ -73,8 +73,8 @@ export function PlayerAppearanceCard(props: PlayerAppearanceProps) {
           {classic && <div className="player-appearance__setting">
             <span className="t-label">{dict.settings.appearance.panelPlacement}</span>
             <div className="settings-window-compact-grid" role="group" aria-label={dict.settings.appearance.panelPlacement}>
-              <button type="button" className="compact-segment-btn" aria-pressed={activeStyle === "modern"} onClick={() => chooseStyle("modern")}>{dict.settings.appearance.panelFloating}</button>
-              <button type="button" className="compact-segment-btn" aria-pressed={activeStyle === "docked"} onClick={() => chooseStyle("docked")}>{dict.settings.appearance.panelDocked}</button>
+              <button type="button" className={`compact-segment-btn${activeStyle === "modern" ? " compact-segment-btn--active" : ""}`} aria-pressed={activeStyle === "modern"} onClick={() => chooseStyle("modern")}>{dict.settings.appearance.panelFloating}</button>
+              <button type="button" className={`compact-segment-btn${activeStyle === "docked" ? " compact-segment-btn--active" : ""}`} aria-pressed={activeStyle === "docked"} onClick={() => chooseStyle("docked")}>{dict.settings.appearance.panelDocked}</button>
             </div>
           </div>}
           <PlayerStyleDetails {...props} theme={theme} />

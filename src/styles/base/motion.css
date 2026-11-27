@@ -34,8 +34,15 @@
   /* Changing weight changes intrinsic chip width and shifts neighbouring tabs. */
   .selection-rail > button { font-weight: 500 !important; }
   .selection-rail > button:hover { background: var(--hover-veil) !important; }
+  .selection-rail > :is([aria-current="true"], [aria-selected="true"], [aria-pressed="true"]) {
+    background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
+  }
   .selection-rail > :is([aria-current="true"], [aria-selected="true"], [aria-pressed="true"]):hover {
     background: transparent !important;
+    border-color: transparent !important;
+    box-shadow: none !important;
   }
 }
 .selection-rail:has(> :is([aria-current="true"], [aria-selected="true"], [aria-pressed="true"]):hover) > .selection-rail__marker {

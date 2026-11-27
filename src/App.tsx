@@ -63,10 +63,11 @@ import {
   useSettingsModulePreload,
 } from "./components/settings/lib/settingsModulePreload";
 import { SettingsPresence } from "./components/settings/SettingsPresence";
-// Settings stay out of the startup bundle; warm the selected view after the first frame.
-const MediaInfoModal = lazy(() =>
-  import("./components/modals/MediaInfoModal").then((m) => ({ default: m.MediaInfoModal }))
-);
+import {
+  MediaInfoModalView,
+  useMediaInfoModulePreload,
+} from "./components/modals/media-info-overlay/mediaInfoPreload";
+// Settings and MediaInfo stay out of the startup bundle; warm them in idle time after playback.
 const ChaptersModal = lazy(() =>
   import("./components/modals/ChaptersModal").then((m) => ({ default: m.ChaptersModal }))
 );
@@ -142,10 +143,9 @@ function App() {
   });
   
   const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
-  useSettingsModulePreload(
-    hasMedia && Boolean(mediaInfo?.video_ready || mediaInfo?.video_track === false),
-    settingsStyle,
-  );
+  const isPlaybackReady = hasMedia && Boolean(mediaInfo?.video_ready || mediaInfo?.video_track === false);
+  useSettingsModulePreload(isPlaybackReady, settingsStyle);
+  useMediaInfoModulePreload(isPlaybackReady);
   const settingsWasOpenRef = useRef(false);
 
   const openSettings = useCallback(() => {
@@ -1489,7 +1489,7 @@ function App() {
 
         {showMediaInfo && (
           <Suspense key="media-info" fallback={null}>
-            <MediaInfoModal
+            <MediaInfoModalView
               onClose={() => setShowMediaInfo(false)}
             />
           </Suspense>
