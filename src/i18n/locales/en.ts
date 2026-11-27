@@ -774,6 +774,22 @@ export const en: TranslationDict = {
       noPresetsDesc: "Configure the desired visual style of the player and save it using the form above.",
       builtinLabel: (count) => `Preset styles (${count})`,
       builtinPresets: {
+        builtin_classic_lmpv: {
+          name: "Classic L-MPV",
+          description: "Dark graphite, sky-blue accent, floating capsule bar, 00:15 / 24:00 clock, and clean daily UI",
+        },
+        builtin_crystal_glass: {
+          name: "Crystal Glass",
+          description: "Pure untinted Liquid Glass, pill capsules, refraction 5, celestial cyan accent, and floating bar",
+        },
+        builtin_night_cinema: {
+          name: "Night Cinema",
+          description: "Deep OLED black, docked flush bar, warm amber, zero neon glare, finish-time clock, and ambient glow",
+        },
+        builtin_pure_minimal: {
+          name: "Silent Titanium",
+          description: "Matte Nord titanium, steel-silver accent, crisp 8 px corners, left remaining clock, and zero visual noise",
+        },
         builtin_neon_tokyo: {
           name: "Neon Tokyo",
           description: "Pure OLED black, intense fuchsia neon, titlebar clock, Cyberpunk heatmap, and live spectrum",
@@ -786,10 +802,6 @@ export const en: TranslationDict = {
           name: "Velvet Amethyst",
           description: "Deep amethyst velvet, lilac silk, plasma Blob visualizer, bitrate area heatmap, and full toolbar",
         },
-        builtin_nordic_ice: {
-          name: "Nordic Frost",
-          description: "Matte steel Nord palette with zero glow, crisp minimal corners, remaining timer, and ice Strings wave",
-        },
         builtin_obsidian_telemetry: {
           name: "Obsidian Studio",
           description: "Precision 0 px studio geometry, JetBrains Mono font, matrix spectrum, and Thermal bitrate blocks",
@@ -797,18 +809,6 @@ export const en: TranslationDict = {
         builtin_espresso_lounge: {
           name: "Espresso Lounge",
           description: "Warm dark bronze, honey gold accents, finish-time clock, deep 130 px Blur, and golden waveform",
-        },
-        builtin_ruby_glass: {
-          name: "Ruby Wine Glass",
-          description: "Warm plum-tinted Liquid Glass in floating Classic style, terracotta-peach accents, and circular spectrum",
-        },
-        builtin_emerald_pulse: {
-          name: "Emerald Pulse",
-          description: "Rich evergreen emerald, intense mint glow, particle spectrum, dotted Aurora heatmap, and sidebar settings",
-        },
-        builtin_smoked_oled_glass: {
-          name: "Smoked Obsidian",
-          description: "Smoked OLED-tinted Liquid Glass with strong refraction, amber highlights, and titlebar timer",
         },
         builtin_solar_sunset: {
           name: "Solar Horizon",

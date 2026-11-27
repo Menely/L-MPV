@@ -1361,15 +1361,15 @@ L-MPV/
 
 | Стиль | Режим / Тема | Акцент | Панель |
 |---|---|---|---|
+| Классический L-MPV | `lmpv` / `graphite` | `#3b82f6` | `capsule` |
+| Кристальное стекло | `glass` / `transparent` | `#38bdf8` | `capsule` |
+| Ночной кинозал | `lmpv` / `oled` | `#f59e0b` | `docked` |
+| Тихий титан | `lmpv` / `nord` | `#94a3b8` | `modern` |
 | Неоновый Токио | `lmpv` / `oled` | `#e52d79` | `capsule` |
 | Призма Авроры | `glass` / `abyss` | `#00c98d` | `capsule` |
 | Бархатный аметист | `lmpv` / `amethyst` | `#c7b5ec` | `capsule` |
-| Нордический лёд | `lmpv` / `nord` | `#a6c7d2` | `modern` |
 | Обсидиан Студио | `lmpv` / `graphite` | `#00bed6` | `docked` |
 | Эспрессо Лаунж | `lmpv` / `coffee` | `#e5d2a3` | `modern` |
-| Рубиновое стекло | `glass` / `bordeaux` | `#dca9a1` | `modern` |
-| Изумрудный пульс | `lmpv` / `emerald` | `#00c98d` | `capsule` |
-| Дымчатый обсидиан | `glass` / `oled` | `#f5ad18` | `capsule` |
 | Солнечный горизонт | `lmpv` / `ruby` | `#f05a28` | `capsule` |
 
 - Каждый готовый стиль явно задаёт полную визуальную конфигурацию: тему, параметры Liquid Glass, скругление, шрифт, масштаб, прозрачность, расположение и формат времени, тепловую карту (`heatmap`) и визуализатор (`visualizer`). Глобальное значение `DEFAULT_HEATMAP_CONFIG.enabled` равно `false`.

@@ -778,6 +778,22 @@ export const ru: TranslationDict = {
       noPresetsDesc: "Настройте желаемый визуальный стиль плеера и сохраните его с помощью формы выше.",
       builtinLabel: (count) => `Готовые стили (${count})`,
       builtinPresets: {
+        builtin_classic_lmpv: {
+          name: "Классический L-MPV",
+          description: "Тёмный графит, лазурно-синий акцент, плавающая панель-остров, формат 00:15 / 24:00 и чистый повседневный интерфейс",
+        },
+        builtin_crystal_glass: {
+          name: "Кристальное стекло",
+          description: "Чистый прозрачный Liquid Glass без тонировки, капсулы, преломление 5, небесный акцент и парящая панель",
+        },
+        builtin_night_cinema: {
+          name: "Ночной кинозал",
+          description: "Глубокий OLED, пристыкованная монолитная плашка, тёплый янтарь, нулевой неон, время окончания фильма и фоновый Blur",
+        },
+        builtin_pure_minimal: {
+          name: "Тихий титан",
+          description: "Холодный матовый Nord, серебристый титан, строгие скругления 8 px, таймер слева, боковое меню и нулевой визуальный шум",
+        },
         builtin_neon_tokyo: {
           name: "Неоновый Токио",
           description: "Чёрный OLED, яркая фуксия, таймер в Titlebar, тепловая карта Cyberpunk и спектр в реальном времени",
@@ -790,10 +806,6 @@ export const ru: TranslationDict = {
           name: "Бархатный аметист",
           description: "Глубокий аметист, сиреневый шёлк, плазменный визуализатор Blob, карта битрейта и полный набор кнопок",
         },
-        builtin_nordic_ice: {
-          name: "Нордический лёд",
-          description: "Матовый стальной Nord без неона, минимальные скругления, оставшееся время и волна Strings",
-        },
         builtin_obsidian_telemetry: {
           name: "Обсидиан Студио",
           description: "Строгая студийная геометрия 0 px, шрифт JetBrains Mono, матричный спектр и блоки битрейта Thermal",
@@ -801,18 +813,6 @@ export const ru: TranslationDict = {
         builtin_espresso_lounge: {
           name: "Эспрессо Лаунж",
           description: "Тёплая бронза, медовый акцент, время окончания сеанса, глубокий Blur 130 px и золотая волна",
-        },
-        builtin_ruby_glass: {
-          name: "Рубиновое стекло",
-          description: "Сливово-бордовое тонированное стекло Liquid Glass в стиле Classic, персиковый акцент и круговой спектр",
-        },
-        builtin_emerald_pulse: {
-          name: "Изумрудный пульс",
-          description: "Тёмный изумруд, неоново-зелёные капсулы, частицы спектра, точечная тепловая карта и боковое меню",
-        },
-        builtin_smoked_oled_glass: {
-          name: "Дымчатый обсидиан",
-          description: "Тонированное дымчатое стекло OLED Liquid Glass с сильным преломлением, янтарём и таймером в шапке",
         },
         builtin_solar_sunset: {
           name: "Солнечный горизонт",
