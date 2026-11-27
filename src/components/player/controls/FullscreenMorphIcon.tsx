@@ -43,7 +43,7 @@ const BRACKET_PATHS = {
  * четыре угловые скобки рамки экрана плавно выворачиваются наружу/внутрь (на 180°)
  * с упругим пружинным смыканием при входе и выходе из Fullscreen.
  */
-export const FullscreenMorphIcon: React.FC<FullscreenMorphIconProps> = ({
+export const FullscreenMorphIcon: React.FC<FullscreenMorphIconProps> = React.memo(({
   isFullscreen,
   size = 20,
   className = "control-btn__fullscreen-icon",
@@ -118,4 +118,6 @@ export const FullscreenMorphIcon: React.FC<FullscreenMorphIconProps> = ({
       </m.g>
     </svg>
   );
-};
+});
+
+FullscreenMorphIcon.displayName = "FullscreenMorphIcon";

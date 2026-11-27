@@ -1,6 +1,6 @@
 import React from "react";
 import { Download, Loader2, RotateCw } from "lucide-react";
-import { TrackLiquidProgressFill } from "../../player/controls/track-popover/TrackDownloadVisuals";
+import { LiquidProgressFill } from "../../common/LiquidProgressFill";
 import { formatBytes } from "./updateTypes";
 import type { TranslationDict } from "../../../i18n/types";
 
@@ -199,7 +199,7 @@ export const DownloadProgressBar: React.FC<DownloadProgressProps> = React.memo((
           transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
         }}
       >
-        <TrackLiquidProgressFill
+        <LiquidProgressFill
           progress={effectivePct}
           status={isDone ? "completed" : "running"}
           className="track-liquid-fill--vivid"

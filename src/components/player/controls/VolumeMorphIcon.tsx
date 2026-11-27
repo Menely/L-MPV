@@ -46,15 +46,12 @@ function computeVolumeWavePaths(volume: number): {
 
   if (clamped <= 0) {
     return {
-      // Первая диагональ крестика (\): сверху-слева вниз-вправо
       innerPath: "M 15.80 9.10 C 17.80 11.03 19.80 12.97 21.80 14.90",
-      // Вторая диагональ крестика (/): сверху-справа вниз-слева (пересекает первую дугу!)
       outerPath: "M 21.80 9.10 C 19.80 11.03 17.80 12.97 15.80 14.90",
       outerOpacity: 1,
     };
   }
 
-  // Плавный коэффициент раскрытия внутренней волны (от 1% до 65%)
   const tInner = Math.min(1, Math.max(0, (clamped - 1) / 64));
   const ix = (14.8 + tInner * 0.7).toFixed(2);
   const iyTop = (9.5 - tInner * 1.1).toFixed(2);
@@ -65,7 +62,6 @@ function computeVolumeWavePaths(volume: number): {
 
   const innerPath = `M ${ix} ${iyTop} C ${icx} ${icyTop} ${icx} ${icyBot} ${ix} ${iyBot}`;
 
-  // Внешняя волна: начинает вырастать с ~25% громкости и продолжает расширяться до 150% (Boost)
   const tOuter = Math.min(1.22, Math.max(0, (clamped - 22) / 78));
   const ox = (17.2 + tOuter * 1.65).toFixed(2);
   const oyTop = (7.2 - tOuter * 2.0).toFixed(2);
@@ -87,7 +83,7 @@ function computeVolumeWavePaths(volume: number): {
  * - Справа от рупора звуковые волны плавно вырастают при увеличении громкости.
  * - При нажатии Mute две звуковые дуги скрещиваются и перетекают в крестик `×`.
  */
-export const VolumeMorphIcon: React.FC<VolumeMorphIconProps> = ({
+export const VolumeMorphIcon: React.FC<VolumeMorphIconProps> = React.memo(({
   volume,
   size = 19,
   className,
@@ -152,4 +148,6 @@ export const VolumeMorphIcon: React.FC<VolumeMorphIconProps> = ({
       />
     </svg>
   );
-};
+});
+
+VolumeMorphIcon.displayName = "VolumeMorphIcon";

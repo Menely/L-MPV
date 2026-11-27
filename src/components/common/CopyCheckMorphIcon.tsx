@@ -50,7 +50,7 @@ const COPY_CHECK_PATHS = {
  * при клике два листочка Copy складываются друг в друга и перетекают в зелёную
  * галочку Check, а по истечении таймера плавно разворачиваются обратно.
  */
-export const CopyCheckMorphIcon: React.FC<CopyCheckMorphIconProps> = ({
+export const CopyCheckMorphIcon: React.FC<CopyCheckMorphIconProps> = React.memo(({
   copied,
   size = 14,
   copiedColor = "var(--success-text)",
@@ -108,4 +108,6 @@ export const CopyCheckMorphIcon: React.FC<CopyCheckMorphIconProps> = ({
       />
     </m.svg>
   );
-};
+});
+
+CopyCheckMorphIcon.displayName = "CopyCheckMorphIcon";

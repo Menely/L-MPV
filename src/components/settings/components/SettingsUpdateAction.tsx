@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as m from "motion/react-m";
 import type { Transition } from "motion/react";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -68,21 +68,22 @@ const UPDATE_MORPH_PATHS = {
  *    либо `updateFound` (кольцо замыкается вокруг стрелки вверх ArrowUpCircle).
  * 3. `upToDate` -> `idle` (по истечении таймера галочка Check плавно разворачивается обратно в круговые стрелки RefreshCw).
  */
-export function SettingsUpdateAction({
+export const SettingsUpdateAction: React.FC<SettingsUpdateActionProps> = React.memo(({
   checking,
   status,
   hasUpdate,
   onCheck,
   onShowUpdate,
   isCapsule,
-}: SettingsUpdateActionProps) {
+}) => {
   const { dict } = useTranslation();
   const motionAllowed = useMotionAllowed();
+  const canShowUpdate = Boolean(onShowUpdate);
 
   const targetPhase: UpdateVisualPhase = checking
     ? "checking"
     : status
-    ? hasUpdate && onShowUpdate
+    ? hasUpdate && canShowUpdate
       ? "updateFound"
       : "upToDate"
     : "idle";
@@ -117,7 +118,7 @@ export function SettingsUpdateAction({
     if (status) {
       setDisplayStatus(status);
       const nextPhase: UpdateVisualPhase =
-        hasUpdate && onShowUpdate ? "updateFound" : "upToDate";
+        hasUpdate && canShowUpdate ? "updateFound" : "upToDate";
       const elapsed =
         checkStartRef.current > 0
           ? performance.now() - checkStartRef.current
@@ -138,13 +139,13 @@ export function SettingsUpdateAction({
     setVisualPhase("idle");
     setDisplayStatus(null);
     checkStartRef.current = 0;
-  }, [checking, status, hasUpdate, onShowUpdate, motionAllowed, visualPhase]);
+  }, [checking, status, hasUpdate, canShowUpdate, motionAllowed, visualPhase]);
 
   const isSpinning = visualPhase === "checking";
   const isUpToDate =
     visualPhase === "upToDate" &&
     (displayStatus === dict.settings.integration.upToDate || !hasUpdate);
-  const isUpdateFound = visualPhase === "updateFound" && hasUpdate && Boolean(onShowUpdate);
+  const isUpdateFound = visualPhase === "updateFound" && hasUpdate && canShowUpdate;
 
   const morphTransition = motionAllowed ? MORPH_TRANSITION : INSTANT_TRANSITION;
   const popTransition = motionAllowed ? POP_SPRING : INSTANT_TRANSITION;
@@ -287,4 +288,6 @@ export function SettingsUpdateAction({
       <span className="settings-card-btn__text">{labelText}</span>
     </button>
   );
-}
+});
+
+SettingsUpdateAction.displayName = "SettingsUpdateAction";

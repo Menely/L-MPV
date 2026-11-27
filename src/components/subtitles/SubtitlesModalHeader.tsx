@@ -1,16 +1,6 @@
-import { SelectionRail } from "../motion/SelectionRail";
-/**
- * Шапка окна поиска по субтитрам:
- * - В стиле «Капсула» (isCapsule): 3 независимых парящих островка (иконка, переключатель, кнопки).
- * - В стилях «Модерн» и «Классический»: монолитная интегрированная шапка внутри единого окна.
- */
-
 import { useState, useCallback } from "react";
-import {
-  Subtitles,
-  X,
-  SlidersHorizontal,
-} from "lucide-react";
+import { Subtitles, X, SlidersHorizontal } from "lucide-react";
+import { SelectionRail } from "../motion/SelectionRail";
 import { EyeMorphIcon } from "../common/EyeMorphIcon";
 import { RefreshMorphIcon } from "../common/RefreshMorphIcon";
 import type { SubtitleViewMode } from "./subtitleTypes";
@@ -29,6 +19,13 @@ interface SubtitlesModalHeaderProps {
   onResetPosition: (e: React.MouseEvent) => void;
 }
 
+const ACTION_BTN_SIZE_STYLE = { width: 28, height: 28 } as const;
+
+/**
+ * Шапка окна поиска по субтитрам:
+ * - В стиле «Капсула» (isCapsule): 3 независимых парящих островка (иконка, переключатель, кнопки).
+ * - В стилях «Модерн» и «Классический»: монолитная интегрированная шапка внутри единого окна.
+ */
 export function SubtitlesModalHeader({
   viewMode,
   isOpaque,
@@ -49,11 +46,89 @@ export function SubtitlesModalHeader({
     onReanalyze();
   }, [onReanalyze]);
 
-  // ─── Островная шапка для стиля «Капсула» (3 карточки) ──────────────────────
+  const opacityTooltip = isOpaque
+    ? dict.subtitlesSearch.opacityEnable
+    : dict.subtitlesSearch.opacityDisable;
+
+  const renderModeButtons = () => (
+    <>
+      <button
+        type="button"
+        onClick={() => onToggleViewMode("normal")}
+        className={`subtitles-search-card__mode-btn ${
+          viewMode === "normal" ? "subtitles-search-card__mode-btn--active" : ""
+        }`}
+        aria-pressed={viewMode === "normal"}
+        title={dict.subtitlesSearch.modeNormalTooltip}
+      >
+        {dict.subtitlesSearch.modeNormal}
+      </button>
+      <button
+        type="button"
+        onClick={() => onToggleViewMode("technical")}
+        className={`subtitles-search-card__mode-btn ${
+          viewMode === "technical" ? "subtitles-search-card__mode-btn--active" : ""
+        }`}
+        aria-pressed={viewMode === "technical"}
+        title={dict.subtitlesSearch.modeTechTooltip}
+      >
+        <SlidersHorizontal
+          size={12}
+          style={{
+            color: viewMode === "technical" ? "var(--accent-text)" : "currentColor",
+          }}
+        />
+        <span>{dict.subtitlesSearch.modeTech}</span>
+      </button>
+    </>
+  );
+
+  const renderWindowActionButtons = () => (
+    <>
+      <button
+        type="button"
+        className="modal__close"
+        onClick={onToggleOpaque}
+        title={opacityTooltip}
+        aria-label={opacityTooltip}
+        style={{
+          ...ACTION_BTN_SIZE_STYLE,
+          color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
+        }}
+      >
+        <EyeMorphIcon off={isOpaque} size={16} />
+      </button>
+
+      <button
+        type="button"
+        className="modal__close"
+        onClick={handleRefreshClick}
+        title={dict.subtitlesSearch.rescanTrack}
+        aria-label={dict.subtitlesSearch.rescanTrack}
+        style={ACTION_BTN_SIZE_STYLE}
+      >
+        <RefreshMorphIcon
+          spinning={isAnalyzing}
+          triggerKey={refreshTriggerKey}
+          size={16}
+        />
+      </button>
+
+      <button
+        type="button"
+        className="modal__close"
+        onClick={onClose}
+        aria-label={dict.subtitlesSearch.close}
+        style={ACTION_BTN_SIZE_STYLE}
+      >
+        <X size={16} />
+      </button>
+    </>
+  );
+
   if (isCapsule) {
     return (
       <div className="subtitles-capsule-row subtitles-capsule-row--header">
-        {/* Карточка 1: Только иконка (без текста). Перетаскивание за иконку */}
         <div
           className="subtitles-card subtitles-card--icon"
           onMouseDown={onDragStart}
@@ -62,95 +137,20 @@ export function SubtitlesModalHeader({
           <Subtitles size={20} className="t-accent" />
         </div>
 
-        {/* Карточка 2: Самостоятельный переключатель режимов: Обычный / Инспектор */}
-        <SelectionRail activeKey={viewMode} className="subtitles-card subtitles-card--mode-switch">
-          <button
-            type="button"
-            onClick={() => onToggleViewMode("normal")}
-            className={`subtitles-search-card__mode-btn ${
-              viewMode === "normal"
-                ? "subtitles-search-card__mode-btn--active"
-                : ""
-            }`}
-            aria-pressed={viewMode === "normal"}
-            title={dict.subtitlesSearch.modeNormalTooltip}
-          >
-            {dict.subtitlesSearch.modeNormal}
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleViewMode("technical")}
-            className={`subtitles-search-card__mode-btn ${
-              viewMode === "technical"
-                ? "subtitles-search-card__mode-btn--active"
-                : ""
-            }`}
-            aria-pressed={viewMode === "technical"}
-            title={dict.subtitlesSearch.modeTechTooltip}
-          >
-            <SlidersHorizontal
-              size={12}
-              style={{
-                color:
-                  viewMode === "technical" ? "var(--accent-text)" : "currentColor",
-              }}
-            />
-            <span>{dict.subtitlesSearch.modeTech}</span>
-          </button>
+        <SelectionRail
+          activeKey={viewMode}
+          className="subtitles-card subtitles-card--mode-switch"
+        >
+          {renderModeButtons()}
         </SelectionRail>
 
-        {/* Карточка 3: Кнопки действий (Eye/EyeOff, Refresh, Close) */}
         <div className="subtitles-card subtitles-card--actions">
-          <button
-            className="modal__close"
-            onClick={onToggleOpaque}
-            title={
-              isOpaque
-                ? dict.subtitlesSearch.opacityEnable
-                : dict.subtitlesSearch.opacityDisable
-            }
-            aria-label={
-              isOpaque
-                ? dict.subtitlesSearch.opacityEnable
-                : dict.subtitlesSearch.opacityDisable
-            }
-            style={{
-              width: 28,
-              height: 28,
-              color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
-            }}
-          >
-            <EyeMorphIcon off={isOpaque} size={16} />
-          </button>
-
-          <button
-            className="modal__close"
-            onClick={handleRefreshClick}
-            title={dict.subtitlesSearch.rescanTrack}
-            aria-label={dict.subtitlesSearch.rescanTrack}
-            style={{ width: 28, height: 28 }}
-          >
-            <RefreshMorphIcon
-              spinning={isAnalyzing}
-              triggerKey={refreshTriggerKey}
-              size={16}
-            />
-          </button>
-
-          <button
-            className="modal__close"
-            onClick={onClose}
-            aria-label={dict.subtitlesSearch.close}
-            style={{ width: 28, height: 28 }}
-          >
-            <X size={16} />
-          </button>
+          {renderWindowActionButtons()}
         </div>
       </div>
     );
   }
 
-  // ─── Монолитная шапка для стилей «Модерн» и «Классический» ─────────────────
   return (
     <div
       className="subtitles-search-card__header subtitles-search-card__header--draggable"
@@ -165,7 +165,6 @@ export function SubtitlesModalHeader({
         gap: "var(--space-4)",
       }}
     >
-      {/* Иконка + заголовок */}
       <div
         className="subtitles-search-card__header-left"
         style={{
@@ -191,7 +190,6 @@ export function SubtitlesModalHeader({
         </div>
       </div>
 
-      {/* Кнопки управления */}
       <div
         className="subtitles-search-card__header-actions"
         style={{
@@ -201,90 +199,13 @@ export function SubtitlesModalHeader({
           flexShrink: 0,
         }}
       >
-        {/* Переключатель режимов: Обычный / Инспектор */}
-        <SelectionRail activeKey={viewMode} className="subtitles-search-card__mode-switch">
-          <button
-            type="button"
-            onClick={() => onToggleViewMode("normal")}
-            className={`subtitles-search-card__mode-btn ${
-              viewMode === "normal"
-                ? "subtitles-search-card__mode-btn--active"
-                : ""
-            }`}
-            aria-pressed={viewMode === "normal"}
-            title={dict.subtitlesSearch.modeNormalTooltip}
-          >
-            {dict.subtitlesSearch.modeNormal}
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleViewMode("technical")}
-            className={`subtitles-search-card__mode-btn ${
-              viewMode === "technical"
-                ? "subtitles-search-card__mode-btn--active"
-                : ""
-            }`}
-            aria-pressed={viewMode === "technical"}
-            title={dict.subtitlesSearch.modeTechTooltip}
-          >
-            <SlidersHorizontal
-              size={12}
-              style={{
-                color:
-                  viewMode === "technical" ? "var(--accent-text)" : "currentColor",
-              }}
-            />
-            <span>{dict.subtitlesSearch.modeTech}</span>
-          </button>
+        <SelectionRail
+          activeKey={viewMode}
+          className="subtitles-search-card__mode-switch"
+        >
+          {renderModeButtons()}
         </SelectionRail>
-
-        {/* Непрозрачность */}
-        <button
-          className="modal__close"
-          onClick={onToggleOpaque}
-          title={
-            isOpaque
-              ? dict.subtitlesSearch.opacityEnable
-              : dict.subtitlesSearch.opacityDisable
-          }
-          aria-label={
-            isOpaque
-              ? dict.subtitlesSearch.opacityEnable
-              : dict.subtitlesSearch.opacityDisable
-          }
-          style={{
-            width: 28,
-            height: 28,
-            color: isOpaque ? "var(--accent-text)" : "var(--text-secondary)",
-          }}
-        >
-          <EyeMorphIcon off={isOpaque} size={16} />
-        </button>
-
-        {/* Пересканировать */}
-        <button
-          className="modal__close"
-          onClick={handleRefreshClick}
-          title={dict.subtitlesSearch.rescanTrack}
-          aria-label={dict.subtitlesSearch.rescanTrack}
-          style={{ width: 28, height: 28 }}
-        >
-          <RefreshMorphIcon
-            spinning={isAnalyzing}
-            triggerKey={refreshTriggerKey}
-            size={16}
-          />
-        </button>
-
-        {/* Закрыть */}
-        <button
-          className="modal__close"
-          onClick={onClose}
-          aria-label={dict.subtitlesSearch.close}
-          style={{ width: 28, height: 28 }}
-        >
-          <X size={16} />
-        </button>
+        {renderWindowActionButtons()}
       </div>
     </div>
   );

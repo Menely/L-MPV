@@ -9,10 +9,9 @@ interface GpuHardwareCardProps {
 
 /**
  * Аппаратная карточка характеристик графического процессора (GPU).
- * Отображает модель видеокарты, объем видеопамяти VRAM и рекомендованный бэкенд
- * по новым стандартам: чистая векторная иконка, аккуратные бейджи без двойных рамок.
+ * Отображает модель видеокарты, локализованный объем видеопамяти VRAM и рекомендованный бэкенд.
  */
-export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => {
+export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = React.memo(({ gpuInfo }) => {
   const { dict } = useTranslation();
   if (!gpuInfo) return null;
 
@@ -20,6 +19,10 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
     gpuInfo.vram_bytes > 0
       ? (gpuInfo.vram_bytes / (1024 * 1024 * 1024)).toFixed(1)
       : null;
+
+  const vramBadgeText = vramGb
+    ? dict.settings.upscaling.vramLabel(vramGb).replace(/^\(|\)$/g, "")
+    : null;
 
   return (
     <div
@@ -37,12 +40,21 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
     >
       <div className="row-center" style={{ gap: 10, minWidth: 0, flex: 1, flexWrap: "wrap" }}>
         <Cpu size={17} style={{ color: "var(--accent-text)", flexShrink: 0 }} />
-        <div className="t-primary" style={{ display: "inline-flex", alignItems: "center", gap: 8, flexWrap: "wrap", minWidth: 0 }}>
+        <div
+          className="t-primary"
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 8,
+            flexWrap: "wrap",
+            minWidth: 0,
+          }}
+        >
           <strong>{dict.settings.upscaling.gpuLabel}</strong>
           <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
             {gpuInfo.name}
           </span>
-          {vramGb && (
+          {vramBadgeText && (
             <span
               style={{
                 fontFamily: "var(--font-mono)",
@@ -55,7 +67,7 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
                 fontWeight: 500,
               }}
             >
-              {vramGb} ГБ VRAM
+              {vramBadgeText}
             </span>
           )}
         </div>
@@ -92,4 +104,6 @@ export const GpuHardwareCard: React.FC<GpuHardwareCardProps> = ({ gpuInfo }) => 
       </div>
     </div>
   );
-};
+});
+
+GpuHardwareCard.displayName = "GpuHardwareCard";

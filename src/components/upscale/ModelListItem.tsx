@@ -212,7 +212,7 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
           flexShrink: 0,
         }}
         onClick={(e) => e.stopPropagation()}
-        >
+      >
         <ModelTensorRtAction
           model={model}
           supportsTensorrt={supportsTensorrt}
@@ -225,3 +225,5 @@ export const ModelListItem: React.FC<ModelListItemProps> = React.memo(({
     </div>
   );
 });
+
+ModelListItem.displayName = "ModelListItem";

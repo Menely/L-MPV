@@ -2,7 +2,7 @@
    Match the direct glyph only: a colour swatch containing a remove action
    and non-interactive error indicators must not become close buttons.
    Important declarations override window-specific states and inline colours. */
-:root :is(button:has(> svg.lucide-x), .color-circle__remove-btn) {
+:root :is(button:has(> svg.lucide-x):not(.titlebar__btn--close), .color-circle__remove-btn) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -17,7 +17,7 @@
   rotate: none !important;
 }
 
-:root :is(button:has(> svg.lucide-x), .color-circle__remove-btn) > svg.lucide-x {
+:root :is(button:has(> svg.lucide-x):not(.titlebar__btn--close), .color-circle__remove-btn) > svg.lucide-x {
   display: block;
   flex-shrink: 0;
   margin: 0;

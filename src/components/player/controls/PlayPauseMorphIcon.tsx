@@ -10,7 +10,7 @@ export interface PlayPauseMorphIconProps {
   paused: boolean;
   /** Активная тема интерфейса (единый сценарий «жидкого металла» во всех темах). */
   theme?: PlayerTheme;
-  /** Размер SVG-иконки в пикселях (по умолчанию 31). */
+  /** Размер SVG-иконки в пикселях (по умолчанию 32). */
   size?: number;
   /** Дополнительный CSS-класс. */
   className?: string;
@@ -26,7 +26,7 @@ const MORPH_EASE: [number, number, number, number] = [0.22, 1, 0.36, 1];
  * звуковые волны и верхний лепесток сливаются в левую полосу паузы, а полый
  * треугольник Play перетекает в правую полосу паузы без потери резкости контуров.
  */
-export const PlayPauseMorphIcon: React.FC<PlayPauseMorphIconProps> = ({
+export const PlayPauseMorphIcon: React.FC<PlayPauseMorphIconProps> = React.memo(({
   paused,
   size = 32,
   className = "control-btn__app-play-icon",
@@ -103,4 +103,6 @@ export const PlayPauseMorphIcon: React.FC<PlayPauseMorphIconProps> = ({
       />
     </svg>
   );
-};
+});
+
+PlayPauseMorphIcon.displayName = "PlayPauseMorphIcon";

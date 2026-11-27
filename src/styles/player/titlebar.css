@@ -162,7 +162,7 @@
 }
 
 .titlebar__btn:not(.titlebar__btn--close):hover svg {
-  filter: var(--hover-icon-glow, drop-shadow(0 1px 4px rgba(0, 0, 0, 0.8)));
+  filter: var(--hover-icon-glow, drop-shadow(0 0 4px rgba(0, 0, 0, 0.8)));
 }
 
 .titlebar__btn:active {
@@ -172,26 +172,30 @@
 
 .titlebar__btn--close {
   position: relative;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
 }
 
 .titlebar__btn--close:hover {
-  background: rgba(232, 65, 65, 0.85);
+  background: #e84141;
   color: #ffffff;
+}
+
+.titlebar__btn--close:hover svg {
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.35));
 }
 
 .titlebar__btn svg {
   display: block;
   flex-shrink: 0;
   transform-origin: center center;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6));
   transition: color var(--t-fast) var(--ease-smooth);
 }
 
 /* Отключение свечения в Titlebar при режиме Off */
 [data-glow="off"] .titlebar__btn svg,
 html[data-glow="off"] .titlebar__btn svg {
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5)) !important;
+  filter: drop-shadow(0 0 3px rgba(0, 0, 0, 0.6)) !important;
 }

@@ -30,7 +30,7 @@ const PIN_MORPH_TRANSITION: Transition = {
  * - При включении разворачивается строго вертикально вниз (0°), наполняется плотностью
  *   и с упругим пружинным импульсом «прикалывает» окно.
  */
-export const PinMorphIcon: React.FC<PinMorphIconProps> = ({
+export const PinMorphIcon: React.FC<PinMorphIconProps> = React.memo(({
   pinned,
   size = 18,
   className,
@@ -103,4 +103,6 @@ export const PinMorphIcon: React.FC<PinMorphIconProps> = ({
       />
     </svg>
   );
-};
+});
+
+PinMorphIcon.displayName = "PinMorphIcon";

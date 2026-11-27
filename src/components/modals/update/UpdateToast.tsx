@@ -8,7 +8,7 @@ import {
   getSavedControlBarStyle,
 } from "../../../theme/controlBarStyle";
 import type { AppUpdaterController } from "../../../hooks/useAppUpdater";
-import { TrackLiquidProgressFill } from "../../player/controls/track-popover/TrackDownloadVisuals";
+import { LiquidProgressFill } from "../../common/LiquidProgressFill";
 import { AppLogoIcon } from "./AppLogoIcon";
 import { UpdateInfo, formatBytes, normalizeVersion } from "./updateTypes";
 
@@ -119,7 +119,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   const bodyContent = isDownloading ? (
     <div className="update-toast__progress">
       <div className="update-toast__progress-track">
-        <TrackLiquidProgressFill
+        <LiquidProgressFill
           progress={progressBarWidth}
           status="running"
           className="track-liquid-fill--vivid"

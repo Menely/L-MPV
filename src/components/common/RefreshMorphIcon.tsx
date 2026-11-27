@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import * as m from "motion/react-m";
 import type { Transition } from "motion/react";
 import { useMotionAllowed } from "../motion/useMotionAllowed";
@@ -28,10 +28,9 @@ const SPIN_CLICK_TRANSITION: Transition = {
  *   центром вращения (12, 12).
  * - При одиночном клике совершает один чистый, плавный соосный оборот на 360° без вибраций.
  * - При `spinning === true` непрерывно вращается через аппаратное CSS-правило,
- *   которое гарантированно и мгновенно останавливается, как только `spinning` становится `false`
- *   (предотвращает застревание бесконечного цикла Framer Motion).
+ *   которое гарантированно и мгновенно останавливается, как только `spinning` становится `false`.
  */
-export const RefreshMorphIcon: React.FC<RefreshMorphIconProps> = ({
+export const RefreshMorphIcon: React.FC<RefreshMorphIconProps> = React.memo(({
   spinning = false,
   triggerKey = 0,
   size = 16,
@@ -40,11 +39,15 @@ export const RefreshMorphIcon: React.FC<RefreshMorphIconProps> = ({
 }) => {
   const motionAllowed = useMotionAllowed();
   const [clickTurns, setClickTurns] = useState(0);
+  const prevTriggerKeyRef = useRef<number>(triggerKey);
 
-  // Одиночный оборот при нажатии кнопки пользователем
+  // Одиночный оборот только при реальном инкременте triggerKey (защита от холостого вращения при перемонтировании)
   useEffect(() => {
-    if (triggerKey > 0) {
-      setClickTurns((prev) => prev + 1);
+    if (triggerKey !== prevTriggerKeyRef.current) {
+      prevTriggerKeyRef.current = triggerKey;
+      if (triggerKey > 0) {
+        setClickTurns((prev) => prev + 1);
+      }
     }
   }, [triggerKey]);
 
@@ -84,4 +87,6 @@ export const RefreshMorphIcon: React.FC<RefreshMorphIconProps> = ({
       </m.g>
     </svg>
   );
-};
+});
+
+RefreshMorphIcon.displayName = "RefreshMorphIcon";

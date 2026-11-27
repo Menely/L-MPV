@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { openUrl } from "@tauri-apps/plugin-opener";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -73,6 +73,12 @@ export function SettingsFooter({
 }: SettingsFooterProps) {
   const { dict } = useTranslation();
 
+  const handleShowFoundUpdate = useCallback(() => {
+    if (foundUpdate && onShowUpdate) {
+      onShowUpdate(foundUpdate);
+    }
+  }, [foundUpdate, onShowUpdate]);
+
   const brandNode = (
     <span className="settings-footer__title">
       L<span className="settings-footer__title-hyphen">-</span>MPV
@@ -131,7 +137,7 @@ export function SettingsFooter({
       hasUpdate={foundUpdate?.has_update === true}
       onCheck={onCheckForUpdates}
       onShowUpdate={
-        foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined
+        foundUpdate && onShowUpdate ? handleShowFoundUpdate : undefined
       }
       isCapsule={isCapsule}
     />
@@ -146,24 +152,20 @@ export function SettingsFooter({
   if (isCapsule) {
     return (
       <div className="settings-capsule-footer">
-        {/* Карточка 1: Название плеера */}
         <div className="settings-card settings-card--footer-brand">
           {brandNode}
         </div>
 
-        {/* Карточка 2: Иконки социальных сетей */}
         <div className="settings-card settings-card--footer-socials">
           {socialButtonsNode}
         </div>
 
-        {/* Карточка 3: Версия, разделитель и кнопка проверки обновлений */}
         <div className="settings-card settings-card--footer-version">
           {versionButtonNode}
           <span className="settings-footer__divider" aria-hidden="true" />
           {updateActionNode}
         </div>
 
-        {/* Карточка 4: Портативная редакция */}
         <div className="settings-card settings-card--footer-edition">
           {editionNode}
         </div>

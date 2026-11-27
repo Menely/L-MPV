@@ -1,8 +1,8 @@
-import React from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Check, RefreshCw, Zap, X } from "lucide-react";
 import { ModelFileItem, UpscaleCompileProgress } from "./types";
 import { useTranslation } from "../../i18n/LanguageContext";
-import { TrackLiquidProgressFill } from "../player/controls/track-popover/TrackDownloadVisuals";
+import { LiquidProgressFill } from "../common/LiquidProgressFill";
 
 export interface ModelTensorRtActionProps {
   /** Файл модели нейросети */
@@ -19,8 +19,8 @@ export interface ModelTensorRtActionProps {
 
 /**
  * Блок управления компиляцией TensorRT-движка (.engine) под 1080p:
- * - При компиляции: плавная анимация перекатывающейся жидкости (TrackLiquidProgressFill)
- *   в акцентном цвете пользователя, без бордеров, иконка загрузки убрана, процент смещён направо.
+ * - При компиляции: плавная анимация перекатывающейся жидкости (LiquidProgressFill)
+ *   в акцентном цвете пользователя, без бордеров, процент смещён направо.
  * - При готовности 1080p: широкий бейдж без переносов слов с каноничной галочкой Check,
  *   минимальные отступы вокруг увеличенной иконки пересборки без фона.
  * - Все состояния имеют стабильную фиксированную геометрию.
@@ -58,32 +58,46 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
       )
     : 0;
 
-  // Плавная интерполяция процентов и наполнения шкалы без резких скачков
-  const [animatedPercent, setAnimatedPercent] = React.useState<number>(targetPercent);
-  const rafRef = React.useRef<number | null>(null);
+  // Плавная интерполяция текстового счётчика процентов с защитой от холостых ререндеров
+  const [animatedPercent, setAnimatedPercent] = useState<number>(targetPercent);
+  const animatedPercentRef = useRef<number>(targetPercent);
+  const rafRef = useRef<number | null>(null);
 
-  React.useEffect(() => {
+  animatedPercentRef.current = animatedPercent;
+
+  useEffect(() => {
+    if (rafRef.current !== null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
     if (!isCompiling) {
       setAnimatedPercent(0);
       return;
     }
 
-    if (targetPercent === animatedPercent) return;
-
-    const startVal = animatedPercent;
+    const startVal = animatedPercentRef.current;
     const diff = targetPercent - startVal;
+    if (diff === 0) return;
+
     const startTime = performance.now();
-    const duration = Math.min(650, Math.max(320, Math.abs(diff) * 16));
+    const duration = Math.min(600, Math.max(280, Math.abs(diff) * 14));
 
     const step = (now: number) => {
       const elapsed = now - startTime;
-      const progress = Math.min(1, elapsed / duration);
-      const ease = 1 - Math.pow(1 - progress, 3);
-      const current = Math.round(startVal + diff * ease);
-      setAnimatedPercent(current);
+      const k = Math.min(1, elapsed / duration);
+      const ease = 1 - Math.pow(1 - k, 3);
+      const nextInt = Math.round(startVal + diff * ease);
 
-      if (progress < 1) {
+      if (nextInt !== animatedPercentRef.current) {
+        animatedPercentRef.current = nextInt;
+        setAnimatedPercent(nextInt);
+      }
+
+      if (k < 1) {
         rafRef.current = requestAnimationFrame(step);
+      } else {
+        rafRef.current = null;
       }
     };
 
@@ -91,14 +105,13 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
     return () => {
       if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
       }
     };
   }, [targetPercent, isCompiling]);
 
   // 1. Активный процесс компиляции: жидкая акцентная заливка, без бордеров, процент строго справа
   if (isCompiling) {
-    const percent = animatedPercent;
-
     return (
       <div
         className="model-compile-action"
@@ -116,18 +129,20 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           display: "flex",
           alignItems: "center",
         }}
-        title={isCompileError ? dict.settings.upscaling.errorLabel : `${percent}%`}
+        title={
+          isCompileError
+            ? dict.settings.upscaling.errorLabel
+            : `${animatedPercent}%`
+        }
       >
-        {/* Живая анимация перекатывающейся жидкости с SVG-мениском Безье в акцентном цвете темы */}
         {!isCompileError && (
-          <TrackLiquidProgressFill
-            progress={percent}
+          <LiquidProgressFill
+            progress={targetPercent}
             status={isCompileFinished ? "completed" : "running"}
             className="track-liquid-fill--vivid"
           />
         )}
 
-        {/* Контент: без иконки спиннера, процент смещён строго направо */}
         <div
           style={{
             position: "relative",
@@ -188,7 +203,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
                 textShadow: "0 1px 2px rgba(0, 0, 0, 0.6)",
               }}
             >
-              {percent}%
+              {animatedPercent}%
             </span>
           )}
         </div>
@@ -196,7 +211,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
     );
   }
 
-  // 2. Модель скомпилирована под 1080p: широкий бейдж без переносов текста + крупная иконка пересборки без фона с минимальным отступом
+  // 2. Модель скомпилирована под 1080p: широкий бейдж без переносов текста + крупная иконка пересборки
   if (model.has_engine_1080p) {
     return (
       <div
@@ -208,7 +223,6 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           gap: 4,
         }}
       >
-        {/* Бейдж статуса: без обводки-бордера, мягкий зелёный фон, свободная ширина без переносов слов */}
         <span
           style={{
             height: 28,
@@ -232,10 +246,11 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
           title={dict.settings.upscaling.trtReadyTitle}
         >
           <Check size={14} strokeWidth={2.5} style={{ flexShrink: 0 }} />
-          <span style={{ whiteSpace: "nowrap" }}>{dict.settings.upscaling.trtReadyBadge}</span>
+          <span style={{ whiteSpace: "nowrap" }}>
+            {dict.settings.upscaling.trtReadyBadge}
+          </span>
         </span>
 
-        {/* Иконка пересборки правее: без серого фона и рамки, минимальные отступы, крупная (17px) */}
         <button
           type="button"
           onClick={onPrecompile}
@@ -258,7 +273,8 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
             cursor: "pointer",
             color: "var(--text-muted)",
             flexShrink: 0,
-            transition: "color var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth)",
+            transition:
+              "color var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth)",
           }}
         >
           <RefreshCw size={17} strokeWidth={2.2} />
@@ -267,7 +283,7 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
     );
   }
 
-  // 3. Модель еще не компилировалась (или устарела): комфортная кнопка запуска сборки
+  // 3. Модель еще не компилировалась (или устарела): кнопка запуска сборки
   return (
     <button
       type="button"
@@ -309,3 +325,5 @@ export const ModelTensorRtAction: React.FC<ModelTensorRtActionProps> = React.mem
     </button>
   );
 });
+
+ModelTensorRtAction.displayName = "ModelTensorRtAction";
