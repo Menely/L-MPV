@@ -112,7 +112,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       onClick={handleClose}
       aria-label={dict.updateModal.toastClose}
     >
-      <X size={15} />
+      <X size={15} strokeWidth={2.4} />
     </button>
   );
 

@@ -161,7 +161,7 @@ export function ChaptersModal({ onClose }: ChaptersModalProps) {
               onClick={handleClose}
               aria-label={dict.chapters.close}
             >
-              <X size={isCapsule ? 16 : 18} strokeWidth={2} />
+              <X size={isCapsule ? 16 : 18} strokeWidth={2.4} />
             </button>
           </div>
         </div>

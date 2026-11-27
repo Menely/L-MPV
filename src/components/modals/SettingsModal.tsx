@@ -128,7 +128,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.7.6");
+  const [appVersion, setAppVersion] = useState<string>("2.8.0");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
@@ -842,7 +842,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
               id="btn-settings-close"
               aria-label={dict.settings.close}
             >
-              <X size={18} />
+              <X size={18} strokeWidth={2.4} />
             </button>
           </div>
 
@@ -947,7 +947,7 @@ export function SettingsModal({ onClose, onShowUpdate }: SettingsModalProps) {
                 id="btn-settings-close"
                 aria-label={dict.settings.close}
               >
-                <X size={20} />
+                <X size={20} strokeWidth={2.4} />
               </button>
             </div>
           </div>

@@ -51,7 +51,7 @@ export const MediaInfoHeader: React.FC<MediaInfoHeaderProps> = ({
           onClick={onClose}
           aria-label={closeLabel}
         >
-          <X size={16} strokeWidth={2} />
+          <X size={16} strokeWidth={2.4} />
         </button>
       </div>
     </div>

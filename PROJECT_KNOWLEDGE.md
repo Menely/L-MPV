@@ -2621,6 +2621,14 @@ L-MPV/
   - **Eye (`EyeMorphIcon.tsx`):** сохранение 1:1 пропорций Lucide Eye с динамическим прочерчиванием линии перечёркивания.
   - **Refresh (`RefreshMorphIcon.tsx`):** соосное вращение стрелок на 360° с аппаратным CSS-спиннингом во время активных фоновых операций.
 
+- **Гармонизация и утолщение крестиков закрытия окон:**
+  - Во всех модальных окнах, оверлеях и боковых панелях (`MediaInfoHeader`, `ChaptersModal`, `SubtitlesModalHeader`, `UpdateModal`, `SettingsModal`, `SettingsPanel`, `ColorPickerModal`, `DetailedMediaInfoModal`, `PlaylistDrawer`, `UpdateToast`) штрих крестика закрытия `<X>` стандартизирован до `strokeWidth: 2.4` (через JSX-проп `strokeWidth={2.4}` и синхронные CSS-селекторы `:is(.modal__close, .media-info__close, .chapters-modal__close, .playlist-drawer__close, .side-panel__close, .update-toast__close) > svg { stroke-width: 2.4; }`).
+  - Утолщение на +20% придаёт крестикам закрытия чёткость, плотность и выразительность без изменения внешних размеров иконок (16px, 18px, 20px) или кнопок (28px, 30px), полностью исключая смещения карточек и сохраняя pixel-perfect симметрию.
+
+- **Скрытие элементов интерфейса при открытом окне MediaInfo:**
+  - Селектор `.media-info-overlay` исключён из таймера бездействия (`PlayerStateContext.tsx`), благодаря чему при открытом по клавише `I` окне MediaInfo через 3 секунды покоя мыши контролы плеера и заголовок плавно скрываются, не загромождая кадр.
+  - Окно MediaInfo остаётся на экране и закрывается строго по кнопке-крестику (либо `I` / `Esc`), при этом в теме Liquid Glass рендеринг стеклянной подложки окна сохраняется в полном объёме (`visible={isControlsVisible || showMediaInfo}`).
+
 ---
 
 </details>

@@ -535,7 +535,7 @@ export function PlaylistDrawer() {
 
                 aria-label={dict.playlist.close}
                 >
-                <X size={18} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
           </div>

@@ -121,7 +121,7 @@ export function SubtitlesModalHeader({
         aria-label={dict.subtitlesSearch.close}
         style={ACTION_BTN_SIZE_STYLE}
       >
-        <X size={16} />
+        <X size={16} strokeWidth={2.4} />
       </button>
     </>
   );

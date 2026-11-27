@@ -1408,7 +1408,7 @@ function App() {
 
       <LiquidGlassSync
         enabled={hasMedia && playerTheme === "glass"}
-        visible={isControlsVisible}
+        visible={isControlsVisible || showMediaInfo}
         videoReady={Boolean(mediaInfo?.video_ready)}
         mediaPath={mediaInfo?.path ?? ""}
       />

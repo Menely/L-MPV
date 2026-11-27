@@ -372,7 +372,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 className="modal__close"
                 aria-label={dict.updateModal.ariaClose}
               >
-                <X size={18} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
           </div>
@@ -544,7 +544,7 @@ export const UpdateModal: React.FC<UpdateModalProps> = ({
                 className="update-card__action-btn update-card__action-btn--close"
                 aria-label={dict.updateModal.ariaClose}
               >
-                <X size={18} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
           </div>

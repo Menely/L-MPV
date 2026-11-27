@@ -103,6 +103,7 @@
   display: block;
   flex-shrink: 0;
   transform-origin: center center;
+  stroke-width: 2.4;
 }
 
 .modal__close:hover {

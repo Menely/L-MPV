@@ -83,11 +83,13 @@
 :root :is(.island-action, .media-info__close,
     .mediainfo-floating-window__btn, .mediainfo-standalone__control-btn,
     .mediainfo-standalone__btn-icon, .mediainfo-standalone__action-btn--icon,
-    .update-card__action-btn, .playlist-drawer__action-btn) > svg {
+    .update-card__action-btn, .playlist-drawer__action-btn,
+    .modal__close, .chapters-modal__close, .update-toast__close, .settings-side-panel__close) > svg {
   display: block !important;
   flex-shrink: 0;
   margin: 0 !important;
   padding: 0 !important;
+  stroke-width: 2.4;
 }
 
 /* Кнопки действий окон (крестик, развернуть, обновить) делят один фон

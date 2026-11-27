@@ -400,7 +400,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
     idleTimer.current = window.setTimeout(() => {
       const currentUIOpen = !!document.querySelector(
-        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
       const isDragging = !!document.querySelector("[data-liquid-glass-drag], .timeline--dragging");
       if (!currentUIOpen && !isDragging) {
@@ -419,7 +419,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       idleTimer.current = window.setTimeout(() => {
         const currentUIOpen = !!document.querySelector(
-          "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+          "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .chapters-modal-overlay, .subtitles-modal-overlay"
         );
         const isDragging = !!document.querySelector("[data-liquid-glass-drag], .timeline--dragging");
         if (!currentUIOpen && !isDragging) {
@@ -443,7 +443,7 @@ export function PlayerStateProvider({ children }: { children: ReactNode }) {
 
       // Проверяем, открыты ли какие-либо модальные окна или всплывающие меню
       const isAnyUIOpen = !!document.querySelector(
-        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .media-info-overlay, .chapters-modal-overlay, .subtitles-modal-overlay"
+        "[data-liquid-glass-menu], .track-popover, .controls-overflow, .modal, .settings-side-panel, .context-menu, .playlist-drawer, .chapters-modal-overlay, .subtitles-modal-overlay"
       );
 
       // Продолжаем проверять после закрытия оверлея, даже без движения мыши.
