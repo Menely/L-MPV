@@ -26,7 +26,10 @@ import {
   Search,
   Flame,
 } from "lucide-react";
-import type { TrackInfo } from "../../../contexts/PlayerStateContext";
+import type {
+  TrackDownloadState,
+  TrackInfo,
+} from "../../../contexts/PlayerStateContext";
 import type { TranslationDict } from "../../../i18n/types";
 import type { LayoutEntry } from "../../../utils/contextMenuLayout";
 import type { RecentFile } from "../../../utils/recentFilesUtils";
@@ -35,7 +38,8 @@ import type { ModelFileItem } from "../../upscale/types";
 import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
-import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import type { ControlBarStyle } from "../../../theme/controlBarStyle";
+import type { PlayerTheme } from "../../../theme/liquidGlass/preferences";
 import type {
   HeatmapConfig,
   HeatmapDataSource,
@@ -44,11 +48,11 @@ import type {
 import { BUILT_IN_PRESETS } from "../../../utils/presetsUtils";
 import { TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
 import { TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
-import { CONTROL_BAR_STYLE_OPTIONS } from "../../../utils/controlBarStyleUtils";
 import { getKeyDisplay } from "../../../utils/hotkeyUtils";
 import { truncateMiddle } from "../../../utils/textUtils";
 
 export interface MenuItem {
+  id?: string;
   type: "item" | "divider" | "submenu" | "track" | "header";
   icon?: React.ReactNode;
   label?: string;
@@ -63,7 +67,10 @@ export interface MenuItem {
   submenuClassName?: string;
   track?: TrackInfo;
   onDownload?: () => void;
+  onCancelDownload?: () => void;
   isDownloading?: boolean;
+  isDownloadCompleted?: boolean;
+  downloadProgress?: number;
   downloadTitle?: string;
   isExternal?: boolean;
   externalTooltip?: string;
@@ -123,6 +130,7 @@ export interface ContextMenuBuilderParams {
   audioTracks: TrackInfo[];
   subTracks: TrackInfo[];
   downloadingTrackKey: string | null;
+  trackDownloadState?: TrackDownloadState | null;
   ambientMode: AmbientMode;
   currentSpeed: number;
   currentRotation: number;
@@ -130,7 +138,9 @@ export interface ContextMenuBuilderParams {
   repeatMode: 0 | 1 | 2;
   currentTimePos: TimeDisplayPosition;
   timeFormat: TimeFormatMode;
+  playerTheme: PlayerTheme;
   controlBarStyle: ControlBarStyle;
+  classicStyle: "modern" | "docked";
   userPresets: SettingsPreset[];
   activePresetId: string | null;
   upscaleModels: ModelFileItem[];
@@ -158,6 +168,7 @@ export interface ContextMenuBuilderParams {
   handleSetRotation: (deg: number) => void;
   handleSetAmbientMode: (mode: AmbientMode) => void;
   handleDownloadTrack: (track: TrackInfo) => void;
+  handleCancelDownloadTrack?: (trackKey: string) => void;
   handleToggleAlwaysOnTop: () => void;
   handleTakeScreenshot: () => void;
   handleSetRepeatMode: (mode: 0 | 1 | 2) => void;
@@ -169,6 +180,7 @@ export interface ContextMenuBuilderParams {
   handleToggleControlButton: (buttonId: string, label: string, currentVal: boolean) => void;
   handleSelectTimePosition: (pos: TimeDisplayPosition, label: string) => void;
   handleSelectTimeFormat: (fmt: TimeFormatMode, label: string) => void;
+  handleSelectPlayerTheme: (theme: PlayerTheme, label: string) => void;
   handleSelectControlBarStyle: (style: ControlBarStyle, label: string) => void;
   heatmapConfig: HeatmapConfig;
   handleToggleHeatmap: () => void;
@@ -207,6 +219,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     audioTracks,
     subTracks,
     downloadingTrackKey,
+    trackDownloadState,
     ambientMode,
     currentSpeed,
     currentRotation,
@@ -214,7 +227,9 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     repeatMode,
     currentTimePos,
     timeFormat,
+    playerTheme,
     controlBarStyle,
+    classicStyle,
     userPresets,
     activePresetId,
     upscaleModels,
@@ -240,6 +255,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleSetRotation,
     handleSetAmbientMode,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
     handleToggleAlwaysOnTop,
     handleTakeScreenshot,
     handleSetRepeatMode,
@@ -251,6 +267,7 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
     handleToggleControlButton,
     handleSelectTimePosition,
     handleSelectTimeFormat,
+    handleSelectPlayerTheme,
     handleSelectControlBarStyle,
     heatmapConfig,
     handleToggleHeatmap,
@@ -322,6 +339,8 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
               const trimmed = t.title?.trim();
               const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.trackLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.trackLabel(t.id, ""));
               const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
+              const rowKey = `audio-${t.id}`;
+              const isMatched = trackDownloadState?.trackKey === rowKey;
               return {
                 type: "track" as const,
                 track: t,
@@ -331,7 +350,13 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
                 indicator: "dot" as const,
                 action: () => handleSelectAudio(t.id),
                 onDownload: () => handleDownloadTrack(t),
-                isDownloading: downloadingTrackKey === `audio-${t.id}`,
+                onCancelDownload: () => handleCancelDownloadTrack?.(rowKey),
+                isDownloading:
+                  (isMatched && trackDownloadState?.status === "running") ||
+                  downloadingTrackKey === rowKey,
+                isDownloadCompleted:
+                  isMatched && trackDownloadState?.status === "completed",
+                downloadProgress: isMatched ? trackDownloadState?.progress ?? 0 : 0,
                 downloadTitle: dict.settings.cmenuUI.downloadAudio,
                 isExternal: Boolean(t.external),
                 externalTooltip: dict.controls.externalTrackTooltip,
@@ -367,6 +392,8 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           const trimmed = t.title?.trim();
           const fullTitle = trimmed || (t.lang ? `${dict.settings.cmenuUI.subLabel(t.id, "")} (${t.lang.toUpperCase()})` : dict.settings.cmenuUI.subLabel(t.id, ""));
           const label = trimmed ? truncateMiddle(trimmed, 38) : fullTitle;
+          const rowKey = `sub-${t.id}`;
+          const isMatched = trackDownloadState?.trackKey === rowKey;
           return {
             type: "track" as const,
             track: t,
@@ -376,7 +403,13 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
             indicator: "dot" as const,
             action: () => handleSelectSub(t.id),
             onDownload: () => handleDownloadTrack(t),
-            isDownloading: downloadingTrackKey === `sub-${t.id}`,
+            onCancelDownload: () => handleCancelDownloadTrack?.(rowKey),
+            isDownloading:
+              (isMatched && trackDownloadState?.status === "running") ||
+              downloadingTrackKey === rowKey,
+            isDownloadCompleted:
+              isMatched && trackDownloadState?.status === "completed",
+            downloadProgress: isMatched ? trackDownloadState?.progress ?? 0 : 0,
             downloadTitle: dict.settings.cmenuUI.downloadSub,
             isExternal: Boolean(t.external),
             externalTooltip: dict.controls.externalTrackTooltip,
@@ -728,29 +761,69 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       ],
     }),
 
-    control_bar_style: () => ({
-      type: "submenu",
-      icon: STATIC_ICONS.controlBarStyle,
-      label: dict.settings.cmenuUI.barStyle,
-      children: [
-        { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
-        ...CONTROL_BAR_STYLE_OPTIONS.map((barOption) => {
-          const barLabel =
-            barOption.id === "capsule"
-              ? dict.settings.appearance.styleCapsule
-              : barOption.id === "modern"
-              ? dict.settings.appearance.styleModern
-              : dict.settings.appearance.styleClassic;
-          return {
+    control_bar_style: () => {
+      const isClassic = controlBarStyle !== "capsule";
+      return {
+        type: "submenu",
+        id: "control_bar_style",
+        icon: STATIC_ICONS.controlBarStyle,
+        label: dict.settings.cmenuUI.barStyle,
+        submenuClassName: "context-menu__submenu--style context-menu__submenu--has-nested",
+        children: [
+          { type: "header" as const, label: dict.settings.appearance.interfaceTheme },
+          {
             type: "item" as const,
-            label: barLabel,
-            active: controlBarStyle === barOption.id,
+            label: "L-MPV",
+            active: playerTheme === "lmpv",
             indicator: "dot" as const,
-            action: () => handleSelectControlBarStyle(barOption.id, barLabel),
-          };
-        }),
-      ],
-    }),
+            action: () => handleSelectPlayerTheme("lmpv", "L-MPV"),
+          },
+          {
+            type: "item" as const,
+            label: "Liquid Glass",
+            active: playerTheme === "glass",
+            indicator: "dot" as const,
+            action: () => handleSelectPlayerTheme("glass", "Liquid Glass"),
+          },
+          { type: "header" as const, label: dict.settings.cmenuUI.groupBarStyle },
+          {
+            type: "item" as const,
+            label: "Capsule",
+            active: !isClassic,
+            indicator: "dot" as const,
+            action: () => handleSelectControlBarStyle("capsule", "Capsule"),
+          },
+          {
+            type: "submenu" as const,
+            id: "classic_style",
+            label: "Classic",
+            active: isClassic,
+            indicator: "dot" as const,
+            action: () =>
+              handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
+            submenuClassName: "context-menu__submenu--classic-style",
+            children: [
+              {
+                type: "item" as const,
+                label: dict.settings.appearance.panelFloating,
+                active: isClassic && classicStyle === "modern",
+                indicator: "dot" as const,
+                action: () =>
+                  handleSelectControlBarStyle("modern", dict.settings.appearance.panelFloating),
+              },
+              {
+                type: "item" as const,
+                label: dict.settings.appearance.panelDocked,
+                active: isClassic && classicStyle === "docked",
+                indicator: "dot" as const,
+                action: () =>
+                  handleSelectControlBarStyle("docked", dict.settings.appearance.panelDocked),
+              },
+            ],
+          },
+        ],
+      };
+    },
 
     control_buttons_visibility: () => ({
       type: "submenu",
@@ -860,7 +933,11 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
       rawItems.push({ type: "divider" });
     } else {
       const factory = factories[entry.id];
-      if (factory) rawItems.push(factory());
+      if (factory) {
+        const built = factory();
+        if (!built.id) built.id = entry.id;
+        rawItems.push(built);
+      }
     }
   }
 

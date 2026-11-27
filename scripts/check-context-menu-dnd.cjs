@@ -37,7 +37,7 @@ assert.equal(convert(null, 1.35), null);
 for (const invalidScale of [0, NaN, Infinity, -1]) assert.equal(exportsObject.toLocalDragTransform({x: 5, y: 9}, invalidScale).y, 9);
 const tab = fs.readFileSync(path.join(root, 'src/components/settings/tabs/ContextMenuSettingsTab.tsx'), 'utf8');
 const card = fs.readFileSync(path.join(root, 'src/components/settings/components/ContextMenuEntryCard.tsx'), 'utf8');
-const css = fs.readFileSync(path.join(root, 'src/styles/modals.css'), 'utf8');
+const css = fs.readFileSync(path.join(root, 'src/styles/modals/settings/settings-modal.css'), 'utf8');
 assert.equal((card.match(/ref=\{setNodeRef\} className="cmenu-entry-slot"/g) || []).length, 2, 'Measure stationary wrappers for both kinds of entry');
 assert.ok(tab.includes('</DragOverlay>, document.body)'), 'Keep fixed-position overlay outside zoomed, clipped settings');
 assert.ok(!tab.includes('ignoreTransform: true'), 'Do not invert animated transforms in viewport measurements');
@@ -58,7 +58,7 @@ vm.runInNewContext(ts.transpileModule(modelSource, {compilerOptions: {module: ts
     if (name === 'react') return {default: react};
     if (name === '@dnd-kit/sortable') return {useSortable: () => ({setNodeRef() {}, transform: {x: 12, y: 80}, isDragging: true})};
     if (name === '@dnd-kit/utilities') return {CSS: {Translate: {toString: value => value}}};
-    if (name.endsWith('/uiThemeUtils')) return {getActiveUiScale: () => modelZoom};
+    if (name.endsWith('/tokens') || name.endsWith('/uiThemeUtils')) return {getActiveUiScale: () => modelZoom};
     if (name.endsWith('/dndCoordinates')) return exportsObject;
     if (name.endsWith('/LanguageContext')) return {useTranslation: () => ({dict: {settings: {upscaling: {modelNumberTip: () => '', dragReorderTip: ''}}}})};
     return new Proxy({}, {get: (_, key) => key});

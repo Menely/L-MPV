@@ -147,7 +147,9 @@ export function TrackPicker({
           <button
             type="button"
             onClick={onDisable}
-            className="subtitles-search-card__track-picker-item hover-bright"
+            className={`subtitles-search-card__track-picker-item hover-bright ${
+              !activeTrack ? "subtitles-search-card__track-picker-item--active" : ""
+            }`}
             style={{
               width: "100%",
               display: "flex",
@@ -176,7 +178,9 @@ export function TrackPicker({
                 key={t.id}
                 type="button"
                 onClick={() => onSelect(t.id)}
-                className="subtitles-search-card__track-picker-item hover-bright"
+                className={`subtitles-search-card__track-picker-item hover-bright ${
+                  isSelected ? "subtitles-search-card__track-picker-item--active" : ""
+                }`}
                 title={t.title || dict.subtitlesSearch.defaultTrackName(t.id)}
                 style={{
                   width: "100%",

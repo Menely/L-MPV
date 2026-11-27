@@ -55,7 +55,7 @@ export const MediaInfoTabs: React.FC<MediaInfoTabsProps> = ({
     <SelectionRail activeKey={activeTab}
       className="media-info__tabs"
       role="tablist"
-      aria-label="Вкладки медиаинформации"
+      aria-label={dict.mediaInfoModal.tabsAriaLabel}
       onWheel={handleWheel}
     >
       {tabs.map((tab) => {

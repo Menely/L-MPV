@@ -10,9 +10,9 @@ use std::collections::HashMap;
 use std::hash::{Hash, Hasher};
 use std::path::{Path, PathBuf};
 
-/// Максимальный размер stdout FFmpeg, который готовы разобрать.
+/// Максимальный размер stdout FFmpeg или файла субтитров, который готовы разобрать (16 МБ).
 /// Защита от битых/злонамеренных файлов с гигантским потоком субтитров.
-pub const MAX_SUBTITLE_STDOUT_BYTES: usize = 8 * 1024 * 1024;
+pub const MAX_SUBTITLE_STDOUT_BYTES: usize = 16 * 1024 * 1024;
 
 /// Проверка, является ли тег `<...>` известной разметкой субтитров.
 ///
@@ -355,22 +355,32 @@ pub(crate) fn parse_srt_or_vtt(
 }
 
 /// Парсинг файлов субтитров в форматах ASS и SSA (стили и строки Dialogue).
+/// Автоматически пропускает секции встроенных бинарных шрифтов ([Fonts]) и графики ([Graphics]),
+/// предотвращая перегрузку памяти и ускоряя анализ тяжелых дорожек.
 pub(crate) fn parse_ass(
     content: &str,
 ) -> Vec<SubtitleLineInfo> {
     let mut lines = Vec::new();
     let mut styles: HashMap<String, AssStyleDef> = HashMap::new();
-    let normalized =
-        content.replace("\r\n", "\n").replace('\r', "\n");
 
     let mut in_styles = false;
+    let mut in_ignored_section = false;
     let mut style_format_keys: Vec<String> = Vec::new();
 
-    for raw_line in normalized.lines() {
+    // str::lines() стандартной библиотеки корректно обрабатывает как \n, так и \r\n
+    // без необходимости выделять многомегабайтную копию строки в памяти.
+    for raw_line in content.lines() {
         let trimmed = raw_line.trim();
         if trimmed.starts_with('[') && trimmed.ends_with(']') {
             let section = trimmed.to_lowercase();
             in_styles = section.contains("style");
+            // Пропускаем секции встроенных шрифтов и графики ([Fonts], [Graphics]),
+            // которые могут занимать мегабайты Base64 данных и не содержат диалогов.
+            in_ignored_section = section.contains("font") || section.contains("graphic");
+            continue;
+        }
+
+        if in_ignored_section {
             continue;
         }
 
@@ -497,7 +507,7 @@ pub(crate) fn parse_ass(
 // ─── Дисковый кэш субтитров (LRU до 20 файлов) ──────────────
 
 /// Максимальное количество файлов кэша субтитров на диске (FIFO/LRU ротация).
-pub const MAX_SUBTITLE_CACHE_FILES: usize = 20;
+pub const MAX_SUBTITLE_CACHE_FILES: usize = 500;
 
 /// Генерация 32-значного детерминированного hex-ключа для файла субтитров/видео.
 pub fn generate_subtitles_cache_key(
@@ -841,6 +851,20 @@ mod tests {
     }
 
     #[test]
+    fn parses_ass_ignoring_fonts_and_graphics_sections() {
+        let ass = "[Script Info]\nTitle: Test\n\
+                   [V4+ Styles]\nFormat: Name, Fontname, Fontsize\nStyle: Default,Arial,20\n\
+                   [Fonts]\nfont1.ttf: 1000\nAAEAAAASAQA...fakebase64data...\n\
+                   [Graphics]\nlogo.png: 500\niVBORw0KGgo...fakepngdata...\n\
+                   [Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\n\
+                   Dialogue: 0,0:00:05.00,0:00:08.00,Default,Bob,0,0,0,,Реплика после шрифтов";
+        let lines = parse_ass(ass);
+        assert_eq!(lines.len(), 1);
+        assert_eq!(lines[0].text, "Реплика после шрифтов");
+        assert_eq!(lines[0].actor.as_deref(), Some("Bob"));
+    }
+
+    #[test]
     fn detects_bitmap_but_not_teletext() {
         assert!(is_bitmap_subtitle("hdmv_pgs_subtitle", ""));
         assert!(is_bitmap_subtitle("vobsub", ""));
@@ -852,7 +876,7 @@ mod tests {
     }
 
     #[test]
-    fn test_subtitles_cache_pruning_limit_20() {
+    fn test_subtitles_cache_pruning_limit() {
         let temp_dir = std::env::temp_dir().join(format!("l_mpv_sub_test_{}", std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap().as_nanos()));
         let _ = std::fs::create_dir_all(&temp_dir);
 
@@ -865,7 +889,7 @@ mod tests {
             let _ = std::fs::File::open(&file_path).and_then(|f| f.set_modified(past));
         }
 
-        prune_subtitles_cache(&temp_dir, MAX_SUBTITLE_CACHE_FILES);
+        prune_subtitles_cache(&temp_dir, 20);
 
         let count = std::fs::read_dir(&temp_dir)
             .unwrap()
@@ -875,5 +899,6 @@ mod tests {
 
         let _ = std::fs::remove_dir_all(&temp_dir);
         assert_eq!(count, 20);
+        assert_eq!(MAX_SUBTITLE_CACHE_FILES, 500);
     }
 }

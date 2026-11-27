@@ -5,10 +5,11 @@ import { Plus, MoreHorizontal, FilePlus, Pencil, Trash2, Import, Download, Arrow
 import { useSavedPlaylists } from "../../hooks/useSavedPlaylists";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { movePlaylistEntry, playlistFileName, samePlaylistFile, savedPlaylistWindow } from "../../utils/savedPlaylists";
-import "../../styles/saved-playlists.css";
+import "../../styles/player/saved-playlists.css";
 import { NavigationPopover } from "./NavigationPopover";
 import { SavedPlaylistSource } from "./SavedPlaylistSource";
 import { usePlaylistFileDrop } from "../../hooks/usePlaylistFileDrop";
+import { notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 
 interface Props { active: boolean; folderPaths: string[]; mediaPath: string; refreshPlaylist: () => Promise<void>; onFolderRequested: () => Promise<void>; onSourceChange?: (saved: boolean) => void; children: ReactNode }
 type Editor = { kind: "create" | "folder" | "rename"; id?: string } | null;
@@ -130,6 +131,9 @@ export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlay
   };
   const entries = useMemo(() => selected?.paths.map((path, index) => ({path, index}))
     .filter(entry => playlistFileName(entry.path).toLowerCase().includes(query.trim().toLowerCase())) ?? [], [selected?.paths, query]);
+  useEffect(() => {
+    if (active) notifyLiquidGlassSync();
+  }, [active, library.source, library.loading, library.busy, library.error, dialogError, editor, confirmDelete, entries.length]);
   const visibleRange = savedPlaylistWindow(entries.length, scrollTop, viewportHeight);
   const matchesQueue = selected?.paths.length === folderPaths.length && selected?.paths.every((path, index) => samePlaylistFile(path, folderPaths[index]));
   return <div ref={dropTarget} className="saved-playlists" data-drop-active={dropHovered || undefined} data-source={library.source || "folder"}
@@ -178,27 +182,29 @@ export function SavedPlaylistPanel({ active, folderPaths, mediaPath, refreshPlay
       <div className="playlist-drawer__search"><Search size={15} className="playlist-drawer__search-icon" />
         <input aria-label={dict.playlist.search} className="playlist-drawer__search-input" value={query} onChange={event => setQuery(event.target.value)} placeholder={dict.playlist.search} />
       </div>
-      <div className="saved-playlists__entries" ref={entriesRef} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
-        {!library.loading && !entries.length && <p className="saved-playlists__status">{query ? dict.playlist.nothingFound : text.empty}</p>}
-        {visibleRange.before > 0 && <div aria-hidden="true" style={{height: visibleRange.before}} />}
-        {entries.slice(visibleRange.start, visibleRange.end).map(({path, index}) => {
-          const current = samePlaylistFile(path, mediaPath);
-          return <div key={`${index}:${path}`} data-entry-index={index} className="saved-playlists__entry" draggable={!blocked && !query}
-            onDragStart={event => {drag.current = {id: selected!.id, index}; event.dataTransfer.setData("application/x-lmpv-playlist", String(index)); event.dataTransfer.effectAllowed = "move";}}
-            onDragOver={event => {if (drag.current && drag.current.id === selected?.id) {event.preventDefault(); event.stopPropagation();}}}
-            onDrop={event => {const moving = drag.current; if (moving && moving.id === selected?.id) {event.preventDefault(); event.stopPropagation(); reorder(moving.index, index);} drag.current = null;}}
-            onDragEnd={() => {drag.current = null;}}>
-            <GripVertical size={13} className="saved-playlists__grip" aria-hidden="true" />
-            <button type="button" className="saved-playlists__play" aria-current={current ? "true" : undefined} title={path} disabled={blocked}
-              onClick={() => void library.play(selected!.id, index).then(played => {if (played) void refreshPlaylist();})}>
-              {current ? <Play size={14} fill="currentColor" /> : <Clapperboard size={14} />}<span>{playlistFileName(path)}</span>
-            </button>
-            <button type="button" data-move="up" className="playlist-drawer__action-btn" aria-label={text.moveUp} disabled={blocked || index === 0} onClick={() => reorder(index, index - 1, "up")}><ArrowUp size={14} /></button>
-            <button type="button" data-move="down" className="playlist-drawer__action-btn" aria-label={text.moveDown} disabled={blocked || index === selected!.paths.length - 1} onClick={() => reorder(index, index + 1, "down")}><ArrowDown size={14} /></button>
-            <button type="button" className="playlist-drawer__action-btn" aria-label={text.remove} disabled={blocked} onClick={() => void library.update(selected!.id, {paths: selected!.paths.filter((_, position) => position !== index)})}><X size={14} /></button>
-          </div>;
-        })}
-        {visibleRange.after > 0 && <div aria-hidden="true" style={{height: visibleRange.after}} />}
+      <div className="scroll-surface playlist-drawer__list-surface">
+        <div className="saved-playlists__entries" ref={entriesRef} onScroll={event => setScrollTop(event.currentTarget.scrollTop)}>
+          {!library.loading && !entries.length && <p className="saved-playlists__status">{query ? dict.playlist.nothingFound : text.empty}</p>}
+          {visibleRange.before > 0 && <div aria-hidden="true" style={{height: visibleRange.before}} />}
+          {entries.slice(visibleRange.start, visibleRange.end).map(({path, index}) => {
+            const current = samePlaylistFile(path, mediaPath);
+            return <div key={`${index}:${path}`} data-entry-index={index} className="saved-playlists__entry" draggable={!blocked && !query}
+              onDragStart={event => {drag.current = {id: selected!.id, index}; event.dataTransfer.setData("application/x-lmpv-playlist", String(index)); event.dataTransfer.effectAllowed = "move";}}
+              onDragOver={event => {if (drag.current && drag.current.id === selected?.id) {event.preventDefault(); event.stopPropagation();}}}
+              onDrop={event => {const moving = drag.current; if (moving && moving.id === selected?.id) {event.preventDefault(); event.stopPropagation(); reorder(moving.index, index);} drag.current = null;}}
+              onDragEnd={() => {drag.current = null;}}>
+              <GripVertical size={13} className="saved-playlists__grip" aria-hidden="true" />
+              <button type="button" className="saved-playlists__play" aria-current={current ? "true" : undefined} title={path} disabled={blocked}
+                onClick={() => void library.play(selected!.id, index).then(played => {if (played) void refreshPlaylist();})}>
+                {current ? <Play size={14} fill="currentColor" /> : <Clapperboard size={14} />}<span>{playlistFileName(path)}</span>
+              </button>
+              <button type="button" data-move="up" className="playlist-drawer__action-btn" aria-label={text.moveUp} disabled={blocked || index === 0} onClick={() => reorder(index, index - 1, "up")}><ArrowUp size={14} /></button>
+              <button type="button" data-move="down" className="playlist-drawer__action-btn" aria-label={text.moveDown} disabled={blocked || index === selected!.paths.length - 1} onClick={() => reorder(index, index + 1, "down")}><ArrowDown size={14} /></button>
+              <button type="button" className="playlist-drawer__action-btn" aria-label={text.remove} disabled={blocked} onClick={() => void library.update(selected!.id, {paths: selected!.paths.filter((_, position) => position !== index)})}><X size={14} /></button>
+            </div>;
+          })}
+          {visibleRange.after > 0 && <div aria-hidden="true" style={{height: visibleRange.after}} />}
+        </div>
       </div>
     </section>}
   </div>;

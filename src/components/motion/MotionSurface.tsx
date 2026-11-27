@@ -1,8 +1,14 @@
-import { forwardRef, useEffect, useRef } from "react";
+import { forwardRef, useEffect, useRef, useSyncExternalStore } from "react";
 import { useAnimationControls, usePresence, usePresenceData, type HTMLMotionProps } from "motion/react";
 import * as m from "motion/react-m";
-import { surfacePose, surfaceTransition, type MotionSurfaceKind } from "./motionPresets";
+import { motionPresets, surfacePose, surfaceTransition, type MotionSurfaceKind } from "./motionPresets";
 import { useMotionAllowed } from "./useMotionAllowed";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
+import { getPlayerTheme, subscribePlayerTheme } from "../../theme/liquidGlass/preferences";
+
+function motionPresetsDuration(kind: MotionSurfaceKind, phase: "enter" | "exit"): number {
+  return motionPresets[kind][phase];
+}
 
 type MotionSurfaceProps = Omit<HTMLMotionProps<"div">, "initial" | "animate" | "exit" | "transition"> & {
   kind: MotionSurfaceKind;
@@ -15,6 +21,8 @@ export const MotionSurface = forwardRef<HTMLDivElement, MotionSurfaceProps>(func
   ref,
 ) {
   const allowed = useMotionAllowed();
+  const playerTheme = useSyncExternalStore(subscribePlayerTheme, getPlayerTheme);
+  const isGlassFadeOnly = playerTheme === "glass";
   const [present, safeToRemove] = usePresence();
   const removeRef = useRef(safeToRemove);
   const controls = useAnimationControls();
@@ -28,19 +36,21 @@ export const MotionSurface = forwardRef<HTMLDivElement, MotionSurfaceProps>(func
     if (present && !ready) return;
     let cancelled = false;
     const phase = present ? "enter" : "exit";
+    notifyLiquidGlassAnimation(Math.round((motionPresetsDuration(kind, phase) + 0.08) * 1000));
     // Restart from the current visual value when interrupted, including policy changes.
     const animation = controls.start({
-      ...surfacePose(kind, present ? "visible" : "exit", allowed && !immediateExit),
+      ...surfacePose(kind, present ? "visible" : "exit", allowed && !immediateExit, isGlassFadeOnly),
       transition: surfaceTransition(kind, phase, allowed && ready && (present || !immediateExit)),
     });
     void animation.then(() => {
+      notifyLiquidGlassAnimation(48);
       if (!cancelled && !present) removeRef.current?.();
     });
     return () => {
       cancelled = true;
       controls.stop();
     };
-  }, [allowed, controls, immediateExit, kind, present, ready]);
+  }, [allowed, controls, immediateExit, isGlassFadeOnly, kind, present, ready]);
 
   return (
     <m.div
@@ -51,8 +61,12 @@ export const MotionSurface = forwardRef<HTMLDivElement, MotionSurfaceProps>(func
       inert={!present || props.inert}
       aria-hidden={!present ? true : props["aria-hidden"]}
       style={{ ...style, pointerEvents: present ? style?.pointerEvents : "none" }}
-      initial={allowed ? surfacePose(kind, "initial", allowed) : false}
+      initial={allowed ? surfacePose(kind, "initial", allowed, isGlassFadeOnly) : false}
       animate={controls}
+      onUpdate={(latest) => {
+        props.onUpdate?.(latest);
+        notifyLiquidGlassSync();
+      }}
     />
   );
 });

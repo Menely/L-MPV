@@ -1,7 +1,7 @@
 const assert = require('node:assert/strict');
 const esbuild = require('esbuild');
 const compiled = esbuild.buildSync({entryPoints: ['src/hooks/usePinnedNavigationPanel.ts'], bundle: true, write: false,
-  platform: 'node', format: 'cjs', external: ['react', '../utils/uiThemeUtils']}).outputFiles[0].text;
+  platform: 'node', format: 'cjs', external: ['react', '../theme/tokens']}).outputFiles[0].text;
 
 function fixture(savedPin = null) {
   const storage = new Map(savedPin === null ? [] : [['l-mpv-navigation-panel-pin', JSON.stringify(savedPin)]]);

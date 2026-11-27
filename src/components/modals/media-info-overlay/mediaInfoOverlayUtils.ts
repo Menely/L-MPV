@@ -39,6 +39,9 @@ export interface RenderingAndSystemStats {
   ram_total_used_bytes: number;
   ram_total_bytes: number;
   gpu_name: string;
+  gpu_app_percent: number;
+  gpu_total_percent: number;
+  gpu_load_available: boolean;
   vram_used_bytes: number;
   vram_total_bytes: number;
   hwdec_current: string;

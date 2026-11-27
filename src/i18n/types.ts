@@ -40,6 +40,8 @@ export interface TranslationDict {
     externalTrackTooltip: string;
     downloadAudio: string;
     downloadSubtitle: string;
+    cancelDownload: string;
+    downloadCompleted: string;
     audioFilter: string;
     downloadingAudio: string;
     downloadingSubtitle: string;
@@ -454,6 +456,19 @@ export interface TranslationDict {
       fontSystemLabel: string;
       openFontsFolderTooltip: string;
       customFontsDivider: string;
+      interfaceTheme: string;
+      glassBlur: string;
+      resetGlassBlur: string;
+      glassRefraction: string;
+      resetGlassRefraction: string;
+      glassRefractionValue: (level: number) => string;
+      glassDispersion: string;
+      resetGlassDispersion: string;
+      glassDispersionValue: (level: number) => string;
+      classicStyleDesc: string;
+      panelPlacement: string;
+      panelFloating: string;
+      panelDocked: string;
       controlBarStyleTitle: string;
       timePositionTitle: string;
       timeFormatTitle: string;
@@ -636,16 +651,29 @@ export interface TranslationDict {
       radiusLabel: (r: string) => string;
       themeTitle: (name: string) => string;
       themeLabel: (name: string) => string;
+      interfaceThemeTitle: (name: string) => string;
+      glassTintTitle: (name: string) => string;
+      glassTintLabel: (name: string) => string;
+      glassBlurTitle: string;
+      glassBlurLabel: (percent: number) => string;
+      glassRefractionTitle: string;
+      glassRefractionLabel: (level: number) => string;
+      glassDispersionTitle: string;
+      glassDispersionLabel: (level: number) => string;
+      controlBarStyleTitle: (name: string) => string;
       accentTitle: (color: string) => string;
       neonTitle: string;
       neonSoft: string;
       neonBalance: string;
+      neonIntense: string;
       ambientTitle: string;
       ambientOff: string;
       ambientBlur: string;
       visualizerTitle: string;
       visualizerMode: (mode: string) => string;
       visualizerOff: string;
+      heatmapTitle: string;
+      heatmapLabel: (style: string) => string;
 
       opacityTitle: string;
       radiusTitleTooltip: string;
@@ -843,12 +871,19 @@ export interface TranslationDict {
       libmpvDesc: string;
       libmpvActive: string;
       libmpvMissing: string;
+      libmpvNotLoaded: string;
+      libmpvActiveFallback: string;
       animejanaiCompiled: string;
       animejanaiNotDetected: string;
       ffmpegTitle: string;
       ffmpegDesc: string;
+      ffmpegInstalledUnknown: string;
+      statusUnknown: string;
       mediainfoTitle: string;
       mediainfoDesc: string;
+      groupCoreTitle: string;
+      groupGraphicsTitle: string;
+      groupEnvTitle: string;
       aiInferenceTitle: string;
       aiInferenceDesc: string;
       aiInstalledBadge: (count: number) => string;
@@ -1093,6 +1128,7 @@ export interface TranslationDict {
       updateFound: (version: string) => string;
       checkFailed: string;
       portableEdition: string;
+      versionLabel: string;
       pickFolderTitle: string;
       fallbackReleaseNotes: (version: string) => string;
     };
@@ -1118,6 +1154,7 @@ export interface TranslationDict {
     kbps: string;
     ch: string;
     // Вкладки оверлея
+    tabsAriaLabel: string;
     tabSummary: string;
     tabRendering: string;
     tabTracks: string;
@@ -1241,6 +1278,7 @@ export interface TranslationDict {
   // ─── OSD / Тосты / системные нотификации ──────────────────────
   osd: {
     timeFormat: (label: string) => string;
+    speed: (value: string) => string;
     frameSaved: string;
     frameError: string;
     frameCopied: string;
@@ -1250,6 +1288,7 @@ export interface TranslationDict {
     upscaleModelNotFound: (index: number) => string;
     upscaleNoFavorite: string;
     upscaleFavoriteNotFound: (name: string) => string;
+    upscaleFavoriteLabel: string;
     upscaleError: (err: string) => string;
     upscaleStatsAi: (slot: number, name: string, engine: string, stats: string) => string;
     upscaleStatsOff: (gpuHint: string) => string;
@@ -1287,6 +1326,7 @@ export interface TranslationDict {
     changelogInfo: string;
     openGithub: string;
     downloadErrorFallback: string;
+    restartErrorFallback: string;
     installerStarting: string;
     downloadProgress: (pct: number) => string;
     restartHint: string;

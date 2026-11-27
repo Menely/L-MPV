@@ -1,7 +1,7 @@
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { ControlButtonsPreviewCard } from "./ControlButtonsPreviewCard";
 import { SecondsInput } from "./SecondsInput";
-import "../../../styles/settings-control-buttons.css";
+import "../../../styles/modals/settings/settings-control-buttons.css";
 
 interface Props {
   visibleButtons: Record<string, boolean>;

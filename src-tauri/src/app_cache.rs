@@ -142,15 +142,21 @@ pub enum CacheCategory {
     Subtitles,
     Shaders,
     Icc,
+    LiquidGlass,
+    WatchLater,
+    Ebu128,
     Other,
     Browser,
 }
-const CATEGORIES: [CacheCategory; 7] = [
+const CATEGORIES: [CacheCategory; 10] = [
     CacheCategory::Thumbnails,
     CacheCategory::Waveforms,
     CacheCategory::Subtitles,
     CacheCategory::Shaders,
     CacheCategory::Icc,
+    CacheCategory::LiquidGlass,
+    CacheCategory::WatchLater,
+    CacheCategory::Ebu128,
     CacheCategory::Other,
     CacheCategory::Browser,
 ];
@@ -162,6 +168,9 @@ impl CacheCategory {
             Self::Subtitles => "subtitles",
             Self::Shaders => "shaders",
             Self::Icc => "icc",
+            Self::LiquidGlass => "liquid_glass",
+            Self::WatchLater => "watch_later",
+            Self::Ebu128 => "ebu128",
             Self::Other => "other",
             Self::Browser => "browser",
         }
@@ -259,7 +268,16 @@ pub(crate) fn finish_pending(app: &Path) {
 }
 fn entries(app: &Path) -> Vec<(String, Vec<PathBuf>)> {
     let mut rows = vec![];
-    for name in ["thumbnails", "waveforms", "subtitles", "shaders", "icc"] {
+    for name in [
+        "thumbnails",
+        "waveforms",
+        "subtitles",
+        "shaders",
+        "icc",
+        "liquid_glass",
+        "watch_later",
+        "ebu128",
+    ] {
         rows.push((name.into(), {
             let mut paths = vec![app.join("data/cache").join(name)];
             if name == "thumbnails" {
@@ -274,9 +292,18 @@ fn entries(app: &Path) -> Vec<(String, Vec<PathBuf>)> {
     let mut other = vec![];
     if let Ok(items) = fs::read_dir(app.join("data/cache")) {
         for item in items.flatten() {
-            if !["thumbnails", "waveforms", "subtitles", "shaders", "icc"]
-                .iter()
-                .any(|n| item.file_name() == *n)
+            if ![
+                "thumbnails",
+                "waveforms",
+                "subtitles",
+                "shaders",
+                "icc",
+                "liquid_glass",
+                "watch_later",
+                "ebu128",
+            ]
+            .iter()
+            .any(|n| item.file_name() == *n)
             {
                 other.push(item.path());
             }
@@ -373,7 +400,13 @@ pub async fn clear_app_cache(
         if selected.contains(&CacheCategory::Thumbnails) {
             EPOCH.fetch_add(1, Ordering::AcqRel);
         }
-        clear_selected(&app, &selected)
+        let result = clear_selected(&app, &selected);
+        if selected.contains(&CacheCategory::Other)
+            || selected.contains(&CacheCategory::LiquidGlass)
+        {
+            crate::liquid_glass::mark_assets_stale();
+        }
+        result
     })
     .await
     .map_err(|e| e.to_string())?

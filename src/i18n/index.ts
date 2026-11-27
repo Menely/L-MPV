@@ -80,6 +80,27 @@ export function getEffectiveLocale(): Locale {
 }
 
 /**
+ * Возвращает BCP-47 тег локали для форматирования чисел и дат (Intl / toLocale*).
+ * Если активен не-русский язык интерфейса и системная локаль браузера не русская,
+ * сохраняет региональный формат пользователя, иначе использует "en-US" или "ru-RU".
+ */
+export function getIntlLocale(locale?: Locale): string {
+  const active = locale ?? getEffectiveLocale();
+  if (active === "ru") {
+    return "ru-RU";
+  }
+  try {
+    const sys = typeof navigator !== "undefined" ? navigator.language : "";
+    if (sys && !sys.toLowerCase().startsWith("ru")) {
+      return sys;
+    }
+  } catch {
+    // navigator недоступен
+  }
+  return "en-US";
+}
+
+/**
  * Возвращает словарь переводов для указанной локали.
  * Типобезопасный доступ к любому полю словаря через TypeScript.
  */

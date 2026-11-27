@@ -1,0 +1,471 @@
+/* ─── Контекстное меню ───────────────────────────────── */
+.context-menu {
+  --menu-radius: var(--radius-controls, 16px);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
+  position: fixed;
+  min-width: 200px;
+  max-width: calc(100vw - 16px);
+  overflow: visible;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--menu-padding);
+  box-shadow: var(--shadow-elevated);
+  z-index: var(--z-window);
+  transform-origin: top left;
+  -webkit-font-smoothing: subpixel-antialiased;
+  text-rendering: optimizeLegibility;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Модульный островной дизайн главного меню для стиля «Капсула» */
+.context-menu.context-menu--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+  contain: none !important;
+  max-height: none !important;
+  overflow: visible !important;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+@keyframes contextMenuFadeIn {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+.context-menu__item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  padding: var(--space-3) 12px;
+  /* Рамка всегда 1.5px: появление/вес при active не должны двигать подпись и шорткат. */
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--menu-item-radius);
+  width: 100%;
+  text-align: left;
+  transform-origin: center center;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-out);
+  position: relative;
+}
+
+.context-menu__item:hover,
+.context-menu__item--submenu-open {
+  background: var(--hover-veil-float);
+}
+
+/* Невидимый улавливающий мост наведения у открытого пункта подменю:
+   перекрывает зазор между меню и подменю с достаточным запасом по высоте,
+   чтобы мышь не теряла фокус при диагональном движении.
+   Размещается строго со стороны выпавшего подменю, не блокируя клики
+   по соседним строчкам основного меню. */
+.context-menu__item--submenu-open::after {
+  content: "";
+  position: absolute;
+  top: -16px;
+  bottom: -16px;
+  right: -18px;
+  width: 24px;
+  background: transparent;
+  pointer-events: auto;
+  z-index: var(--z-in-raised);
+}
+
+.context-menu__item--submenu-open.context-menu__item--submenu-left::after {
+  right: auto;
+  left: -18px;
+  width: 24px;
+}
+
+.context-menu__item:active {
+  transform: scale(0.985);
+  transition: transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.context-menu__item--active {
+  color: var(--accent-text);
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.context-menu__item--active .context-menu__item-icon {
+  color: var(--accent-text);
+}
+
+.context-menu__item-icon {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  min-height: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.context-menu__item-icon svg {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  min-height: 16px;
+  display: block;
+  flex-shrink: 0;
+  stroke-width: 1.8;
+  transform-origin: center center;
+}
+
+.context-menu__item-label {
+  flex: 1;
+}
+
+.context-menu__item-shortcut {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+  margin-left: var(--space-7);
+}
+
+.context-menu__item-arrow {
+  color: var(--text-muted);
+  font-size: var(--fs-3xs);
+}
+
+.context-menu__divider {
+  height: 1px;
+  background: var(--border);
+  margin: var(--space-1) 10px;
+}
+
+/* Подменю: базовый контейнер для всплывающего окна */
+.context-menu__submenu {
+  position: absolute;
+  left: calc(100% + 10px);
+  top: -6px;
+  min-width: 210px;
+  width: max-content;
+  max-width: 320px;
+  animation: contextMenuFadeIn var(--t-fast) var(--ease-out);
+  transform-origin: top left;
+  z-index: var(--z-popover);
+}
+
+/* Островной вариант подменю для стиля «Капсула» */
+.context-menu__submenu--capsule {
+  overflow: visible;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+/* Монолитное цельное окно подменю для стилей «Модерн» и «Классический» */
+.context-menu__submenu--solid {
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-2);
+  box-shadow: var(--shadow-elevated);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: min(420px, calc(100vh / var(--ui-scale, 1) - var(--bottom-overlays-bottom, 94px) - 58px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Самостоятельная островная карточка-группа во всплывающем меню и подменю */
+.context-menu__group {
+  --menu-radius: var(--radius-controls, 16px);
+  --menu-padding: var(--space-2);
+  --menu-border: 1px;
+  --menu-item-radius: max(0px, calc(var(--menu-radius) - var(--menu-padding) - var(--menu-border)));
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  max-height: min(280px, calc(100vh / var(--ui-scale, 1) - var(--bottom-overlays-bottom, 94px) - 120px));
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--menu-radius);
+  padding: var(--menu-padding);
+  box-shadow: var(--shadow-elevated);
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+/* Островные карточки главного меню: не обрезают выпадающие подменю */
+.context-menu__group--main {
+  overflow: visible !important;
+  max-height: none !important;
+}
+
+.context-menu__group:only-child {
+  max-height: min(460px, calc(100vh / var(--ui-scale, 1) - var(--bottom-overlays-bottom, 94px) - 58px));
+}
+
+.context-menu,
+.context-menu__submenu {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.context-menu::-webkit-scrollbar,
+.context-menu__submenu::-webkit-scrollbar,
+.context-menu__group::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* Компактная подпись островной карточки и заголовка группы */
+.context-menu__group-header {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  color: var(--text-muted);
+  opacity: 1;
+  padding: 3px 9px 2px;
+  user-select: none;
+  pointer-events: none;
+}
+
+/* Индикатор активного радио-выбора (точка ●) */
+.context-menu__radio-dot {
+  width: 7px;
+  height: 7px;
+  min-width: 7px;
+  min-height: 7px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: none;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.context-menu__submenu--left {
+  left: auto;
+  right: calc(100% + 10px);
+  transform-origin: top right;
+}
+
+.context-menu__submenu--bottom {
+  top: auto;
+  bottom: -6px;
+  transform-origin: bottom left;
+}
+
+.context-menu__submenu--left.context-menu__submenu--bottom {
+  transform-origin: bottom right;
+}
+
+.context-menu__submenu--tracks {
+  min-width: 220px;
+  width: 220px;
+}
+
+.context-menu__submenu--recent {
+  min-width: 250px;
+  max-width: 320px;
+}
+
+/* Контейнеры подменю с вложенными подменю не обрезают дочерние выпадающие окна */
+.context-menu__submenu--has-nested,
+.context-menu__submenu--has-nested .context-menu__group {
+  overflow: visible !important;
+}
+
+/* Компактное окно выбора темы и стиля плеера */
+.context-menu__submenu--style {
+  min-width: 155px;
+  width: max-content;
+  max-width: 210px;
+}
+
+/* Компактное окно выбора вариантов классического стиля (Плавающая / Прикреплённая) */
+.context-menu__submenu--classic-style {
+  min-width: 150px;
+  width: max-content;
+  max-width: 210px;
+}
+
+.context-menu__item--disabled {
+  opacity: 0.55;
+  cursor: default;
+  pointer-events: none;
+}
+
+.context-menu__item-label--truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu__track-row {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.context-menu__track-btn {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) 8px;
+  flex: 1;
+  min-width: 0;
+  border: 1.5px solid transparent;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: var(--fs-sm);
+  font-family: var(--font-family);
+  cursor: pointer;
+  border-radius: var(--menu-item-radius);
+  text-align: left;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+/* Кнопка скачивания дорожки в подменю контекстного меню.
+   Тот же «голый» дизайн, что и в окнах дорожек: без карточки и рамки. */
+.context-menu .track-download-btn {
+  position: relative;
+  overflow: hidden;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  align-self: stretch;
+  width: 30px;
+  min-height: 28px;
+  height: auto;
+  padding: 0;
+  flex-shrink: 0;
+  border-radius: var(--menu-item-radius);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              transform var(--t-fast) var(--ease-spring-smooth);
+}
+
+.context-menu .track-download-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.context-menu .track-download-btn:hover:not(:disabled) {
+  background: var(--hover-veil-float);
+  color: var(--accent-text);
+  border-color: transparent;
+}
+
+.context-menu .track-download-btn.track-download-btn--progress:hover:not(:disabled) {
+  background: var(--danger-surface);
+  color: var(--danger-text);
+  border-color: transparent;
+}
+
+.context-menu .track-download-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.context-menu .track-download-btn:disabled {
+  cursor: default;
+}
+
+.context-menu__track-btn:hover {
+  background: var(--hover-veil-float);
+  color: var(--text-primary);
+}
+
+.context-menu__track-btn--active {
+  color: var(--accent-text);
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.context-menu__track-btn--active:hover {
+  color: var(--accent-text);
+}
+
+.context-menu__track-btn--liquid,
+.context-menu__track-btn--liquid:hover,
+.context-menu__track-btn--active.context-menu__track-btn--liquid,
+.context-menu__track-btn--active.context-menu__track-btn--liquid:hover {
+  background: transparent !important;
+}
+
+.context-menu__track-main {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.context-menu__track-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.context-menu__track-main .context-menu__track-title {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.context-menu__track-check {
+  position: relative;
+  z-index: 2;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}

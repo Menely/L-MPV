@@ -9,6 +9,7 @@ mod audio_capture;
 pub mod audio_filter;
 pub mod commands;
 mod fonts_bundle;
+mod liquid_glass;
 pub mod logging;
 mod media_report_cache;
 mod mediainfo;
@@ -59,7 +60,7 @@ pub fn parse_cli_args<I: IntoIterator<Item = String>>(args: I) -> ParsedCliArgs 
 pub fn run() {
     let raw_args: Vec<String> = std::env::args().collect();
     if raw_args.iter().any(|a| a == "--register-context-menu") {
-        match system_integration::register_explorer_context_menu() {
+        match system_integration::register_explorer_context_menu(None) {
             Ok(logs) => {
                 for log in logs {
                     println!("{}", log);
@@ -70,7 +71,7 @@ pub fn run() {
         std::process::exit(0);
     }
     if raw_args.iter().any(|a| a == "--unregister-context-menu") {
-        match system_integration::unregister_explorer_context_menu() {
+        match system_integration::unregister_explorer_context_menu(None) {
             Ok(logs) => {
                 for log in logs {
                     println!("{}", log);
@@ -148,6 +149,7 @@ pub fn run() {
         }));
     }
 
+    let initial_glass_theme = settings.ui.player_interface_theme.as_deref() == Some("glass");
     let resume_exe_dir = exe_dir.clone();
     builder
         .plugin(startup_runtime::player_plugin(exe_dir, settings, cli_initial))
@@ -156,7 +158,9 @@ pub fn run() {
         .manage(commands::HeatmapTaskManager::new())
         .manage(commands::LiveVideoBitrateService::default())
         .manage(commands::ThumbnailService::default())
+        .manage(liquid_glass::LiquidGlass::default())
         .invoke_handler(tauri::generate_handler![
+            liquid_glass::configure_liquid_glass,
             // Управление воспроизведением
             commands::get_timeline_thumbnail,
             commands::cancel_timeline_thumbnail,
@@ -256,6 +260,7 @@ pub fn run() {
             commands::update_taskbar_progress,
             commands::toggle_fullscreen,
             commands::extract_track,
+            commands::cancel_track_extract,
             commands::get_active_subtitle_lines,
             commands::analyze_subtitle_track,
             // Подсветка полос (Ambient Light)
@@ -382,6 +387,14 @@ pub fn run() {
                 height: 720.0,
             }));
 
+            // Явно устанавливаем иконку главного окна до привязки mpv и до показа окна,
+            // чтобы Windows Shell гарантированно получил HICON без гонки с D3D11/WebView2.
+            if let Some(icon) = app.default_window_icon().cloned() {
+                if let Err(err) = window.set_icon(icon) {
+                    eprintln!("[L-MPV] Не удалось установить иконку главного окна: {err}");
+                }
+            }
+
 
             #[cfg(target_os = "windows")]
             {
@@ -424,6 +437,11 @@ pub fn run() {
             }
 
             let cli = parse_cli_args(std::env::args());
+            if initial_glass_theme && !cli.open_mediainfo {
+                let state = app.state::<PlayerState>();
+                let glass_state = app.state::<liquid_glass::LiquidGlass>();
+                liquid_glass::prewarm_liquid_glass(&state, &glass_state, true);
+            }
             if cli.open_mediainfo {
                 let target_path = cli.file_path.as_deref().unwrap_or("");
                 let app_handle = app.handle().clone();

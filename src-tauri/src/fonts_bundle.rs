@@ -14,6 +14,7 @@ const OUTFIT_FONT: &[u8] = include_bytes!("../../src/assets/fonts/Outfit-Variabl
 const JAKARTA_FONT: &[u8] = include_bytes!("../../src/assets/fonts/PlusJakartaSans-Variable.ttf");
 const MANROPE_FONT: &[u8] = include_bytes!("../../src/assets/fonts/Manrope-Variable.ttf");
 const MONO_FONT: &[u8] = include_bytes!("../../src/assets/fonts/JetBrainsMono-Variable.ttf");
+const MARKER_FONT: &[u8] = include_bytes!("../../src/assets/fonts/PermanentMarker-Regular.ttf");
 const README_TXT: &[u8] = include_bytes!("../../src/assets/fonts/README.txt");
 static FONT_INSTALL_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
@@ -51,6 +52,7 @@ pub fn ensure_fonts_installed(exe_dir: &Path) {
         ("PlusJakartaSans-Variable.ttf", JAKARTA_FONT),
         ("Manrope-Variable.ttf", MANROPE_FONT),
         ("JetBrainsMono-Variable.ttf", MONO_FONT),
+        ("PermanentMarker-Regular.ttf", MARKER_FONT),
         ("README.txt", README_TXT),
     ];
 
@@ -144,6 +146,7 @@ pub fn get_custom_fonts() -> Result<Vec<CustomFontItem>, String> {
                     | "PlusJakartaSans-Variable.ttf"
                     | "Manrope-Variable.ttf"
                     | "JetBrainsMono-Variable.ttf"
+                    | "PermanentMarker-Regular.ttf"
             );
 
             let (id, display_name, family) = if is_builtin {
@@ -172,6 +175,11 @@ pub fn get_custom_fonts() -> Result<Vec<CustomFontItem>, String> {
                         "mono".to_string(),
                         "JetBrains Mono".to_string(),
                         "JetBrains Mono".to_string(),
+                    ),
+                    "PermanentMarker-Regular.ttf" => (
+                        "permanent-marker".to_string(),
+                        "Permanent Marker".to_string(),
+                        "Permanent Marker".to_string(),
                     ),
                     _ => (
                         format!("custom:{}", file_name),

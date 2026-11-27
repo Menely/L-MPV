@@ -1,0 +1,442 @@
+/* ─── Окно глав (Chapters Modal) ────────────────────────────── */
+.chapters-modal-overlay {
+  position: fixed;
+  bottom: var(--bottom-overlays-bottom, 94px);
+  right: 14px;
+  max-height: calc(100% - var(--bottom-overlays-bottom, 94px) - 60px);
+  width: min(380px, calc(100vw - 28px));
+  pointer-events: none;
+  z-index: var(--z-card);
+  display: flex;
+  flex-direction: column;
+  transition: bottom var(--t-base) var(--ease-smooth),
+              max-height var(--t-base) var(--ease-smooth);
+}
+
+.chapters-modal-card {
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  padding: var(--space-7);
+  box-shadow: var(--shadow-elevated);
+  pointer-events: auto;
+  transform-origin: bottom right;
+}
+
+.chapters-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-shrink: 0;
+}
+
+.chapters-modal-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+.chapters-modal-badge {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 0 8px;
+  background: var(--surface-level-3-hover);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-pill);
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  flex-shrink: 0;
+}
+
+.chapters-modal-header-actions {
+  display: flex;
+  align-items: center;
+  flex: 0 0 auto;
+}
+
+.chapters-modal-title {
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  letter-spacing: 0.3px;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapters-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: 4px 0;
+  scrollbar-gutter: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.chapters-list::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.chapter-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-6);
+  padding: 6px 8px;
+  border-radius: var(--radius-list-row);
+  border: 1.5px solid transparent;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+  outline: none;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth);
+}
+
+.chapter-item:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.chapter-item:hover:not(.chapter-item--active) {
+  background: var(--hover-veil);
+}
+
+.chapter-item--active {
+  background: var(--bg-active, rgba(127, 199, 255, 0.16)) !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: var(--selection-shadow);
+}
+
+.chapter-item__title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text-primary);
+  font-size: var(--fs-sm, 0.82rem);
+  font-weight: 400;
+}
+
+.chapter-item--active .chapter-item__title {
+  color: var(--accent-text);
+  font-weight: 600;
+}
+
+.chapter-item__time {
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+  color: var(--text-secondary);
+  font-size: var(--fs-xs, 0.75rem);
+}
+
+.chapter-item--active .chapter-item__time {
+  color: var(--accent-text);
+  font-weight: 500;
+}
+
+.chapter-item--with-thumb {
+  justify-content: flex-start;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 4px;
+}
+
+.chapter-item__thumb {
+  position: relative;
+  flex: 0 0 80px;
+  width: 80px;
+  aspect-ratio: 16 / 9;
+  border-radius: max(0px, calc(var(--radius-list-row, 10px) - 3px));
+  overflow: hidden;
+  background: var(--surface-level-1, rgba(0, 0, 0, 0.35));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  color: var(--text-muted);
+  box-sizing: border-box;
+  transition: border-color var(--t-fast) var(--ease-smooth);
+}
+
+.chapter-item--active .chapter-item__thumb {
+  border-color: var(--selection-frame);
+}
+
+.chapter-item__thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: chapterThumbFadeIn 150ms var(--ease-smooth) forwards;
+}
+
+.chapter-item__thumb--loading::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.07) 50%,
+    transparent 100%
+  );
+  transform: translateX(-100%);
+  animation: chapterThumbShimmer 1.3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes chapterThumbFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes chapterThumbShimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.chapter-item__content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+}
+
+.chapter-item--with-thumb .chapter-item__title {
+  flex: initial;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  line-height: 1.25;
+}
+
+.chapter-item--with-thumb .chapter-item__time {
+  line-height: 1.2;
+}
+
+.chapters-empty {
+  color: var(--text-muted);
+  font-size: var(--fs-sm, 0.82rem);
+  text-align: center;
+  padding: var(--space-9) 0;
+}
+
+/* ─── Окно глав: стиль «Капсула» (островной дизайн) ───────────── */
+.chapters-modal-card.chapters-modal-card--capsule {
+  background: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+  overflow: visible !important;
+}
+
+.chapters-modal-card--capsule .chapters-modal-header {
+  position: relative;
+  z-index: 2;
+  background: transparent !important;
+  border-bottom: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  gap: 6px !important;
+}
+
+.chapters-modal-card--capsule .chapters-modal-header-left {
+  flex: 0 1 auto;
+  width: fit-content;
+  max-width: calc(100% - 44px);
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 0 12px 0 14px;
+  min-height: 38px;
+  height: 38px;
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.chapters-modal-card--capsule .chapters-modal-title {
+  font-size: var(--fs-md);
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: 0.2px;
+}
+
+.chapters-modal-card--capsule .chapters-modal-header-actions {
+  --chapters-action-padding: 4px;
+  --chapters-action-border: 1px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: var(--chapters-action-padding);
+  min-height: 38px;
+  height: 38px;
+  min-width: 38px;
+  width: 38px;
+  justify-content: center;
+  flex: 0 0 38px;
+  box-sizing: border-box;
+  transition: background var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.chapters-modal-card--capsule .chapters-modal__close {
+  width: 28px;
+  height: 28px;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - var(--chapters-action-padding, 4px) - var(--chapters-action-border, 1px)));
+  box-sizing: border-box;
+}
+
+.chapters-modal-card--capsule .chapters-list {
+  position: relative;
+  z-index: 1;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 6px;
+  gap: 2px;
+  box-sizing: border-box;
+}
+
+.chapters-modal-card--capsule .chapter-item {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 7px));
+  border-width: 1px;
+  padding: 7px 10px;
+}
+
+.chapters-modal-card--capsule .chapter-item.chapter-item--with-thumb {
+  padding: 5px 6px;
+  gap: 10px;
+}
+
+.chapters-modal-card--capsule .chapter-item__thumb {
+  border-radius: max(0px, calc(var(--radius-list-row, 10px) - 4px));
+  border-color: var(--border);
+}
+
+.chapters-modal-card--capsule .chapter-item:hover:not(.chapter-item--active) {
+  background: var(--hover-veil-float);
+}
+
+.chapters-modal-card--capsule .chapter-item--active {
+  background: var(--surface-accent-subtle) !important;
+  border-color: var(--selection-frame) !important;
+  box-shadow: none !important;
+}
+
+
+/* Стили окна поиска по субтитрам вынесены в модульный файл: src/styles/subtitles-modal.css */
+
+/* Технический инспектор субтитров (Technical Inspector Mode) */
+.sub-tech-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: var(--fs-3xs);
+  padding: 1px 6px;
+  border-radius: var(--radius-xs, 4px);
+  background: var(--surface-level-3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #94a3b8);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.sub-tech-tag strong {
+  color: var(--text-primary, #f8fafc);
+  font-weight: 600;
+}
+
+.sub-tech-tag--actor {
+  background: var(--surface-accent-subtle);
+  border-color: var(--border-pill-hover);
+  color: var(--accent-text);
+}
+
+.sub-tech-tag--actor strong {
+  color: var(--accent-text);
+}
+
+/* Карточка строки субтитров: собственный слой над подложкой, чтобы строка
+   читалась как карточка, а не сливалась с фоном панели. */
+.sub-line-row--tech {
+  background: var(--surface-level-3);
+  border-color: var(--border-subtle);
+}
+
+.sub-line-row--tech:hover {
+  background: var(--hover-veil);
+  border-color: var(--border-hover);
+}
+
+.sub-line-row {
+  position: relative;
+}
+
+.sub-line-row:hover .sub-line-copy-btn {
+  opacity: 1 !important;
+}
+
+.pulse-subtle {
+  animation: pulseSubtle 1.8s infinite ease-in-out;
+}
+
+@keyframes pulseSubtle {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(0.9);
+  }
+}

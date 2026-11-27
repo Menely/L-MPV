@@ -2,6 +2,7 @@ import React from "react";
 import type { MediaInfo } from "../../../contexts/PlayerStateContext";
 import { BitrateSparkline } from "../BitrateSparkline";
 import { useTranslation } from "../../../i18n/LanguageContext";
+import { getIntlLocale } from "../../../i18n";
 
 /**
  * Пропсы секции сведений о видеопотоке.
@@ -31,7 +32,7 @@ export const MediaInfoVideoSection: React.FC<MediaInfoVideoSectionProps> = ({
   droppedFrames,
 }) => {
   const { dict, locale } = useTranslation();
-  const numberLocale = locale === "en" ? "en-US" : "ru-RU";
+  const numberLocale = getIntlLocale(locale);
 
   const hasVideo = Boolean(
     mediaInfo?.has_video ||

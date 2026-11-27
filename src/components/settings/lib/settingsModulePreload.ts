@@ -1,5 +1,5 @@
 import { createElement, lazy, useEffect, useState, type ComponentProps } from "react";
-import type { UiSettingsStyle } from "../../../utils/uiThemeUtils";
+import type { UiSettingsStyle } from "../../../theme/tokens";
 
 let modalRequest: ReturnType<typeof importModal> | undefined;
 let panelRequest: ReturnType<typeof importPanel> | undefined;

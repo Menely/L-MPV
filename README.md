@@ -10,7 +10,7 @@
 </p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/Version-2.7.6-blueviolet?style=for-the-badge" alt="Version 2.7.6">
+  <img src="https://img.shields.io/badge/Version-2.8.0-blueviolet?style=for-the-badge" alt="Version 2.8.0">
   <a href="https://github.com/Menely/L-MPV/releases"><img src="https://img.shields.io/github/downloads/Menely/L-MPV/total?style=for-the-badge&logo=github&logoColor=white&label=Downloads" alt="Downloads"></a>
   <a href="https://t.me/+_ngzHkrUNZs5YzQ6"><img src="https://img.shields.io/badge/Telegram-Channel-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white" alt="Telegram Channel"></a>
   <img src="https://img.shields.io/badge/Platform-Windows%20x64-0078D6?style=for-the-badge&logo=windows&logoColor=white" alt="Windows">
@@ -31,7 +31,7 @@
 
 ## 🌟 About the Project
 
-<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable **Glassmorphic** interface crafted in **React 19** and **TypeScript**.
+<img src="https://github.com/Menely/L-MPV/blob/main/assets/L-MPV_icon_watercolor.png" width="30" height="30" align="absmiddle"> **[L-MPV](https://t.me/+_ngzHkrUNZs5YzQ6)** is a modern desktop media player for Windows that brings together the playback capabilities of the native **MPV** video engine (`vo=gpu-next`, Direct3D 11, HDR tone-mapping, WASAPI, sinc resampling) and hardware-accelerated **Real-Time 4K AI Upscaling** (ONNX inference via DirectML and TensorRT) with a customizable interface supporting **Glassmorphism** and **Liquid Glass** styles, crafted in **React 19** and **TypeScript**.
 
 L-MPV keeps its settings, cache, screenshots, ONNX models and native libraries in the application folder. WebView2 Runtime is required; AI components are downloaded separately. File associations and Explorer integration are optional.
 
@@ -56,6 +56,43 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 ---
 
 ## 📸 Interface Screenshots
+
+### 🎭 Visual Themes Showcase
+
+<table width="100%">
+  <tr>
+    <th width="50%" align="center">
+      <h3>🌑 Signature "L-MPV" Theme</h3>
+      <sub>Deep dark minimalism, sharp geometric forms, and neon accents</sub>
+    </th>
+    <th width="50%" align="center">
+      <h3>💎 "Liquid Glass" Theme</h3>
+      <sub>Aerodynamic glassmorphism, dynamic backdrop blur, and fluid highlights</sub>
+    </th>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Player Interface & MediaInfo Overlay:</b><br><br>
+      <a href="./assets/theme-lmpv-mediainfo.png"><img src="./assets/theme-lmpv-mediainfo.png" alt="L-MPV Theme with MediaInfo" width="100%" style="border-radius: 8px;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Player Interface & MediaInfo Overlay:</b><br><br>
+      <a href="./assets/theme-liquid-glass-mediainfo.png"><img src="./assets/theme-liquid-glass-mediainfo.png" alt="Liquid Glass Theme with MediaInfo" width="100%" style="border-radius: 8px;"></a>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" align="center" valign="top">
+      <b>Signature Context Menu:</b><br><br>
+      <a href="./assets/theme-lmpv-context.png"><img src="./assets/theme-lmpv-context.png" alt="L-MPV Context Menu" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+    <td width="50%" align="center" valign="top">
+      <b>Glass Context Menu:</b><br><br>
+      <a href="./assets/theme-liquid-glass-context.png"><img src="./assets/theme-liquid-glass-context.png" alt="Liquid Glass Context Menu" style="border-radius: 8px; max-width: 340px; width: 85%;"></a>
+    </td>
+  </tr>
+</table>
+
+### 🧩 Core Features & Functional Windows
 
 <table width="100%">
   <tr>
@@ -239,7 +276,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Multi-Threaded Fallback (`-threads 0`):** Automatic transcoding for incompatible container formats (e.g., `mov_text` subtitle streams convert into `.srt`).
 - **Direct Copy for External Files:** duplicates loaded external subtitles without invoking FFmpeg (with robust relative path resolution).
 - **Flexible Output Paths:** Save extracted files alongside the video or choose any custom destination via Windows Explorer.
-- **Animated Feedback:** Inline spinner inside the menu and a sleek progress status bar on the control panel.
+- **Organic Progress Wave & Cancellation:** Dual-layer fluid meniscus animation, clean percentage tracking, and hover-to-cancel action directly inside the track menu.
 
 </details>
 
@@ -285,6 +322,12 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 <details>
 <summary><b>🎨 Interface, themes and custom fonts</b></summary>
 
+- **Innovative "Liquid Glass" Optical Theme:**
+  - **Hardware GPU 3D Refraction (`vo=gpu-next`):** Unique hybrid pipeline refracting and blurring the native video surface beneath WebView2 windows via a custom `//!HOOK OUTPUT` GLSL shader in `libplacebo`.
+  - **Physical Lens Optics & Fine Control:** Snell's law refraction ($IOR = 1.52$), smooth analytical softplus normals, sub-bit dithering (`IGN`), adjustable glass blur (`0–100%`), and refraction level control (`0–10` scale, where `0` disables refraction for flat frosted glass and `5` is the default standard).
+  - **Crystal Pigmentation:** Beer–Lambert law optical absorption tinting the glass body to any of L-MPV's 15 themes with crystal light scattering.
+  - **Full Ecosystem Glass Coverage:** Liquid Glass powers the control bar (all 3 styles), chapter cards, track popovers, context menu, playlist drawer, file explorer, MediaInfo overlay and standalone window, update modal and toast, Settings center, and Color Picker.
+  - **Letterbox & Pillarbox Adaptation:** Automatic video frame bounds detection with smooth hybrid glass underlays, preserving element readability and visual continuity whenever overlays extend beyond the video frame onto black bars.
 - **Translucent Panels:**
   - **Interface Opacity (10..100%):** Precise opacity control for control bars, dialogs, and popovers while preserving text contrast and legibility.
   - **Borders and shadows:** Panel borders and shadows distinguish interface surfaces.
@@ -342,6 +385,9 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Three Distinct Player Styles:**
   - **Capsule**: Modular interface built from independent floating cards:
     - *Independent Functional Islands*: Dedicated cards for streams (audio + subtitles), volume slider, playback controls, utilities, and fullscreen toggle;
+    - *Volume Island Alignment*: Strictly centered volume speaker icon and percentage readout with compact padding, preventing offset on 3-digit volume levels (up to 150%);
+    - *Standalone Speed Pop-up Island*: When the speed button is hidden in settings, changing speed surfaces an independent floating card next to volume with a speedometer icon and multiplier badge;
+    - *Speed HUD OSD*: Top-left HUD overlay with a vector speedometer icon and multiplier badge upon any speed change across all themes and styles;
     - *Floating Timeline & Time Card*: Seekbar and time badge float independently with soft backlighting; clicking the time card cycles time formats;
     - *Centered Playback Controls*: Play/pause and seek buttons stay strictly locked to the center of the window regardless of track label lengths;
     - *Multi-Tier Adaptive Layout*: Flexible island stations with overflow guards (`min-width: 0`), volume slider sizing (`flex-shrink: 0`), automatic switching of track buttons to clean 32×32 px icon-only mode when scaling down (`≤ 1080px`), and compact scaling of the toolbar audio visualizer, to fit controls into narrower windows.
@@ -502,7 +548,7 @@ The creation and ongoing evolution of **L-MPV** have been made possible thanks t
 - **Interactive Stream Filter Tabs (Quick Filter):** Filter tracks (*"All"*, *"General"*, *"Video"*, *"Audio"*, *"Subtitles"*, *"Chapters"*) with informative stream count badges and 6px rounded pills matching the design system.
 - **Collapsible Stream Accordions:** Collapse or expand individual streams or all at once ("Expand/Collapse All"), with auto-expansion during `Ctrl+F` search.
 - **Native Drag-and-Drop:** Drop any media file straight into the open MediaInfo window with a translucent overlay (`FileUp`) for analysis.
-- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, GPU and VRAM information, decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. The GPU shown is the adapter with the most dedicated memory and may differ from the one used for playback; VRAM usage is for the L-MPV process, not the whole system. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata; it is not a raw packet measurement.
+- **Compact overlay (`I`):** Three tabs — Summary, Rendering and Tracks — selected by clicking or pressing `1` / `2` / `3`. Rendering shows process/system CPU and RAM, high-precision GPU and VRAM metrics (dynamic DXGI polling identifying the active L-MPV rendering adapter, supporting discrete dGPUs and integrated iGPUs/APUs by aggregating local and shared non-local memory), decoder, color, display refresh rate and A/V sync. Metric availability depends on the system and file; GPU utilization is not measured. Tracks lets you select audio and subtitles, disable the active track by clicking it again, and jump to chapters. The Summary video bitrate graph is smoothed, may fall back to metadata; it is not a raw packet measurement.
 - **Productivity Features:** Property search with highlighting (`Ctrl+F`), export to `.txt`, copy to clipboard, and bilingual interface (EN/RU). Action buttons feature clean minimalist vector icons without redundant borders or text.
 
 </details>

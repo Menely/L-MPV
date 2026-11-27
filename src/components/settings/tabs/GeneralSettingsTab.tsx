@@ -434,19 +434,15 @@ export function GeneralSettingsTab(props: GeneralSettingsTabProps) {
               <button
                 type="button"
                 onClick={handleResetDefault}
-                className="btn btn--secondary btn--icon"
+                className="ui-reset-btn"
                 style={{
-                  width: 32,
-                  height: 32,
-                  borderRadius: "var(--radius-sm)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  flexShrink: 0,
+                  width: 28,
+                  height: 28,
+                  minWidth: 28,
+                  minHeight: 28,
                 }}
-
-                >
-                <RotateCcw size={13} />
+              >
+                <RotateCcw size={16} />
               </button>
             </div>
           </div>

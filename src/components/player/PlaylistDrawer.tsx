@@ -8,19 +8,21 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { showOsd } from "../../hooks/useOsd";
 import { AnimatePresence } from "motion/react";
 import { MotionSurface } from "../motion/MotionSurface";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
-import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, Pin, GripVertical } from "lucide-react";
+import { getActiveUiScale } from "../../theme/tokens";
+import { X, Search, Play, Clapperboard, RotateCw, CheckCircle2, GripVertical } from "lucide-react";
+import { PinMorphIcon } from "./controls/PinMorphIcon";
 import { EmptyState } from "../settings/components/SettingBlocks";
 import { ExplorerPanel } from "./ExplorerPanel";
 import { SavedPlaylistPanel } from "./SavedPlaylistPanel";
 import { savedPlaylistSource } from "../../utils/savedPlaylists";
 import { usePinnedNavigationPanel } from "../../hooks/usePinnedNavigationPanel";
-import "../../styles/navigation-panel-position.css";
+import "../../styles/player/navigation-panel-position.css";
 import { DEFAULT_NAVIGATION_WIDTH, MIN_NAVIGATION_WIDTH, savedNavigationWidth, savedNavigationTab, saveNavigationTab, type NavigationPanelTab } from "../../utils/explorerPanel";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 /** Данные прогресса просмотра для одного файла плейлиста. */
 interface WatchProgressInfo {
@@ -462,6 +464,11 @@ export function PlaylistDrawer() {
 
   const pinnedPanel = usePinnedNavigationPanel(drawerRef, isPlaylistOpen);
 
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(160);
+  }, [isPlaylistOpen, activeTab, controlBarStyle, drawerWidth, pinnedPanel.pinned, savedSource, pinnedPanel.geometry]);
+
   return (
     <AnimatePresence>
       {isPlaylistOpen && (
@@ -519,7 +526,7 @@ export function PlaylistDrawer() {
               <button id="navigation-panel-pin" type="button" className="playlist-drawer__action-btn navigation-panel__pin"
                 aria-pressed={pinnedPanel.pinned} aria-label={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin}
                 title={pinnedPanel.pinned ? dict.playlist.unpin : dict.playlist.pin} onClick={pinnedPanel.togglePinned}>
-                <Pin size={15} />
+                <PinMorphIcon pinned={pinnedPanel.pinned} size={16} />
               </button>
               <button
                 type="button"
@@ -528,7 +535,7 @@ export function PlaylistDrawer() {
 
                 aria-label={dict.playlist.close}
                 >
-                <X size={18} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </div>
           </div>
@@ -575,43 +582,22 @@ export function PlaylistDrawer() {
           </div>
 
           {isPlaylistOpen && <PlaylistProgressObserver onChange={setLiveProgress} />}
-          <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
-            {filteredPlaylist.length === 0 ? (
-              <EmptyState
-                icon={<Clapperboard size={24} />}
-                title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
-                desc={
-                  searchQuery
-                    ? dict.playlist.nothingFoundDesc
-                    : dict.playlist.emptyDesc
-                }
-              />
-            ) : (() => {
-              // Маленькие списки рендерим целиком без оверхеда
-              if (filteredPlaylist.length <= 80) {
-                return filteredPlaylist.map((item) => {
-                  const itemProgress = item.current && liveProgress.duration > 0
-                    ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
-                  return (
-                    <PlaylistItemRow
-                      key={item.index}
-                      item={item}
-                      isCurrent={item.current}
-                      onPlay={handlePlayItem}
-                      itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
-                      watchProgress={itemProgress}
-                    />
-                  );
-                });
-              }
-              const total = filteredPlaylist.length;
-              const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
-              const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
-              const slice = filteredPlaylist.slice(start, end);
-              return (
-                <>
-                  {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-                  {slice.map((item) => {
+          <div className="scroll-surface playlist-drawer__list-surface">
+            <div ref={contentContainerRef} className="playlist-drawer__content" onScroll={handleListScroll}>
+              {filteredPlaylist.length === 0 ? (
+                <EmptyState
+                  icon={<Clapperboard size={24} />}
+                  title={searchQuery ? dict.playlist.nothingFound : dict.playlist.empty}
+                  desc={
+                    searchQuery
+                      ? dict.playlist.nothingFoundDesc
+                      : dict.playlist.emptyDesc
+                  }
+                />
+              ) : (() => {
+                // Маленькие списки рендерим целиком без оверхеда
+                if (filteredPlaylist.length <= 80) {
+                  return filteredPlaylist.map((item) => {
                     const itemProgress = item.current && liveProgress.duration > 0
                       ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
                     return (
@@ -624,11 +610,34 @@ export function PlaylistDrawer() {
                         watchProgress={itemProgress}
                       />
                     );
-                  })}
-                  {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
-                </>
-              );
-            })()}
+                  });
+                }
+                const total = filteredPlaylist.length;
+                const start = Math.max(0, Math.floor(scrollTop / ROW_H) - OVERSCAN);
+                const end = Math.min(total, Math.ceil((scrollTop + viewHeight) / ROW_H) + OVERSCAN);
+                const slice = filteredPlaylist.slice(start, end);
+                return (
+                  <>
+                    {start > 0 && <div style={{ height: start * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                    {slice.map((item) => {
+                      const itemProgress = item.current && liveProgress.duration > 0
+                        ? liveProgress.percent : watchProgressMap[item.filename]?.progress_percent ?? 0;
+                      return (
+                        <PlaylistItemRow
+                          key={item.index}
+                          item={item}
+                          isCurrent={item.current}
+                          onPlay={handlePlayItem}
+                          itemRef={item.current ? (el) => { currentItemElRef.current = el; } : undefined}
+                          watchProgress={itemProgress}
+                        />
+                      );
+                    })}
+                    {end < total && <div style={{ height: (total - end) * ROW_H, flexShrink: 0 }} aria-hidden="true" />}
+                  </>
+                );
+              })()}
+            </div>
           </div>
           </SavedPlaylistPanel>}
         </MotionSurface>

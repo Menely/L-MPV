@@ -3,11 +3,32 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { isMotionAllowed, CLOSE_OSD_MS } from "../utils/animationUtils";
 
 /**
+ * Явный тип иконки для Glass HUD, не зависящий от языка текста уведомления.
+ */
+export type HudIconType =
+  | "error"
+  | "audio"
+  | "subtitles"
+  | "speed"
+  | "screenshot"
+  | "frame"
+  | "rotate"
+  | "zoom"
+  | "repeat"
+  | "visualizer"
+  | "ambient"
+  | "language"
+  | "sparkles"
+  | "info";
+
+/**
  * Интерфейс возвращаемого значения хука useOsd.
  */
 export interface UseOsdReturn {
   /** Текущий отображаемый текст OSD или null, если сообщение отсутствует */
   osdText: string | null;
+  /** Явный тип иконки для активного OSD-уведомления */
+  osdIcon: HudIconType | null;
   /** Флаг анимации затухания OSD перед полным скрытием */
   isOsdClosing: boolean;
   /** Является ли текущее OSD-сообщение ошибкой (красная плашка и увеличенная задержка) */
@@ -18,8 +39,14 @@ export interface UseOsdReturn {
    * @param text Текст сообщения для отображения.
    * @param durationMs Длительность показа в миллисекундах (по умолчанию 1400 мс).
    * @param isError Флаг ошибки (по умолчанию false).
+   * @param icon Явный тип иконки (опционально, для языконезависимого отображения).
    */
-  triggerOsd: (text: string, durationMs?: number, isError?: boolean) => void;
+  triggerOsd: (
+    text: string,
+    durationMs?: number,
+    isError?: boolean,
+    icon?: HudIconType
+  ) => void;
   /** Немедленная очистка и закрытие активного OSD-сообщения */
   clearOsd: () => void;
   /** Получение актуального значения OSD-текста без подписки на ререндер */
@@ -31,17 +58,18 @@ export interface UseOsdReturn {
  * Не требует прокидывания пропсов или контекста.
  *
  * @param text Текст сообщения.
- * @param options Настройки: isError (true для ошибок) и durationMs (длительность показа).
+ * @param options Настройки: isError, durationMs и явный icon.
  */
 export function showOsd(
   text: string,
-  options?: { isError?: boolean; durationMs?: number }
+  options?: { isError?: boolean; durationMs?: number; icon?: HudIconType }
 ): void {
   const isError = options?.isError ?? false;
   const durationMs = options?.durationMs ?? (isError ? 3000 : 1400);
+  const icon = options?.icon;
   window.dispatchEvent(
     new CustomEvent("show-osd", {
-      detail: { text, isError, durationMs },
+      detail: { text, isError, durationMs, icon },
     })
   );
 }
@@ -60,6 +88,8 @@ export function showOsd(
 export function useOsd(): UseOsdReturn {
   // Состояние отображаемого текста OSD
   const [osdText, setOsdText] = useState<string | null>(null);
+  // Явный тип иконки OSD
+  const [osdIcon, setOsdIcon] = useState<HudIconType | null>(null);
   // Состояние выполнения анимации затухания OSD
   const [isOsdClosing, setIsOsdClosing] = useState<boolean>(false);
   // Состояние ошибки OSD
@@ -88,6 +118,7 @@ export function useOsd(): UseOsdReturn {
   const resetOsdState = useCallback(() => {
     osdTextRef.current = null;
     setOsdText(null);
+    setOsdIcon(null);
     setIsOsdClosing(false);
     setIsOsdError(false);
   }, []);
@@ -100,11 +131,17 @@ export function useOsd(): UseOsdReturn {
 
   /** Отображает OSD-сообщение с автоматическим затуханием через durationMs. */
   const triggerOsd = useCallback(
-    (text: string, durationMs: number = 1400, isError: boolean = false) => {
+    (
+      text: string,
+      durationMs: number = 1400,
+      isError: boolean = false,
+      icon?: HudIconType
+    ) => {
       clearTimers();
 
       setIsOsdClosing(false);
       setIsOsdError(isError);
+      setOsdIcon(icon ?? null);
       osdTextRef.current = text;
       setOsdText(text);
 
@@ -138,7 +175,8 @@ export function useOsd(): UseOsdReturn {
         triggerOsd(detail, 1400, false);
       } else if (detail && typeof detail === "object" && typeof detail.text === "string") {
         const isErr = Boolean(detail.isError);
-        triggerOsd(detail.text, detail.durationMs ?? (isErr ? 3000 : 1400), isErr);
+        const icon = typeof detail.icon === "string" ? (detail.icon as HudIconType) : undefined;
+        triggerOsd(detail.text, detail.durationMs ?? (isErr ? 3000 : 1400), isErr, icon);
       }
     };
 
@@ -151,6 +189,7 @@ export function useOsd(): UseOsdReturn {
 
   return {
     osdText,
+    osdIcon,
     isOsdClosing,
     isOsdError,
     triggerOsd,

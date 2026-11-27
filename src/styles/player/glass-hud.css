@@ -1,0 +1,168 @@
+/* ─── Футуристичный Glass HUD ─────────────────────────────────── */
+
+/* 1. Парящий стеклянный баннер уведомлений в левом верхнем углу */
+.glass-hud-pill {
+  position: fixed;
+  top: calc(var(--titlebar-height, 30px) + 10px);
+  left: 24px;
+  z-index: var(--z-float);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 18px 8px 12px;
+  background: var(--bg-pill);
+  border: 1px solid var(--border-pill);
+  border-radius: var(--radius-controls, 16px);
+  box-shadow: var(--shadow-pill, 0 10px 28px rgba(0, 0, 0, 0.45)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  pointer-events: none;
+  user-select: none;
+  transform-origin: left center;
+  will-change: transform, opacity;
+  animation: glassHudSlideIn var(--t-pop, 200ms) var(--ease-decelerate);
+  transition: border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+/* Адаптация под стили панели управления (Классический / Модерн / Капсула) */
+.glass-hud-pill--docked {
+  background: var(--bg-glass, var(--bg-pill));
+  border-color: var(--border);
+  border-radius: min(var(--radius-surface, 16px), 12px);
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.42)),
+              inset 0 1px 0 rgba(255, 255, 255, 0.12);
+}
+
+.glass-hud-pill--modern,
+.glass-hud-pill--capsule {
+  border-radius: var(--radius-controls, 16px);
+}
+
+.glass-hud-pill--closing {
+  opacity: 0;
+  animation: glassHudSlideOut var(--t-fast) var(--ease-accelerate) forwards !important;
+}
+
+@keyframes glassHudSlideIn {
+  0% {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes glassHudSlideOut {
+  0% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-12px);
+  }
+}
+
+.glass-hud-pill__icon-slot {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-control, 8px);
+  background: var(--surface-accent-subtle, var(--surface-level-3));
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.12));
+  flex-shrink: 0;
+}
+
+.glass-hud-pill--docked .glass-hud-pill__icon-slot {
+  background: var(--surface-level-3);
+  border-color: var(--border);
+  border-radius: min(var(--radius-control, 8px), 8px);
+}
+
+.glass-hud-pill__icon-slot svg {
+  display: block;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+
+.glass-hud__icon {
+  color: var(--text-secondary);
+}
+
+.glass-hud__icon--accent {
+  color: var(--accent-text, var(--accent));
+  filter: var(--active-icon-glow, none);
+}
+
+.glass-hud__icon--error {
+  color: var(--danger-text, #ef4444);
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.40));
+}
+
+html[data-glow="off"] .glass-hud__icon--accent,
+html[data-glow="off"] .glass-hud__icon--error {
+  filter: none !important;
+}
+
+.glass-hud-pill__content {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.glass-hud-pill__text {
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  letter-spacing: 0.35px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(520px, calc(100vw - 120px));
+}
+
+/* Многострочный режим для длинных отчётов / статистики (например, AI Upscaling) */
+.glass-hud-pill--multiline {
+  border-radius: var(--radius-controls, 16px);
+  padding: 12px 18px;
+  align-items: flex-start;
+  max-width: min(640px, calc(100vw - 48px));
+  border-left: 3.5px solid var(--accent);
+}
+
+.glass-hud-pill--multiline .glass-hud-pill__text {
+  white-space: pre-line;
+  line-height: 1.5;
+  font-weight: 500;
+  font-size: var(--fs-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Состояние ошибки */
+.glass-hud-pill--error {
+  border-color: rgba(239, 68, 68, 0.45);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65), 0 0 24px rgba(239, 68, 68, 0.35);
+}
+
+.glass-hud-pill--error .glass-hud-pill__text {
+  color: #fef2f2;
+}
+
+html.no-animations .glass-hud-pill {
+  animation: none !important;
+  transition: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-hud-pill {
+    animation: none !important;
+    transition: none !important;
+  }
+}

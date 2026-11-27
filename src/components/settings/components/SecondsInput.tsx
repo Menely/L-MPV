@@ -1,4 +1,4 @@
-import "../../../styles/settings-control-buttons.css";
+import "../../../styles/modals/settings/settings-control-buttons.css";
 
 export interface SecondsInputProps {
   /** Имя поля ввода для доступности и идентификации */

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { UpdateInfo } from "../components/modals/UpdateModal";
+import { getDict, getEffectiveLocale } from "../i18n";
 
 export type AppUpdatePhase =
   | "idle"
@@ -98,12 +99,19 @@ export function useAppUpdater(): AppUpdaterController {
       setProgress(100);
       setPhase("ready");
     } catch (err: unknown) {
-      const msg =
+      const locale = getEffectiveLocale();
+      const d = getDict(locale);
+      const rawMsg =
         typeof err === "string"
           ? err
           : err instanceof Error
           ? err.message
-          : "Ошибка загрузки обновления";
+          : "";
+      const hasCyrillic = /[\u0400-\u04FF]/.test(rawMsg);
+      const msg =
+        rawMsg && (locale === "ru" || !hasCyrillic)
+          ? rawMsg
+          : d.updateModal.downloadErrorFallback;
       console.error("Ошибка фонового обновления L-MPV:", err);
       setErrorMessage(msg);
       setPhase("error");
@@ -117,12 +125,19 @@ export function useAppUpdater(): AppUpdaterController {
     try {
       await invoke("restart_and_apply_update");
     } catch (err: unknown) {
-      const msg =
+      const locale = getEffectiveLocale();
+      const d = getDict(locale);
+      const rawMsg =
         typeof err === "string"
           ? err
           : err instanceof Error
           ? err.message
-          : "Не удалось перезапустить плеер";
+          : "";
+      const hasCyrillic = /[\u0400-\u04FF]/.test(rawMsg);
+      const msg =
+        rawMsg && (locale === "ru" || !hasCyrillic)
+          ? rawMsg
+          : d.updateModal.restartErrorFallback;
       console.error("Ошибка перезапуска для обновления L-MPV:", err);
       setErrorMessage(msg);
       setPhase("error");

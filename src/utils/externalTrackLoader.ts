@@ -68,7 +68,10 @@ async function loadExternalTrack(
     await invoke(command, { path: file });
     await loadTracks?.();
     const name = getFileNameFromPath(file);
-    showOsd(isAudio ? dict.osd.audioLoaded(name) : dict.osd.subsLoaded(name));
+    showOsd(
+      isAudio ? dict.osd.audioLoaded(name) : dict.osd.subsLoaded(name),
+      { icon: isAudio ? "audio" : "subtitles" }
+    );
     return true;
   } catch (err) {
     console.error(

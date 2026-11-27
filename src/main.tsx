@@ -2,14 +2,16 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import "./index.css";
-import "./styles/settings-panel.css";
-import { applyPlayerTheme } from "./utils/colorUtils";
-import { initSurfaceHierarchy } from "./utils/surfaceHierarchy";
+import "./styles/modals/settings/settings-panel.css";
+import "./styles/base/scroll-edge-fade.css";
+import { initScrollEdgeFade } from "./utils/scrollEdgeFade";
+import { applyPlayerTheme } from "./theme/colors";
+import { initSurfaceHierarchy } from "./theme/surfaceHierarchy";
 import {
   hydrateUiSettingsFromDisk,
   initUiSettingsAutoSync,
   applyAllVisualSettings,
-} from "./utils/uiSettingsSync";
+} from "./theme/settingsSync";
 
 const PlayerRoot = React.lazy(() => import("./PlayerRoot"));
 const StandaloneMediaInfoWindow = React.lazy(() =>
@@ -51,6 +53,7 @@ if (typeof document !== "undefined") {
   };
   runtimeWindow.__lMpvUiRuntimeCleanup?.();
   const cleanupSurfaceHierarchy = initSurfaceHierarchy();
+  const cleanupScrollEdgeFade = initScrollEdgeFade();
 
   const handleStorage = () => applyAllVisualSettings();
   const handlePlayerThemeChanged = (event: Event) => {
@@ -84,6 +87,7 @@ if (typeof document !== "undefined") {
 
   runtimeWindow.__lMpvUiRuntimeCleanup = () => {
     cleanupSurfaceHierarchy();
+    cleanupScrollEdgeFade();
     cleanupUiSync();
     window.removeEventListener("storage", handleStorage);
     window.removeEventListener("l-mpv-player-theme-changed", handlePlayerThemeChanged);

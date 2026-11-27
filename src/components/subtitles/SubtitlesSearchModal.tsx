@@ -1,6 +1,7 @@
 import {
   useState,
   useEffect,
+  useLayoutEffect,
   useRef,
   useCallback,
   useMemo,
@@ -26,9 +27,13 @@ import { useTranslation } from "../../i18n/LanguageContext";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
 import { MotionSurface } from "../motion/MotionSurface";
 import {
+  notifyLiquidGlassAnimation,
+  notifyLiquidGlassSync,
+} from "../../theme/liquidGlass/LiquidGlassSync";
+import {
   getSavedControlBarStyle,
   type ControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   MIN_MODAL_WIDTH,
   TECH_MODAL_MIN_WIDTH,
@@ -150,6 +155,32 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
     () => setIsOpaque(!isOpaque),
     [isOpaque, setIsOpaque]
   );
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    if (isAutoAdapting) {
+      notifyLiquidGlassAnimation(260);
+    }
+  }, [
+    modalWidth,
+    offsetX,
+    viewMode,
+    controlBarStyle,
+    isOpaque,
+    isAutoAdapting,
+    subTracks.length,
+  ]);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, []);
 
   // ── Базовые UI-состояния ───────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -425,7 +456,7 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
           if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
           copyTimerRef.current = setTimeout(
             () => setCopiedIndex(null),
-            1500
+            2000
           );
         })
         .catch((err) =>
@@ -666,81 +697,83 @@ export function SubtitlesSearchModal({ onClose }: SubtitlesSearchModalProps) {
         />
 
         {/* Список строк субтитров */}
-        <div
-          ref={listContainerRef}
-          onScroll={handleListScroll}
-          onWheel={(e) => {
-            // Гасим следование только при выраженном вертикальном скролле;
-            // горизонтальный трекпад и нулевая дельта режим не трогают.
-            if (
-              followPlayback &&
-              e.deltaY !== 0 &&
-              Math.abs(e.deltaY)> Math.abs(e.deltaX)
-            ) {
-              setFollowPlayback(false);
-            }
-          }}
-          className="custom-scrollbar subtitles-search-card__list"
-          style={{
-            flex: 1,
-            minHeight: 0,
-            overflowY: "auto",
-            // Смещение при замене виртуального окна контролирует сам список.
-            overflowAnchor: "none",
-            scrollbarGutter: "stable",
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-2)",
-            paddingRight: "var(--space-2)",
-          }}
-          >
-          {/* Пустые состояния */}
-          {(isAnalyzing && lines.length === 0) ||
-          lines.length === 0 ||
-          filteredLines.length === 0 ? (
-            <SubtitleEmptyState
-              isAnalyzing={isAnalyzing && lines.length === 0}
-              isLinesEmpty={lines.length === 0}
-              analyzeError={analyzeError}
-              searchQuery={searchQuery}
-              onLoadExternal={handleLoadExternalSubtitles}
-            />
-          ) : (
-            <div
-              style={{
-                paddingTop: `${paddingTop}px`,
-                paddingBottom: `${paddingBottom}px`,
-                display: "flex",
-                flexDirection: "column",
-                gap: "var(--space-2)",
-              }}
-              >
-              {visibleLines.map((line) => {
-                const isActive = line.index === activeLineIndex;
-                return (
-                  <div
-                    key={line.index}
-                    ref={isActive ? activeLineElRef : null}
-                    data-sub-idx={line.index}
-                    >
-                    <SubtitleLineRow
-                      line={line}
-                      isActive={isActive}
-                      isNavTarget={line.index === navAnchor}
-                      searchQuery={searchQuery}
-                      isCopied={copiedIndex === line.index}
-                      viewMode={viewMode}
-                      rawFormat={rawFormat}
-                      locale={activeSubLocale}
-                      onToggleRawFormat={setRawFormat}
-                      onSeek={handleSeek}
-                      onCopy={handleCopyText}
-                    />
-                  </div>
-                );
-              })}
-            </div>
-          )}
+        <div className="scroll-surface subtitles-search-card__list-surface">
+          <div
+            ref={listContainerRef}
+            onScroll={handleListScroll}
+            onWheel={(e) => {
+              // Гасим следование только при выраженном вертикальном скролле;
+              // горизонтальный трекпад и нулевая дельта режим не трогают.
+              if (
+                followPlayback &&
+                e.deltaY !== 0 &&
+                Math.abs(e.deltaY)> Math.abs(e.deltaX)
+              ) {
+                setFollowPlayback(false);
+              }
+            }}
+            className="custom-scrollbar subtitles-search-card__list"
+            style={{
+              flex: 1,
+              minHeight: 0,
+              overflowY: "auto",
+              // Смещение при замене виртуального окна контролирует сам список.
+              overflowAnchor: "none",
+              scrollbarGutter: "stable",
+              display: "flex",
+              flexDirection: "column",
+              gap: "var(--space-2)",
+              paddingRight: "var(--space-2)",
+            }}
+            >
+            {/* Пустые состояния */}
+            {(isAnalyzing && lines.length === 0) ||
+            lines.length === 0 ||
+            filteredLines.length === 0 ? (
+              <SubtitleEmptyState
+                isAnalyzing={isAnalyzing && lines.length === 0}
+                isLinesEmpty={lines.length === 0}
+                analyzeError={analyzeError}
+                searchQuery={searchQuery}
+                onLoadExternal={handleLoadExternalSubtitles}
+              />
+            ) : (
+              <div
+                style={{
+                  paddingTop: `${paddingTop}px`,
+                  paddingBottom: `${paddingBottom}px`,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "var(--space-2)",
+                }}
+                >
+                {visibleLines.map((line) => {
+                  const isActive = line.index === activeLineIndex;
+                  return (
+                    <div
+                      key={line.index}
+                      ref={isActive ? activeLineElRef : null}
+                      data-sub-idx={line.index}
+                      >
+                      <SubtitleLineRow
+                        line={line}
+                        isActive={isActive}
+                        isNavTarget={line.index === navAnchor}
+                        searchQuery={searchQuery}
+                        isCopied={copiedIndex === line.index}
+                        viewMode={viewMode}
+                        rawFormat={rawFormat}
+                        locale={activeSubLocale}
+                        onToggleRawFormat={setRawFormat}
+                        onSeek={handleSeek}
+                        onCopy={handleCopyText}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </MotionSurface>
     </div>

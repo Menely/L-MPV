@@ -1,5 +1,5 @@
 import { createPortal } from "react-dom";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import { ContextMenuDragPreview } from "../components/ContextMenuDragPreview";
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -383,7 +383,7 @@ export function ContextMenuSettingsTab() {
             onClick={handleReset}
 
             >
-            <RotateCcw size={13} /> {dict.settings.contextMenuConfig.btnReset}
+            <RotateCcw size={13} strokeWidth={2.55} /> {dict.settings.contextMenuConfig.btnReset}
           </button>
           <button
             type="button"

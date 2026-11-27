@@ -1,8 +1,7 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   Volume2,
   Subtitles,
-  Zap,
   Camera,
   Sparkles,
   AlertCircle,
@@ -15,6 +14,12 @@ import {
   Film,
   Sun,
 } from "lucide-react";
+import { SpeedIcon } from "./controls/SpeedIcon";
+import {
+  type ControlBarStyle,
+  getSavedControlBarStyle,
+} from "../../theme/controlBarStyle";
+import type { HudIconType } from "../../hooks/useOsd";
 
 /**
  * Пропсы для компонента футуристичного Glass HUD в левом верхнем углу.
@@ -22,6 +27,8 @@ import {
 export interface GlassHudProps {
   /** Текст активного уведомления или null */
   osdText: string | null;
+  /** Явный тип иконки (не зависит от локали текста) */
+  osdIcon?: HudIconType | null;
   /** Флаг анимации затухания сообщения */
   isOsdClosing: boolean;
   /** Флаг состояния ошибки */
@@ -29,15 +36,56 @@ export interface GlassHudProps {
 }
 
 /**
- * Определение наиболее подходящей иконки для OSD-сообщения на основе его содержания.
- *
- * @param text Текст OSD-сообщения
- * @param isError Флаг ошибки
- * @returns ReactNode с соответствующей векторной иконкой Lucide
+ * Возвращает векторную иконку Lucide по явному типу уведомления (независимо от языка).
  */
-function getHudIcon(text: string, isError: boolean): React.ReactNode {
+function renderHudIconByType(icon: HudIconType): React.ReactNode {
+  switch (icon) {
+    case "error":
+      return <AlertCircle size={18} className="glass-hud__icon glass-hud__icon--error" />;
+    case "audio":
+      return <Volume2 size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "subtitles":
+      return <Subtitles size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "speed":
+      return <SpeedIcon size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "screenshot":
+      return <Camera size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "frame":
+      return <Film size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "rotate":
+      return <RotateCw size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "zoom":
+      return <Maximize size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "repeat":
+      return <Repeat size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "visualizer":
+      return <Activity size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "ambient":
+      return <Sun size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "language":
+      return <Languages size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "sparkles":
+      return <Sparkles size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    case "info":
+    default:
+      return <Info size={18} className="glass-hud__icon" />;
+  }
+}
+
+/**
+ * Определение наиболее подходящей иконки для OSD-сообщения:
+ * приоритетно по явному типу `icon`, с fallback-определением по содержимому.
+ */
+function getHudIcon(
+  text: string,
+  isError: boolean,
+  icon?: HudIconType | null
+): React.ReactNode {
   if (isError) {
-    return <AlertCircle size={18} className="glass-hud__icon glass-hud__icon--error" />;
+    return renderHudIconByType("error");
+  }
+  if (icon) {
+    return renderHudIconByType(icon);
   }
   const lower = text.toLowerCase();
   if (
@@ -70,7 +118,7 @@ function getHudIcon(text: string, isError: boolean): React.ReactNode {
     lower.includes("speed") ||
     /^\d+(\.\d+)?x$/.test(lower.trim())
   ) {
-    return <Zap size={18} className="glass-hud__icon glass-hud__icon--accent" />;
+    return <SpeedIcon size={18} className="glass-hud__icon glass-hud__icon--accent" />;
   }
   if (
     lower.includes("скриншот") ||
@@ -144,23 +192,44 @@ function getHudIcon(text: string, isError: boolean): React.ReactNode {
  */
 export const GlassHud: React.FC<GlassHudProps> = ({
   osdText,
+  osdIcon,
   isOsdClosing,
   isOsdError,
 }) => {
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle()
+  );
+
+  useEffect(() => {
+    const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
+    window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-player-theme-changed", syncStyle);
+    window.addEventListener("storage", syncStyle);
+    return () => {
+      window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-player-theme-changed", syncStyle);
+      window.removeEventListener("storage", syncStyle);
+    };
+  }, []);
+
   if (!osdText) return null;
 
   const isMultiline = osdText.includes("\n");
 
   return (
     <div
-      className={`glass-hud-pill ${isMultiline ? "glass-hud-pill--multiline" : ""} ${
+      className={`glass-hud-pill glass-hud-pill--${controlBarStyle} ${
+        isMultiline ? "glass-hud-pill--multiline" : ""
+      } ${
         isOsdError ? "glass-hud-pill--error" : ""
       } ${isOsdClosing ? "glass-hud-pill--closing" : ""}`}
       role={isOsdError ? "alert" : "status"}
       aria-live={isOsdError ? "assertive" : "polite"}
     >
       <div className="glass-hud-pill__icon-slot">
-        {getHudIcon(osdText, isOsdError)}
+        {getHudIcon(osdText, isOsdError, osdIcon)}
       </div>
       <div className="glass-hud-pill__content">
         <span className="glass-hud-pill__text">{osdText}</span>

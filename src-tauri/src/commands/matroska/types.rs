@@ -9,7 +9,7 @@ use flate2::read::ZlibDecoder;
 
 pub const MAX_DECODED_BLOCK_BYTES: usize = 4 * 1024 * 1024;
 pub const MAX_DECODED_TRACK_BYTES: usize = 32 * 1024 * 1024;
-pub(super) const MAX_CODEC_PRIVATE_BYTES: usize = 8 * 1024 * 1024;
+pub(super) const MAX_CODEC_PRIVATE_BYTES: usize = 16 * 1024 * 1024;
 pub(super) const MAX_TRACK_CUES: usize = 100_000;
 
 /// Алгоритм сжатия содержимого дорожки (элемент ContentCompression).

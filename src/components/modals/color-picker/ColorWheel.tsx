@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback } from "react";
-import { hslToRgb } from "../../../utils/colorUtils";
+import { hslToRgb } from "../../../theme/colors";
 import {
   WHEEL_WRAP_SIZE,
   WHEEL_CANVAS_SIZE,

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useLayoutEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   usePlayerState,
@@ -12,7 +12,12 @@ import { useVideoBitrate } from "../../../hooks/useVideoBitrate";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/controlBarStyle";
+import { getPlayerTheme } from "../../../theme/liquidGlass/preferences";
+import {
+  notifyLiquidGlassAnimation,
+  notifyLiquidGlassSync,
+} from "../../../theme/liquidGlass/LiquidGlassSync";
 import { MediaInfoHeader } from "./MediaInfoHeader";
 import { MediaInfoGeneralSection } from "./MediaInfoGeneralSection";
 import { MediaInfoVideoSection } from "./MediaInfoVideoSection";
@@ -23,6 +28,8 @@ import type {
   MediaInfoOverlayTab,
   RenderingAndSystemStats,
 } from "./mediaInfoOverlayUtils";
+
+let cachedRenderingStats: RenderingAndSystemStats | null = null;
 
 /**
  * Пропсы для всплывающего окна информации о медиафайле.
@@ -60,28 +67,29 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
   // Активная вкладка: 'summary' | 'rendering' | 'tracks'
   const [activeTab, setActiveTab] = useState<MediaInfoOverlayTab>("summary");
 
-  // Отслеживание текущего стиля плеера
+  // Отслеживание текущего стиля плеера с учётом темы (L-MPV или Liquid Glass)
   const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
-    getSavedControlBarStyle()
+    getSavedControlBarStyle(getPlayerTheme())
   );
 
   useEffect(() => {
     const handleSettingsChanged = (
-      e: CustomEvent<{ controlBarStyle?: ControlBarStyle }>
+      e: Event
     ) => {
-      if (e.detail?.controlBarStyle) {
-        setControlBarStyle(e.detail.controlBarStyle);
+      const detail = (e as CustomEvent<{ controlBarStyle?: ControlBarStyle }>).detail;
+      if (detail?.controlBarStyle) {
+        setControlBarStyle(detail.controlBarStyle);
+      } else {
+        setControlBarStyle(getSavedControlBarStyle(getPlayerTheme()));
       }
     };
-    window.addEventListener(
-      "ui-settings-changed",
-      handleSettingsChanged as EventListener
-    );
+    window.addEventListener("ui-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-settings-changed", handleSettingsChanged);
+    window.addEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     return () => {
-      window.removeEventListener(
-        "ui-settings-changed",
-        handleSettingsChanged as EventListener
-      );
+      window.removeEventListener("ui-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-settings-changed", handleSettingsChanged);
+      window.removeEventListener("l-mpv-control-bar-style-changed", handleSettingsChanged);
     };
   }, []);
 
@@ -94,10 +102,37 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
     position,
   });
 
-  // Замер системных показателей и рендеринга (только когда активна вкладка 2)
+  // Замер системных показателей и рендеринга
   const [renderingStats, setRenderingStats] =
-    useState<RenderingAndSystemStats | null>(null);
-  const [isStatsLoading, setIsStatsLoading] = useState(false);
+    useState<RenderingAndSystemStats | null>(() => cachedRenderingStats);
+
+  useLayoutEffect(() => {
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, [activeTab, controlBarStyle, Boolean(renderingStats), tracks.length, chapters.length]);
+
+  useEffect(() => {
+    // Асинхронный фоновый прогрев замеров при открытии MediaInfo:
+    // сразу сохраняем результат в состояние и кэш, чтобы вкладка «Рендеринг» открывалась мгновенно.
+    let isMounted = true;
+    invoke<RenderingAndSystemStats>("get_rendering_and_system_stats")
+      .then((stats) => {
+        cachedRenderingStats = stats;
+        if (isMounted) {
+          setRenderingStats(stats);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (activeTab !== "rendering") {
@@ -110,19 +145,15 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
         const stats = await invoke<RenderingAndSystemStats>(
           "get_rendering_and_system_stats"
         );
+        cachedRenderingStats = stats;
         if (isMounted) {
           setRenderingStats(stats);
         }
       } catch (err) {
         console.error("Ошибка считывания системных метрик:", err);
-      } finally {
-        if (isMounted) {
-          setIsStatsLoading(false);
-        }
       }
     };
 
-    setIsStatsLoading(true);
     fetchStats();
 
     // Опрос раз в 1.2 секунды без лишней нагрузки на CPU
@@ -252,10 +283,7 @@ export const MediaInfoOverlay: React.FC<MediaInfoOverlayProps> = ({ onClose }) =
 
         {/* Вкладка 2: Рендеринг и система */}
         {activeTab === "rendering" && (
-          <MediaInfoRenderingSection
-            stats={renderingStats}
-            isLoading={isStatsLoading}
-          />
+          <MediaInfoRenderingSection stats={renderingStats} />
         )}
 
         {/* Вкладка 3: Дорожки и главы */}

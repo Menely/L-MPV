@@ -1,4 +1,3 @@
-import { SectionHeader } from "../settings/components/SettingBlocks";
 import React, { useState, useId } from "react";
 import {
   Cpu,
@@ -6,12 +5,15 @@ import {
   Download,
   Trash2,
   RefreshCw,
-  CheckCircle2,
+  Check,
   ChevronDown,
   X,
 } from "lucide-react";
+import { SectionHeader } from "../settings/components/SettingBlocks";
 import { UpscaleSettings, UpscaleStatus, DownloadProgressPayload } from "./types";
 import { GpuHardwareCard } from "./GpuHardwareCard";
+import { BackendOptionCard } from "./BackendOptionCard";
+import { EngineDownloadProgress } from "./EngineDownloadProgress";
 import { useTranslation } from "../../i18n/LanguageContext";
 import { backendNeedsUpdate, backendReady } from "../../utils/upscaleCompatibility";
 
@@ -31,7 +33,28 @@ interface BackendSelectorProps {
   onError: (msg: string) => void;
 }
 
-export const BackendSelector: React.FC<BackendSelectorProps> = ({
+const ICON_BTN_STYLE: React.CSSProperties = {
+  width: 28,
+  height: 28,
+  minWidth: 28,
+  padding: 0,
+};
+
+const BANNER_BADGE_STYLE: React.CSSProperties = {
+  width: "100%",
+  padding: "8px 12px",
+  height: "auto",
+  fontSize: "var(--fs-sm)",
+  borderRadius: "var(--radius-control, 7px)",
+  boxSizing: "border-box",
+  border: "none",
+};
+
+/**
+ * Карточка выбора и настройки движков инференса нейросетей (DirectML / TensorRT).
+ * Декомпозирована на модульные подкомпоненты `GpuHardwareCard`, `EngineDownloadProgress` и `BackendOptionCard`.
+ */
+export const BackendSelector: React.FC<BackendSelectorProps> = React.memo(({
   status,
   settings,
   isDownloadingEngine,
@@ -48,8 +71,8 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
 }) => {
   const { dict } = useTranslation();
   const backendContentId = useId();
-
   const [isOpen, setIsOpen] = useState(false);
+
   const isDmlInstalled = !!(status?.directml_present && status?.aji_present);
   const isTrtInstalled = !!(status?.tensorrt_present && status?.aji_present);
   const needsUpdate = backendNeedsUpdate(status, settings.backend);
@@ -58,11 +81,19 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
 
   const isFinished = !!(downloadProgress && downloadProgress.is_finished && !downloadProgress.error);
   const isError = !!(downloadProgress && downloadProgress.error);
+  const isActivelyDownloading =
+    isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished);
   const showDownloadBar = isDownloadingEngine || downloadProgress !== null;
 
   const activePercent = isFinished
     ? 100
     : Math.min(100, Math.max(0, Math.round(downloadProgress?.percent || 0)));
+
+  const toggleLabel = isOpen
+    ? dict.settings.upscaling.btnCollapseEngines
+    : dict.settings.upscaling.btnExpandEngines;
+
+  const trtUnsupported = Boolean(status?.gpu_info && !status.gpu_info.supports_tensorrt);
 
   return (
     <div className="glass-section glass-section--compact settings-group-card col col-gap-4">
@@ -84,13 +115,19 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
           alignItems: "flex-start",
           justifyContent: "space-between",
           flexWrap: "nowrap",
-          gap: "var(--space-6)",
+          gap: "var(--space-4)",
           cursor: "pointer",
         }}
-        >
-        <div style={{ flex: 1, minWidth: 0 }}><SectionHeader icon={<Cpu size={16} />} title={dict.settings.upscaling.backendTitle} desc={dict.settings.upscaling.backendDesc} /></div>
+      >
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <SectionHeader
+            icon={<Cpu size={16} />}
+            title={dict.settings.upscaling.backendTitle}
+            desc={dict.settings.upscaling.backendDesc}
+          />
+        </div>
 
-        <div style={{ display: "flex", gap: "var(--space-4)", alignItems: "center", flexShrink: 0 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
           <button
             type="button"
             className="btn btn--secondary btn--icon"
@@ -98,10 +135,12 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               event.stopPropagation();
               setIsOpen((prev) => !prev);
             }}
+            title={toggleLabel}
+            aria-label={toggleLabel}
             aria-expanded={isOpen}
-        aria-controls={backendContentId}
-
-            >
+            aria-controls={backendContentId}
+            style={ICON_BTN_STYLE}
+          >
             <ChevronDown
               size={16}
               style={{
@@ -119,8 +158,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               onOpenInferenceFolder();
             }}
             title={dict.settings.upscaling.backendOpenFolderTitle}
-            >
-            <FolderOpen size={16} />
+            aria-label={dict.settings.upscaling.backendOpenFolderTitle}
+            style={ICON_BTN_STYLE}
+          >
+            <FolderOpen size={15} />
           </button>
 
           {isCurrentBackendInstalled ? (
@@ -128,19 +169,19 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
               title={dict.settings.upscaling.badgeInstalledTitle}
               aria-label={dict.settings.upscaling.statusInstalled}
               style={{
-                width: 30,
-                height: 30,
+                width: 28,
+                height: 28,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
-                borderRadius: "50%",
+                borderRadius: "var(--radius-control, 7px)",
                 color: "var(--success-text)",
-                background: "rgba(46, 204, 113, 0.12)",
-                border: "1px solid rgba(46, 204, 113, 0.28)",
+                background: "rgba(46, 204, 113, 0.16)",
+                border: "none",
                 flexShrink: 0,
               }}
-              >
-              <CheckCircle2 size={18} />
+            >
+              <Check size={16} strokeWidth={2.5} />
             </span>
           ) : (
             <button
@@ -150,18 +191,22 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 event.stopPropagation();
                 onDownloadEngine();
               }}
-              disabled={!!status?.player_update_required || isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)}
+              disabled={!!status?.player_update_required || isActivelyDownloading}
               title={dict.settings.upscaling.btnDownloadLibsTitle}
-              style={{ minWidth: 145, height: 32 }}
-              >
-              {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished) ? (
-                <RefreshCw size={15} className="spin" />
+              style={{ minWidth: 140, height: 28, padding: "0 12px", fontSize: "var(--fs-xs)" }}
+            >
+              {isActivelyDownloading ? (
+                <RefreshCw size={14} className="refresh-morph-icon--spinning" />
               ) : (
-                <Download size={15} />
+                <Download size={14} />
               )}
-              {isDownloadingEngine || (downloadProgress !== null && !downloadProgress.is_finished)
-                ? dict.settings.upscaling.downloadingProgress(activePercent)
-                : needsUpdate ? dict.settings.upscaling.btnUpdateEngine : dict.settings.upscaling.btnDownloadEngine}
+              <span>
+                {isActivelyDownloading
+                  ? dict.settings.upscaling.downloadingProgress(activePercent)
+                  : needsUpdate
+                  ? dict.settings.upscaling.btnUpdateEngine
+                  : dict.settings.upscaling.btnDownloadEngine}
+              </span>
             </button>
           )}
 
@@ -174,9 +219,10 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
                 onDeleteEngine();
               }}
               disabled={isDeletingEngine || isDownloadingEngine}
-              >
+              style={ICON_BTN_STYLE}
+            >
               {isDeletingEngine ? (
-                <RefreshCw size={14} className="spin" />
+                <RefreshCw size={14} className="refresh-morph-icon--spinning" />
               ) : (
                 <Trash2 size={14} />
               )}
@@ -186,320 +232,122 @@ export const BackendSelector: React.FC<BackendSelectorProps> = ({
       </div>
 
       {(needsUpdate || status?.player_update_required) && (
-        <div role="status" className="upscale-compatibility-notice" style={{ color: "var(--warning-text)", fontSize: "var(--fs-sm)", lineHeight: 1.5 }}>
-          <p>{status?.player_update_required ? dict.settings.upscaling.playerUpdateRequired : dict.settings.upscaling.runtimeUpdateRequired}</p>
-          {!status?.player_update_required && status?.runtime_restart_required && <p>{dict.settings.upscaling.runtimeRestartRequired}</p>}
+        <div
+          role="status"
+          className="upscale-compatibility-notice"
+          style={{
+            color: "var(--warning-text)",
+            fontSize: "var(--fs-xs)",
+            lineHeight: 1.5,
+            padding: "8px 12px",
+            borderRadius: "var(--radius-control, 7px)",
+            background: "rgba(241, 196, 15, 0.1)",
+            border: "none",
+          }}
+        >
+          <p>
+            {status?.player_update_required
+              ? dict.settings.upscaling.playerUpdateRequired
+              : dict.settings.upscaling.runtimeUpdateRequired}
+          </p>
+          {!status?.player_update_required && status?.runtime_restart_required && (
+            <p style={{ marginTop: 4 }}>{dict.settings.upscaling.runtimeRestartRequired}</p>
+          )}
         </div>
       )}
-      <div id={backendContentId} className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`} inert={!isOpen} aria-hidden={!isOpen}>
+
+      <div
+        id={backendContentId}
+        className={`collapse-fold ${isOpen ? "collapse-fold--open" : ""}`}
+        inert={!isOpen}
+        aria-hidden={!isOpen}
+      >
         <div className="collapse-fold__inner">
-          <div className="collapse-fold__body backend-selector-content">
-      {/* Аппаратная карточка GPU */}
-      <GpuHardwareCard gpuInfo={status?.gpu_info} />
+          <div className="collapse-fold__body backend-selector-content col col-gap-4">
+            <GpuHardwareCard gpuInfo={status?.gpu_info} />
 
-      {/* Интерактивный прогресс-бар загрузки библиотек */}
-      {showDownloadBar && (
-        <div
-          style={{
-            padding: "12px 16px",
-            borderRadius: "var(--radius-md)",
-            background: isError
-              ? "var(--danger-surface)"
-              : isFinished
-              ? "var(--success-surface)"
-              : "var(--surface-accent-subtle)",
-            border: `1px solid ${
-              isError
-                ? "var(--danger-border)"
-                : isFinished
-                ? "var(--success-border)"
-                : "var(--border-pill)"
-            }`,
-            display: "flex",
-            flexDirection: "column",
-            gap: "var(--space-4)",
-            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth)",
-          }}
-          >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              gap: "var(--space-5)",
-            }}
-            >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-4)",
-                fontSize: "var(--fs-sm)",
-                color: "var(--text-primary)",
-                fontWeight: 500,
-                minWidth: 0,
-              }}
-              >
-              {isError ? (
-                <X size={15} color="var(--danger-text)" className="no-shrink" />
-              ) : isFinished ? (
-                <CheckCircle2 size={15} color="var(--success-text)" className="no-shrink" />
-              ) : (
-                <RefreshCw size={14} className="spin no-shrink" color="var(--accent-text, var(--accent))"  />
-              )}
-              <span
-                style={{
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  color: isError
-                    ? "var(--danger-text)"
-                    : isFinished
-                    ? "var(--success-text)"
-                    : "var(--text-primary)",
-                  fontWeight: isFinished ? 600 : 500,
-                }}
-                >
-                {downloadProgress?.stage || downloadProgressText || dict.settings.upscaling.downloadingLibs}
-              </span>
-            </div>
-
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-4)",
-                fontSize: "var(--fs-sm)",
-                fontWeight: 700,
-                color: isError ? "var(--danger-text)" : isFinished ? "var(--success-text)" : "var(--accent-text)",
-                fontVariantNumeric: "tabular-nums",
-                flexShrink: 0,
-              }}
-              >
-              {downloadProgress && downloadProgress.total_bytes> 0 ? (
-                <span
-                  style={{
-                    color: "var(--text-muted)",
-                    fontWeight: 400,
-                    fontSize: "var(--fs-xs)",
-                  }}
-                  >
-                  {(downloadProgress.downloaded_bytes / (1024 * 1024)).toFixed(1)} MB / {(downloadProgress.total_bytes / (1024 * 1024)).toFixed(1)} MB
-                </span>
-              ) : (downloadProgress?.stage?.includes("Распаковка") || downloadProgress?.stage?.toLowerCase().includes("extract")) ? (
-                <span
-                  style={{
-                    color: "var(--text-muted)",
-                    fontWeight: 400,
-                    fontSize: "var(--fs-xs)",
-                  }}
-                  >
-                  {dict.settings.upscaling.extractingArchive}
-                </span>
-              ) : null}
-              <span className={`badge ${isError ? "badge--danger" : isFinished ? "badge--success" : "badge--accent"}`}>
-                {isError ? dict.settings.upscaling.errorLabel : `${activePercent}%`}
-              </span>
-            </div>
-          </div>
-
-          {/* Анимированный трек прогресс-бара */}
-          <div
-            style={{
-              width: "100%",
-              height: 7,
-              background: "var(--surface-level-3-hover)",
-              borderRadius: "var(--radius-xs, 4px)",
-              overflow: "hidden",
-              position: "relative",
-              transition: "border-radius var(--t-spring) var(--ease-spring-smooth)",
-            }}
-            >
-            <div
-              style={{
-                width: isError ? "100%" : `${activePercent}%`,
-                height: "100%",
-                background: isError
-                  ? "#e74c3c"
-                  : isFinished
-                  ? "linear-gradient(90deg, #27ae60, #2ecc71)"
-                  : "linear-gradient(90deg, #3498db, var(--accent), #2ecc71)",
-                borderRadius: "var(--radius-xs, 4px)",
-                boxShadow: isError
-                  ? "0 0 8px var(--danger-glow)"
-                  : isFinished
-                  ? "0 0 10px var(--success-glow)"
-                  : "var(--selection-shadow)",
-                transition: "width 0.25s ease-out, border-radius var(--t-spring) var(--ease-spring-smooth)",
-              }}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* Уведомление об успешной установке (только когда прогресс-бар уже скрыт) */}
-      {engineSuccessMessage && !isDownloadingEngine && !showDownloadBar && (
-        <div
-          className="badge badge--success"
-          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "var(--fs-sm)", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
-          >
-          <CheckCircle2 size={15} />
-          <span>{engineSuccessMessage}</span>
-        </div>
-      )}
-
-      {/* Сообщение об ошибке */}
-      {errorMessage && !isDownloadingEngine && !isFinished && !engineSuccessMessage && (
-        <div
-          className="badge badge--danger"
-          style={{ width: "100%", padding: "8px 14px", height: "auto", fontSize: "var(--fs-sm)", borderRadius: "var(--radius-md)", boxSizing: "border-box" }}
-          >
-          <X size={15} />
-          <span>{errorMessage}</span>
-        </div>
-      )}
-
-      {/* Выбор между DirectML и TensorRT */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "var(--space-5)" }}>
-        {/* Карточка DirectML */}
-        <div
-          className={`glass-tile glass-tile--clickable ${
-            settings.backend === "DirectML" ? "glass-tile--active" : ""
-          }`}
-          onClick={() => {
-            if (settings.backend !== "DirectML") {
-              onSelectBackend("DirectML");
-            }
-          }}
-          style={{ padding: "12px 14px" }}
-          >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "var(--space-2)",
-            }}
-            >
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-3)",
-                flexWrap: "wrap",
-              }}
-              >
-              <span
-                style={{
-                  fontSize: "var(--fs-base)",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                }}
-                >
-                DirectML
-              </span>
-              <span className={`badge ${isDmlInstalled ? "badge--success" : "badge--warning"}`}>
-                {isDmlInstalled ? dict.settings.upscaling.statusInstalled : dict.settings.upscaling.statusNotInstalled}
-              </span>
-              {status?.gpu_info && !status.gpu_info.supports_tensorrt && (
-                <span className="badge badge--accent">
-                  {dict.settings.upscaling.recommended}
-                </span>
-              )}
-            </div>
-            {settings.backend === "DirectML" && (
-              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
+            {showDownloadBar && (
+              <EngineDownloadProgress
+                downloadProgress={downloadProgress}
+                downloadProgressText={downloadProgressText}
+                activePercent={activePercent}
+                isFinished={isFinished}
+                isError={isError}
+              />
             )}
-          </div>
-          <p
-            style={{
-              fontSize: "var(--fs-xs)",
-              color: "var(--text-muted)",
-              lineHeight: 1.3,
-            }}
-            >
-            {dict.settings.upscaling.dmlDesc}
-          </p>
-        </div>
 
-        {/* Карточка TensorRT */}
-        <div
-          className={`glass-tile ${
-            status?.gpu_info && !status.gpu_info.supports_tensorrt
-              ? ""
-              : "glass-tile--clickable"
-          } ${settings.backend === "TensorRT" ? "glass-tile--active" : ""}`}
-          onClick={() => {
-            if (status?.gpu_info && !status.gpu_info.supports_tensorrt) {
-              onError(dict.settings.upscaling.trtNotSupported);
-              return;
-            }
-            if (settings.backend !== "TensorRT") {
-              onSelectBackend("TensorRT");
-            }
-          }}
-          style={{
-            padding: "12px 14px",
-            cursor:
-              status?.gpu_info && !status.gpu_info.supports_tensorrt
-                ? "not-allowed"
-                : "pointer",
-            opacity:
-              status?.gpu_info && !status.gpu_info.supports_tensorrt ? 0.6 : 1,
-          }}
-          >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              marginBottom: "var(--space-2)",
-            }}
-            >
+            {engineSuccessMessage && !isDownloadingEngine && !showDownloadBar && (
+              <div className="badge badge--success" style={BANNER_BADGE_STYLE}>
+                <Check size={15} strokeWidth={2.5} />
+                <span>{engineSuccessMessage}</span>
+              </div>
+            )}
+
+            {errorMessage && !isDownloadingEngine && !isFinished && !engineSuccessMessage && (
+              <div className="badge badge--danger" style={BANNER_BADGE_STYLE}>
+                <X size={15} />
+                <span>{errorMessage}</span>
+              </div>
+            )}
+
             <div
               style={{
-                display: "flex",
-                alignItems: "center",
-                gap: "var(--space-3)",
-                flexWrap: "wrap",
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: "var(--space-4)",
+                alignItems: "stretch",
               }}
-              >
-              <span
-                style={{
-                  fontSize: "var(--fs-base)",
-                  fontWeight: 600,
-                  color: "var(--text-primary)",
-                }}
-                >
-                TensorRT (NVIDIA)
-              </span>
-              <span className={`badge ${isTrtInstalled ? "badge--success" : "badge--warning"}`}>
-                {isTrtInstalled ? dict.settings.upscaling.statusInstalled : dict.settings.upscaling.statusNotInstalled}
-              </span>
-              {status?.gpu_info?.supports_tensorrt && (
-                <span className="badge badge--success">
-                  {dict.settings.upscaling.recommended}
-                </span>
-              )}
-            </div>
-            {settings.backend === "TensorRT" && (
-              <CheckCircle2 size={16} color="var(--accent-text, var(--accent))" />
-            )}
-          </div>
-          <p
-            style={{
-              fontSize: "var(--fs-xs)",
-              color: "var(--text-muted)",
-              lineHeight: 1.3,
-            }}
             >
-            {dict.settings.upscaling.trtDesc}
-          </p>
-        </div>
+              <BackendOptionCard
+                title="DirectML"
+                description={dict.settings.upscaling.dmlDesc}
+                isSelected={settings.backend === "DirectML"}
+                isInstalled={isDmlInstalled}
+                isRecommended={trtUnsupported}
+                recommendedVariant="accent"
+                statusText={
+                  isDmlInstalled
+                    ? dict.settings.upscaling.statusInstalled
+                    : dict.settings.upscaling.statusNotInstalled
+                }
+                recommendedText={dict.settings.upscaling.recommended}
+                onSelect={() => {
+                  if (settings.backend !== "DirectML") {
+                    onSelectBackend("DirectML");
+                  }
+                }}
+              />
+
+              <BackendOptionCard
+                title="TensorRT (NVIDIA)"
+                description={dict.settings.upscaling.trtDesc}
+                isSelected={settings.backend === "TensorRT"}
+                isInstalled={isTrtInstalled}
+                isRecommended={Boolean(status?.gpu_info?.supports_tensorrt)}
+                recommendedVariant="success"
+                disabled={trtUnsupported}
+                statusText={
+                  isTrtInstalled
+                    ? dict.settings.upscaling.statusInstalled
+                    : dict.settings.upscaling.statusNotInstalled
+                }
+                recommendedText={dict.settings.upscaling.recommended}
+                onSelect={() => {
+                  if (trtUnsupported) {
+                    onError(dict.settings.upscaling.trtNotSupported);
+                    return;
+                  }
+                  if (settings.backend !== "TensorRT") {
+                    onSelectBackend("TensorRT");
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
-      </div>
       </div>
     </div>
   );
-};
+});
+
+BackendSelector.displayName = "BackendSelector";

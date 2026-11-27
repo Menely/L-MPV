@@ -21,15 +21,19 @@ vm.runInNewContext(compiled, {
   window: { dispatchEvent() {} }, Event: class {}, CustomEvent: class {},
 }, { filename: 'presetsUtils.ts' });
 const { BUILT_IN_PRESETS, applySettingsPreset } = exportsObject;
-const paletteSource = fs.readFileSync(path.join(root, 'src/utils/playerPalettes.ts'), 'utf8');
+const paletteSource = fs.readFileSync(path.join(root, 'src/theme/palettes.ts'), 'utf8');
 (async () => {
-  assert.equal(BUILT_IN_PRESETS.length, 5);
-  assert.equal(new Set(BUILT_IN_PRESETS.map(p => p.id)).size, 5);
+  assert.equal(BUILT_IN_PRESETS.length, 7);
+  assert.equal(new Set(BUILT_IN_PRESETS.map(p => p.id)).size, 7);
   for (const id of ['builtin_classic', 'builtin_cyberpunk', 'builtin_cinema', 'builtin_minimal']) {
     assert.ok(BUILT_IN_PRESETS.some(p => p.id === id), `Preserve saved references to ${id}`);
   }
-  assert.equal(new Set(BUILT_IN_PRESETS.map(p => p.data.controlBarStyle)).size, 3);
-  assert.equal(new Set(BUILT_IN_PRESETS.map(p => p.data.playerTheme)).size, 5);
+  const classicPresets = BUILT_IN_PRESETS.filter(p => p.data.playerInterfaceTheme !== 'glass');
+  const glassPresets = BUILT_IN_PRESETS.filter(p => p.data.playerInterfaceTheme === 'glass');
+  assert.equal(classicPresets.length, 5);
+  assert.equal(glassPresets.length, 2);
+  assert.equal(new Set(classicPresets.map(p => p.data.controlBarStyle)).size, 3);
+  assert.equal(new Set(classicPresets.map(p => p.data.playerTheme)).size, 5);
   // Apply in both directions, starting with a previously enabled heatmap.
   for (const preset of [...BUILT_IN_PRESETS, ...[...BUILT_IN_PRESETS].reverse()]) {
     calls.clear();
@@ -37,16 +41,25 @@ const paletteSource = fs.readFileSync(path.join(root, 'src/utils/playerPalettes.
     await applySettingsPreset(preset);
     const data = preset.data;
     assert.equal(calls.get('saveHeatmapConfig')[0].enabled, false, `${preset.id}: disable an existing heatmap`);
-    for (const [method, value] of [['savePlayerTheme', data.playerTheme], ['applyAccentColor', data.accentColor], ['saveControlBarStyle', data.controlBarStyle], ['saveUiRadius', data.uiRadius], ['saveUiSettingsStyle', data.settingsStyle], ['saveUiFont', data.uiFont], ['saveUiOpacity', data.uiOpacity]]) {
+    const isGlass = data.playerInterfaceTheme === 'glass';
+    const expectedCalls = isGlass
+      ? [['applyAccentColor', data.accentColor], ['saveControlBarStyle', data.liquidGlassStyle], ['saveUiFont', data.uiFont], ['saveUiOpacity', data.uiOpacity]]
+      : [['savePlayerTheme', data.playerTheme], ['applyAccentColor', data.accentColor], ['saveControlBarStyle', data.controlBarStyle], ['saveUiRadius', data.uiRadius], ['saveUiSettingsStyle', data.settingsStyle], ['saveUiFont', data.uiFont], ['saveUiOpacity', data.uiOpacity]];
+    for (const [method, value] of expectedCalls) {
       assert.ok(value !== undefined, `${preset.id}: explicit ${method}`);
       assert.equal(calls.get(method)?.[0], value, `${preset.id}: apply ${method}`);
     }
-    assert.ok(paletteSource.includes(`id:"${data.playerTheme}"`), 'Use a current player theme');
-    assert.ok(paletteSource.includes(`"${data.accentColor}"`), 'Use a current accent');
+    if (!isGlass) {
+      assert.ok(paletteSource.includes(`id:"${data.playerTheme}"`), 'Use a current player theme');
+      assert.ok(paletteSource.includes(`"${data.accentColor}"`), 'Use a current accent');
+    } else {
+      assert.match(data.accentColor, /^#[0-9a-f]{6}$/i, `${preset.id}: valid hex accent`);
+      assert.ok(data.liquidGlassTint === 'transparent' || paletteSource.includes(`id:"${data.liquidGlassTint}"`), `${preset.id}: valid liquidGlassTint`);
+    }
     for (const locale of ['ru', 'en']) {
       const text = fs.readFileSync(path.join(root, `src/i18n/locales/${locale}.ts`), 'utf8');
       assert.ok(text.includes(`${preset.id}: {`), `${preset.id}: ${locale} translation`);
     }
   }
-  console.log('PASS: five distinct built-in styles, all three toolbar layouts, RU/EN labels, preserved IDs, and heatmap disabled through the real preset application path in both switching directions.');
+  console.log('PASS: five distinct built-in classic styles + two Liquid Glass built-in presets, RU/EN labels, preserved IDs, and heatmap disabled.');
 })().catch(error => { console.error(error); process.exitCode = 1; });

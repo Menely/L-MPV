@@ -1,7 +1,8 @@
 import React from "react";
 import { ArrowRight, ChevronDown, Check } from "lucide-react";
 import { UpdateInfo, normalizeVersion } from "./updateTypes";
-import type { TranslationDict } from "../../../i18n/types";
+import type { Locale, TranslationDict } from "../../../i18n/types";
+import { getIntlLocale } from "../../../i18n";
 
 interface VersionPickerProps {
   currentVersion: string;
@@ -105,7 +106,7 @@ export const VersionPicker: React.FC<VersionPickerProps> = React.memo(({
                   </div>
                   <div className="version-picker-item__meta">
                     {rel.published_at && (
-                      <span>{new Date(rel.published_at).toLocaleDateString(locale === "en" ? "en-US" : "ru-RU")}</span>
+                      <span>{new Date(rel.published_at).toLocaleDateString(getIntlLocale(locale as Locale))}</span>
                     )}
                     {isRelSelected && <Check size={13} color="var(--accent-text, var(--accent))" />}
                   </div>

@@ -1,0 +1,139 @@
+/* ─── Глобальная адаптивность для узких окон и вертикальных видео ─── */
+@media (max-width: 600px) {
+  /* Кастомный Titlebar */
+  .titlebar {
+    padding: 0 4px 0 10px;
+  }
+  .titlebar__center {
+    max-width: calc(100% - 150px);
+  }
+  .titlebar__title {
+    font-size: var(--fs-sm);
+  }
+  .titlebar__filename {
+    font-size: var(--fs-xs);
+  }
+  .titlebar__btn {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Модальные окна (Настройки, Информация, Обновление) */
+  .modal {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    max-height: 86vh !important;
+    border-radius: var(--radius-surface);
+  }
+  .modal--settings {
+    width: calc(100vw - 12px) !important;
+    height: auto !important;
+    max-width: calc(100vw - 12px) !important;
+    max-height: 100% !important;
+    border-radius: var(--radius-surface);
+  }
+  .modal__header {
+    padding: var(--space-5) 14px;
+  }
+  .modal__body {
+    padding: var(--space-6) 14px;
+  }
+  .settings-tabs {
+    padding: var(--space-3) 8px !important;
+    gap: var(--space-1) !important;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .settings-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .settings-tab-btn {
+    padding: var(--space-3) 4px !important;
+    font-size: var(--fs-xs) !important;
+    gap: var(--space-2) !important;
+  }
+}
+
+@media (max-width: 580px) {
+  .settings-tab-btn:not(.settings-tab-btn--active) .settings-tab-label {
+    display: none;
+  }
+  .settings-tab-btn {
+    flex: 0 0 auto !important;
+    padding: var(--space-3) 10px !important;
+  }
+  .settings-tab-btn--active {
+    flex: 1 1 auto !important;
+  }
+}
+
+@media (max-width: 520px) {
+
+  /* Всплывающие карточки (Playlist, MediaInfo, Chapters, Subtitles) */
+  .media-info-overlay,
+  .playlist-drawer,
+  .chapters-modal-overlay,
+  .subtitles-modal-overlay {
+    bottom: var(--bottom-overlays-bottom, 80px) !important;
+    left: 8px !important;
+    right: 8px !important;
+    width: calc(100vw - 16px) !important;
+    max-width: calc(100vw - 16px) !important;
+    max-height: calc(100% - var(--bottom-overlays-bottom, 80px) - 50px) !important;
+  }
+
+  /* Всплывающие списки выбора дорожек */
+  .track-popover {
+    min-width: 200px;
+    max-width: calc(100vw - 20px);
+    bottom: calc(100% + 8px);
+  }
+  
+  /* Всплывающая плашка контекстного меню */
+  .context-menu {
+    max-width: calc(100vw - 16px);
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .context-menu__submenu {
+    position: static;
+    box-shadow: none;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-left: var(--space-4);
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-height: 520px) {
+  .context-menu {
+    max-height: calc(100vh - 20px);
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  .context-menu__submenu {
+    position: static;
+    box-shadow: none;
+    margin-top: var(--space-2);
+    margin-bottom: var(--space-2);
+    padding-left: var(--space-4);
+    max-width: 100%;
+    max-height: none;
+    overflow: visible;
+  }
+}
+
+@media (max-width: 420px) {
+  .titlebar__center {
+    display: none; /* Скрываем длинное имя файла на микро-ширинах чтобы не перекрывать кнопки */
+  }
+  .player-controls-wrapper {
+    left: 8px;
+    right: 8px;
+    width: calc(100% - 16px);
+    bottom: 8px;
+  }
+}

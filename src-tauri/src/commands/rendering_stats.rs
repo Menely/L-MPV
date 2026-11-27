@@ -24,6 +24,12 @@ pub struct RenderingAndSystemStats {
     pub ram_total_bytes: u64,
     /// Наименование графического процессора (GPU).
     pub gpu_name: String,
+    /// Процент загрузки активного GPU процессом L-MPV (0.0..100.0).
+    pub gpu_app_percent: f64,
+    /// Общий процент загрузки активного GPU всей системой (0.0..100.0).
+    pub gpu_total_percent: f64,
+    /// Флаг доступности телеметрии загрузки GPU от ОС.
+    pub gpu_load_available: bool,
     /// Занятый объём видеопамяти VRAM (в байтах).
     pub vram_used_bytes: u64,
     /// Общий доступный объём видеопамяти VRAM (в байтах).
@@ -268,92 +274,447 @@ mod win_hardware {
         }
     }
 
-    static CACHED_GPU_META: std::sync::OnceLock<(String, u64, u32)> = std::sync::OnceLock::new();
-
-    /// Считывание данных о видеоадаптере и видеопамяти VRAM через DXGI.
-    pub fn sample_vram() -> (String, u64, u64) {
+    /// Считывание данных о видеоадаптере, его LUID и видеопамяти VRAM через DXGI.
+    ///
+    /// Опрашивает видеоадаптеры в системе и определяет активный GPU, используемый L-MPV.
+    /// Суммирует как выделенную локальную видеопамять (LOCAL), так и разделяемую
+    /// системную память (NON_LOCAL), что гарантирует корректность показаний как
+    /// для дискретных видеокарт, так и для встроенных GPU (iGPU / APU).
+    pub fn sample_vram() -> (String, u64, u64, Option<u64>) {
         use windows::core::ComInterface;
         use windows::Win32::Graphics::Dxgi::{
             CreateDXGIFactory1, IDXGIAdapter3, IDXGIFactory1, DXGI_ADAPTER_DESC1,
             DXGI_ADAPTER_FLAG_SOFTWARE, DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-            DXGI_QUERY_VIDEO_MEMORY_INFO,
+            DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, DXGI_QUERY_VIDEO_MEMORY_INFO,
         };
 
         unsafe {
             if let Ok(factory) = CreateDXGIFactory1::<IDXGIFactory1>() {
-                let (name, total, adapter_idx) = CACHED_GPU_META
-                    .get_or_init(|| {
-                        let mut best_name = String::new();
-                        let mut best_total = 0u64;
-                        let mut best_idx = 0u32;
+                let mut best_fallback_name = "Direct3D 11 Video".to_string();
+                let mut best_fallback_total = 0u64;
+                let mut best_fallback_luid: Option<u64> = None;
 
-                        let mut i = 0;
-                        while let Ok(adapter) = factory.EnumAdapters1(i) {
-                            let mut desc = DXGI_ADAPTER_DESC1::default();
-                            if adapter.GetDesc1(&mut desc).is_ok() {
-                                let is_software =
-                                    (desc.Flags & (DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32)) != 0;
-                                if !is_software {
-                                    let name_len = desc
-                                        .Description
-                                        .iter()
-                                        .position(|&c| c == 0)
-                                        .unwrap_or(desc.Description.len());
-                                    let candidate_name =
-                                        String::from_utf16_lossy(&desc.Description[..name_len])
-                                            .trim()
-                                            .to_string();
-                                    let candidate_total = desc.DedicatedVideoMemory as u64;
+                let mut active_gpu: Option<(String, u64, u64, Option<u64>)> = None;
 
-                                    if candidate_total > best_total || best_name.is_empty() {
-                                        best_name = candidate_name;
-                                        best_total = candidate_total;
-                                        best_idx = i;
+                let mut i = 0;
+                while let Ok(adapter) = factory.EnumAdapters1(i) {
+                    let mut desc = DXGI_ADAPTER_DESC1::default();
+                    if adapter.GetDesc1(&mut desc).is_ok() {
+                        let is_software =
+                            (desc.Flags & (DXGI_ADAPTER_FLAG_SOFTWARE.0 as u32)) != 0;
+                        if !is_software {
+                            let luid = ((desc.AdapterLuid.HighPart as u32 as u64) << 32)
+                                | (desc.AdapterLuid.LowPart as u64);
+                            let name_len = desc
+                                .Description
+                                .iter()
+                                .position(|&c| c == 0)
+                                .unwrap_or(desc.Description.len());
+                            let candidate_name =
+                                String::from_utf16_lossy(&desc.Description[..name_len])
+                                    .trim()
+                                    .to_string();
+
+                            // Для дискретных видеокарт берётся DedicatedVideoMemory;
+                            // для встроенных GPU (iGPU), где выделенная память равна 0 или 128 МБ,
+                            // берётся доступная общая видеопамять SharedSystemMemory.
+                            let candidate_total = if desc.DedicatedVideoMemory > 0 {
+                                desc.DedicatedVideoMemory as u64
+                            } else {
+                                desc.SharedSystemMemory as u64
+                            };
+
+                            if candidate_total > best_fallback_total
+                                || best_fallback_name == "Direct3D 11 Video"
+                            {
+                                best_fallback_name = candidate_name.clone();
+                                best_fallback_total = candidate_total;
+                                best_fallback_luid = Some(luid);
+                            }
+
+                            // Проверяем текущее использование видеопамяти процессом L-MPV
+                            if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
+                                let mut local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+                                let mut non_local_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
+
+                                let has_local = adapter3
+                                    .QueryVideoMemoryInfo(
+                                        0,
+                                        DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
+                                        &mut local_info,
+                                    )
+                                    .is_ok();
+                                let has_non_local = adapter3
+                                    .QueryVideoMemoryInfo(
+                                        0,
+                                        DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL,
+                                        &mut non_local_info,
+                                    )
+                                    .is_ok();
+
+                                if has_local || has_non_local {
+                                    let current_used = local_info
+                                        .CurrentUsage
+                                        .saturating_add(non_local_info.CurrentUsage);
+
+                                    // Если на этом адаптере процесс L-MPV уже выделил видеопамять,
+                                    // фиксируем его как гарантированно активный GPU рендеринга.
+                                    if current_used > 0 && active_gpu.is_none() {
+                                        active_gpu = Some((
+                                            candidate_name,
+                                            current_used,
+                                            candidate_total,
+                                            Some(luid),
+                                        ));
                                     }
                                 }
                             }
-                            i += 1;
-                        }
-
-                        if best_name.is_empty() {
-                            best_name = "Direct3D 11 Video".to_string();
-                        }
-                        (best_name, best_total, best_idx)
-                    })
-                    .clone();
-
-                let mut current_used = 0u64;
-                if let Ok(adapter) = factory.EnumAdapters1(adapter_idx) {
-                    if let Ok(adapter3) = adapter.cast::<IDXGIAdapter3>() {
-                        let mut mem_info = DXGI_QUERY_VIDEO_MEMORY_INFO::default();
-                        if adapter3
-                            .QueryVideoMemoryInfo(
-                                0,
-                                DXGI_MEMORY_SEGMENT_GROUP_LOCAL,
-                                &mut mem_info,
-                            )
-                            .is_ok()
-                        {
-                            current_used = mem_info.CurrentUsage;
                         }
                     }
+                    i += 1;
                 }
 
-                return (name, current_used, total);
+                if let Some(active) = active_gpu {
+                    return active;
+                }
+
+                return (best_fallback_name, 0, best_fallback_total, best_fallback_luid);
             }
         }
 
-        ("Direct3D 11 Video".to_string(), 0, 0)
+        ("Direct3D 11 Video".to_string(), 0, 0, None)
+    }
+
+    /// Элемент массива значений счётчика PDH (`PDH_FMT_COUNTERVALUE_ITEM_W`).
+    #[repr(C)]
+    struct PdhFmtCountervalueDouble {
+        c_status: u32,
+        double_value: f64,
+    }
+
+    #[repr(C)]
+    struct PdhFmtCountervalueItemW {
+        sz_name: *const u16,
+        fmt_value: PdhFmtCountervalueDouble,
+    }
+
+    struct PdhApi {
+        _lib: &'static libloading::Library,
+        open_query: libloading::Symbol<
+            'static,
+            unsafe extern "system" fn(*const u16, usize, *mut isize) -> i32,
+        >,
+        add_english_counter: libloading::Symbol<
+            'static,
+            unsafe extern "system" fn(isize, *const u16, usize, *mut isize) -> i32,
+        >,
+        collect_query_data: libloading::Symbol<'static, unsafe extern "system" fn(isize) -> i32>,
+        get_formatted_counter_array: libloading::Symbol<
+            'static,
+            unsafe extern "system" fn(isize, u32, *mut u32, *mut u32, *mut u8) -> i32,
+        >,
+        close_query: libloading::Symbol<'static, unsafe extern "system" fn(isize) -> i32>,
+    }
+
+    unsafe impl Send for PdhApi {}
+    unsafe impl Sync for PdhApi {}
+
+    impl PdhApi {
+        fn get() -> Option<&'static Self> {
+            static PDH_API: std::sync::OnceLock<Option<PdhApi>> = std::sync::OnceLock::new();
+            PDH_API.get_or_init(Self::load).as_ref()
+        }
+
+        fn load() -> Option<Self> {
+            unsafe {
+                let lib = libloading::Library::new("pdh.dll").ok()?;
+                let static_lib: &'static libloading::Library = Box::leak(Box::new(lib));
+                let open_query = static_lib.get(b"PdhOpenQueryW\0").ok()?;
+                let add_english_counter = static_lib.get(b"PdhAddEnglishCounterW\0").ok()?;
+                let collect_query_data = static_lib.get(b"PdhCollectQueryData\0").ok()?;
+                let get_formatted_counter_array =
+                    static_lib.get(b"PdhGetFormattedCounterArrayW\0").ok()?;
+                let close_query = static_lib.get(b"PdhCloseQuery\0").ok()?;
+                Some(Self {
+                    _lib: static_lib,
+                    open_query,
+                    add_english_counter,
+                    collect_query_data,
+                    get_formatted_counter_array,
+                    close_query,
+                })
+            }
+        }
+    }
+
+    struct PdhGpuMonitor {
+        api: &'static PdhApi,
+        query: isize,
+        counter: isize,
+        has_baseline: bool,
+        app_seen: bool,
+        last_sample_at: Instant,
+        buffer: Vec<u8>,
+    }
+
+    impl Drop for PdhGpuMonitor {
+        fn drop(&mut self) {
+            if self.query != 0 {
+                unsafe {
+                    (self.api.close_query)(self.query);
+                }
+            }
+        }
+    }
+
+    impl PdhGpuMonitor {
+        fn new(api: &'static PdhApi) -> Option<Self> {
+            let counter_path: Vec<u16> = "\\GPU Engine(*)\\Utilization Percentage\0"
+                .encode_utf16()
+                .collect();
+            unsafe {
+                let mut query: isize = 0;
+                if (api.open_query)(std::ptr::null(), 0, &mut query) != 0 || query == 0 {
+                    return None;
+                }
+                let mut counter: isize = 0;
+                if (api.add_english_counter)(query, counter_path.as_ptr(), 0, &mut counter) != 0
+                    || counter == 0
+                {
+                    (api.close_query)(query);
+                    return None;
+                }
+                if (api.collect_query_data)(query) != 0 {
+                    (api.close_query)(query);
+                    return None;
+                }
+                Some(Self {
+                    api,
+                    query,
+                    counter,
+                    has_baseline: true,
+                    app_seen: false,
+                    last_sample_at: Instant::now(),
+                    buffer: Vec::with_capacity(131_072),
+                })
+            }
+        }
+
+        fn refresh_baseline(&mut self) -> bool {
+            let status = unsafe { (self.api.collect_query_data)(self.query) };
+            if status != 0 {
+                return false;
+            }
+            self.has_baseline = true;
+            self.app_seen = false;
+            self.last_sample_at = Instant::now();
+            true
+        }
+
+        fn sample(&mut self, pid: u32, active_luid: Option<u64>) -> Option<(f64, f64, bool)> {
+            const PDH_FMT_DOUBLE: u32 = 0x0000_0200;
+            const PDH_MORE_DATA: i32 = 0x8000_07D2_u32 as i32;
+
+            unsafe {
+                if (self.api.collect_query_data)(self.query) != 0 {
+                    return None;
+                }
+                self.last_sample_at = Instant::now();
+
+                let mut buf_size: u32 = self.buffer.len() as u32;
+                let mut item_count: u32 = 0;
+                let status = (self.api.get_formatted_counter_array)(
+                    self.counter,
+                    PDH_FMT_DOUBLE,
+                    &mut buf_size,
+                    &mut item_count,
+                    if self.buffer.is_empty() {
+                        std::ptr::null_mut()
+                    } else {
+                        self.buffer.as_mut_ptr()
+                    },
+                );
+
+                if status == PDH_MORE_DATA || (status != 0 && buf_size > self.buffer.len() as u32)
+                {
+                    let needed = buf_size as usize;
+                    if needed > 16 * 1024 * 1024 {
+                        return None;
+                    }
+                    self.buffer.resize(needed, 0);
+                    buf_size = needed as u32;
+                    item_count = 0;
+                    if (self.api.get_formatted_counter_array)(
+                        self.counter,
+                        PDH_FMT_DOUBLE,
+                        &mut buf_size,
+                        &mut item_count,
+                        self.buffer.as_mut_ptr(),
+                    ) != 0
+                    {
+                        return None;
+                    }
+                } else if status != 0 {
+                    return None;
+                }
+
+                let count = item_count as usize;
+                let item_stride = std::mem::size_of::<PdhFmtCountervalueItemW>();
+                if count == 0 || buf_size < (count * item_stride) as u32 {
+                    self.app_seen = false;
+                    return Some((0.0, 0.0, false));
+                }
+
+                let items = std::slice::from_raw_parts(
+                    self.buffer.as_ptr() as *const PdhFmtCountervalueItemW,
+                    count,
+                );
+                let (app_pct, total_pct, app_found) =
+                    aggregate_pdh_gpu_items(items, pid, active_luid);
+                self.app_seen = app_found;
+                Some((app_pct, total_pct, app_found))
+            }
+        }
+    }
+
+    fn aggregate_pdh_gpu_items(
+        items: &[PdhFmtCountervalueItemW],
+        pid: u32,
+        active_luid: Option<u64>,
+    ) -> (f64, f64, bool) {
+        use std::collections::HashMap;
+        let mut total_by_engine: HashMap<(u64, u32), f64> = HashMap::with_capacity(32);
+        let mut app_by_engine: HashMap<(u64, u32), f64> = HashMap::with_capacity(8);
+        let mut app_found = false;
+
+        for item in items {
+            // PDH_CSTATUS_VALID_DATA (0) и PDH_CSTATUS_NEW_DATA (1)
+            if item.fmt_value.c_status > 1 || item.sz_name.is_null() {
+                continue;
+            }
+            let val = item.fmt_value.double_value;
+            if !val.is_finite() || val < 0.0 {
+                continue;
+            }
+            let name = unsafe { read_wide_ptr(item.sz_name) };
+            let Some((inst_pid, inst_luid, inst_eng)) = super::parse_gpu_engine_instance(&name)
+            else {
+                continue;
+            };
+            if let Some(target_luid) = active_luid {
+                if inst_luid != target_luid {
+                    continue;
+                }
+            }
+            let key = (inst_luid, inst_eng);
+            let entry = total_by_engine.entry(key).or_insert(0.0);
+            *entry += val;
+
+            if inst_pid == pid {
+                app_found = true;
+                let app_entry = app_by_engine.entry(key).or_insert(0.0);
+                *app_entry += val;
+            }
+        }
+
+        let total_pct = total_by_engine
+            .values()
+            .copied()
+            .map(|v| v.clamp(0.0, 100.0))
+            .fold(0.0_f64, f64::max);
+        let app_pct = app_by_engine
+            .values()
+            .copied()
+            .map(|v| v.clamp(0.0, 100.0))
+            .fold(0.0_f64, f64::max);
+
+        (app_pct, total_pct.max(app_pct), app_found)
+    }
+
+    unsafe fn read_wide_ptr(ptr: *const u16) -> String {
+        let mut len = 0usize;
+        while len < 512 && *ptr.add(len) != 0 {
+            len += 1;
+        }
+        String::from_utf16_lossy(std::slice::from_raw_parts(ptr, len))
+    }
+
+    static GPU_MONITOR: Mutex<Option<PdhGpuMonitor>> = Mutex::new(None);
+
+    /// Замер текущей загрузки активного GPU (процессом L-MPV и всей системой) через Windows PDH.
+    pub fn sample_gpu_load(active_luid: Option<u64>) -> (f64, f64, bool) {
+        let Some(api) = PdhApi::get() else {
+            return (0.0, 0.0, false);
+        };
+        let pid = std::process::id();
+        let mut guard = GPU_MONITOR.lock().unwrap_or_else(|e| e.into_inner());
+
+        let Some(mon) = guard.as_mut() else {
+            *guard = PdhGpuMonitor::new(api);
+            return (0.0, 0.0, false);
+        };
+
+        // Не пересоздаём дорогостоящий PDH wildcard-запрос при простое: достаточно обновить базовый срез.
+        let elapsed = mon.last_sample_at.elapsed();
+        if elapsed.as_secs() > 6 || (!mon.app_seen && elapsed.as_secs_f64() > 2.5) {
+            if !mon.refresh_baseline() {
+                *guard = None;
+            }
+            return (0.0, 0.0, false);
+        }
+
+        if !mon.has_baseline {
+            return (0.0, 0.0, false);
+        }
+        if let Some((app_pct, total_pct, _found)) = mon.sample(pid, active_luid) {
+            return (app_pct, total_pct, true);
+        }
+        // Сбой чтения счётчика (например, сброс драйвера GPU) — пересоздадим при следующем опросе
+        *guard = None;
+
+        (0.0, 0.0, false)
+    }
+
+    #[cfg(test)]
+    pub fn pdh_item_size_bytes() -> usize {
+        std::mem::size_of::<PdhFmtCountervalueItemW>()
     }
 }
 
-/// Получение комплексного отчёта о производительности и рендеринге в реальном времени.
-#[tauri::command]
-pub fn get_rendering_and_system_stats(
-    state: State<'_, PlayerState>,
-) -> Result<RenderingAndSystemStats, String> {
-    let mpv = &state.mpv;
+/// Разбор имени инстанса счётчика Windows GPU Engine (`pid_<PID>_luid_0x<HIGH>_0x<LOW>_phys_<P>_eng_<E>_engtype_<T>`).
+fn parse_gpu_engine_instance(name: &str) -> Option<(u32, u64, u32)> {
+    let rest = name.strip_prefix("pid_")?;
+    let pid_end = rest.find('_')?;
+    let pid = rest[..pid_end].parse::<u32>().ok()?;
+    let after_pid = &rest[pid_end + 1..];
 
+    let luid_rest = after_pid.strip_prefix("luid_")?;
+    let luid_h_end = luid_rest.find('_')?;
+    let high_str = luid_rest[..luid_h_end]
+        .strip_prefix("0x")
+        .or_else(|| luid_rest[..luid_h_end].strip_prefix("0X"))?;
+    let luid_high = u32::from_str_radix(high_str, 16).ok()?;
+
+    let after_h = &luid_rest[luid_h_end + 1..];
+    let luid_l_end = after_h.find('_')?;
+    let low_str = after_h[..luid_l_end]
+        .strip_prefix("0x")
+        .or_else(|| after_h[..luid_l_end].strip_prefix("0X"))?;
+    let luid_low = u32::from_str_radix(low_str, 16).ok()?;
+
+    let eng_pos = after_h.find("_eng_")?;
+    let after_eng = &after_h[eng_pos + 5..];
+    let eng_end = after_eng.find('_').unwrap_or(after_eng.len());
+    let eng_id = after_eng[..eng_end].parse::<u32>().ok()?;
+
+    let packed_luid = ((luid_high as u64) << 32) | (luid_low as u64);
+    Some((pid, packed_luid, eng_id))
+}
+
+/// Синхронный сбор метрик оборудования и рендеринга (выполняется в фоновом пуле потоков).
+fn collect_rendering_and_system_stats(
+    mpv: &crate::mpv_manager::MpvManager,
+) -> RenderingAndSystemStats {
     // ─── Замер оборудования (Hardware) ───
     #[cfg(windows)]
     let (cpu_app_percent, cpu_total_percent) = win_hardware::sample_cpu();
@@ -366,10 +727,19 @@ pub fn get_rendering_and_system_stats(
     let (ram_app_bytes, ram_total_used_bytes, ram_total_bytes) = (0, 0, 0);
 
     #[cfg(windows)]
-    let (gpu_name, vram_used_bytes, vram_total_bytes) = win_hardware::sample_vram();
+    let (gpu_name, vram_used_bytes, vram_total_bytes, active_luid) = win_hardware::sample_vram();
     #[cfg(not(windows))]
-    let (gpu_name, vram_used_bytes, vram_total_bytes) =
-        ("Video Adapter".to_string(), 0, 0);
+    let (gpu_name, vram_used_bytes, vram_total_bytes, active_luid) =
+        ("Video Adapter".to_string(), 0, 0, None);
+
+    #[cfg(windows)]
+    let (gpu_app_percent, gpu_total_percent, gpu_load_available) =
+        win_hardware::sample_gpu_load(active_luid);
+    #[cfg(not(windows))]
+    let (gpu_app_percent, gpu_total_percent, gpu_load_available) = {
+        let _ = active_luid;
+        (0.0, 0.0, false)
+    };
 
     // ─── Замер рендеринга и декодирования из mpv ───
     let hwdec_current = mpv
@@ -418,13 +788,16 @@ pub fn get_rendering_and_system_stats(
         .get_property_double("drop-frame-count")
         .unwrap_or(0.0) as i64;
 
-    Ok(RenderingAndSystemStats {
+    RenderingAndSystemStats {
         cpu_app_percent,
         cpu_total_percent,
         ram_app_bytes,
         ram_total_used_bytes,
         ram_total_bytes,
         gpu_name,
+        gpu_app_percent,
+        gpu_total_percent,
+        gpu_load_available,
         vram_used_bytes,
         vram_total_bytes,
         hwdec_current,
@@ -441,5 +814,45 @@ pub fn get_rendering_and_system_stats(
         vo_delayed_frames,
         vo_mistimed_frames,
         drop_frame_count,
-    })
+    }
+}
+
+/// Получение комплексного отчёта о производительности и рендеринге в реальном времени.
+/// Выполняется асинхронно в `spawn_blocking`, не блокируя главный UI-поток Tauri/WebView2.
+#[tauri::command]
+pub async fn get_rendering_and_system_stats(
+    state: State<'_, PlayerState>,
+) -> Result<RenderingAndSystemStats, String> {
+    let mpv = std::sync::Arc::clone(&state.mpv);
+    tokio::task::spawn_blocking(move || collect_rendering_and_system_stats(&mpv))
+        .await
+        .map_err(|e| format!("Ошибка фонового замера метрик рендеринга: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn parse_gpu_engine_instance_extracts_pid_luid_and_engine() {
+        let name = "pid_1416_luid_0x00000000_0x000108F1_phys_0_eng_3_engtype_Copy";
+        let parsed = parse_gpu_engine_instance(name).expect("valid instance");
+        assert_eq!(parsed.0, 1416);
+        assert_eq!(parsed.1, 0x0001_08F1_u64);
+        assert_eq!(parsed.2, 3);
+
+        let name2 = "pid_42_luid_0x00000001_0xABCDEF01_phys_0_eng_12_engtype_VideoDecode";
+        let parsed2 = parse_gpu_engine_instance(name2).expect("valid instance 2");
+        assert_eq!(parsed2.0, 42);
+        assert_eq!(parsed2.1, (1u64 << 32) | 0xABCD_EF01_u64);
+        assert_eq!(parsed2.2, 12);
+
+        assert!(parse_gpu_engine_instance("invalid_name").is_none());
+    }
+
+    #[cfg(all(windows, target_pointer_width = "64"))]
+    #[test]
+    fn pdh_item_matches_win64_abi() {
+        assert_eq!(win_hardware::pdh_item_size_bytes(), 24);
+    }
 }

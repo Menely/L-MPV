@@ -22,6 +22,7 @@ export function useVideoZoom(path: string | undefined, onApplied: (zoom: number)
       const epoch = generation.current;
       invoke("set_video_zoom_and_pan", transform)
         .then(() => {
+          window.dispatchEvent(new Event("l-mpv-video-bounds-changed"));
           if (epoch === generation.current && !pending.current) notify.current(transform.zoom);
         })
         .catch(console.error)

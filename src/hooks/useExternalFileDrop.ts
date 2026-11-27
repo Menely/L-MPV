@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { getCurrentWebview, type DragDropEvent } from "@tauri-apps/api/webview";
-import { getActiveUiScale } from "../utils/uiThemeUtils";
+import { getActiveUiScale } from "../theme/tokens";
 import { fileDragPreviewPosition, splitDraggedFileName } from "../utils/fileDragPreview";
 import { dispatchFileDrop, updateFileDropTarget } from "../utils/fileDropTargets";
 

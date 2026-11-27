@@ -3,7 +3,7 @@ import type { VisualizerConfig } from "../AudioVisualizer";
 import type { TimeDisplayPosition } from "../../../utils/timePositionUtils";
 import type { TimeFormatMode } from "../../../utils/timeFormatUtils";
 import type { MediaInfo } from "../../../contexts/PlayerStateContext";
-import type { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+import type { ControlBarStyle } from "../../../theme/controlBarStyle";
 
 /**
  * Общие свойства для компонентов представления стилей панели управления.

@@ -1,6 +1,6 @@
 import { useMotionAllowed } from "../motion/useMotionAllowed";
 import { useCanvasVisibility } from "../../hooks/useCanvasVisibility";
-import React, { useRef, useEffect, useState, useCallback, useContext } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useCallback, useContext } from "react";
 import { ControlsVisibilityContext } from "./controls/ControlsVisibilityContext";
 import { invoke } from "@tauri-apps/api/core";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
@@ -924,6 +924,17 @@ const ActiveVisualizer: React.FC<ActiveVisualizerProps> = React.memo(({
   const height = placement === "inside_timeline" || placement === "toolbar"
     ? undefined
     : (config.height || 22);
+
+  useLayoutEffect(() => {
+    if (placement !== "above_timeline") return;
+    const resolvedHeight = config.height || 22;
+    document.documentElement.style.setProperty("--visualizer-height", `${resolvedHeight}px`);
+    window.dispatchEvent(new Event("l-mpv-timeline-layout-changed"));
+    return () => {
+      document.documentElement.style.removeProperty("--visualizer-height");
+      window.dispatchEvent(new Event("l-mpv-timeline-layout-changed"));
+    };
+  }, [placement, config.height]);
 
   return (
     <div

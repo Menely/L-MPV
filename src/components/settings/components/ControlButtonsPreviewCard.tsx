@@ -42,11 +42,11 @@ import {
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { SpeedIcon } from "../../player/controls/SpeedIcon";
 import { toLocalDragTransform } from "../../../utils/dndCoordinates";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import {
   type ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/controlBarStyle";
 import {
   ALL_UTILITY_BUTTON_IDS,
   type UtilityButtonId,
@@ -224,7 +224,6 @@ const DroppableUtilityCard = memo(function DroppableUtilityCard({
         <button
           type="button"
           className="control-buttons-builder__card-remove"
-          title={removeTitle}
           aria-label={removeTitle}
           onClick={() => onRemove(card.key)}
         >
@@ -629,6 +628,18 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
         </div>
 
         <div className="control-buttons-builder__actions">
+          <button
+            type="button"
+            className="ui-reset-btn"
+            data-reset-hidden={isDefault}
+            disabled={isDefault}
+            tabIndex={isDefault ? -1 : 0}
+            onClick={handleReset}
+            aria-label={cbText.resetOrder}
+          >
+            <RotateCcw size={16} />
+          </button>
+
           {isCapsule && (
             <button
               type="button"
@@ -639,18 +650,6 @@ export const ControlButtonsPreviewCard: React.FC<ControlButtonsPreviewCardProps>
             >
               <Plus size={13} />
               <span>{cbText.addCard}</span>
-            </button>
-          )}
-
-          {!isDefault && (
-            <button
-              type="button"
-              className="btn btn--secondary btn--sm control-buttons-builder__action-btn"
-              onClick={handleReset}
-              title={cbText.resetOrder}
-              aria-label={cbText.resetOrder}
-            >
-              <RotateCcw size={12} />
             </button>
           )}
         </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import {
   DEFAULT_MODAL_WIDTH,
   TECH_MODAL_DEFAULT_WIDTH,

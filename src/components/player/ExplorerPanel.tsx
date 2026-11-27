@@ -11,7 +11,8 @@ import { openExplorerFile, isExplorerCurrentFile, savedExplorerFilter, EXPLORER_
 import { bindExplorerHistoryMouse } from "../../utils/explorerHistory";
 import { ExplorerPath } from "./ExplorerPath";
 import { NavigationPopover } from "./NavigationPopover";
-import "../../styles/explorer-panel.css";
+import { notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
+import "../../styles/player/explorer-panel.css";
 
 interface Props {
   active: boolean;
@@ -81,6 +82,9 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
     return (directory?.entries ?? []).filter(entry => (!playableOnly || isExplorerPlayable(entry))
       && (!query || entry.name.toLowerCase().includes(query)));
   }, [directory, search, playableOnly]);
+  useEffect(() => {
+    if (active) notifyLiquidGlassSync();
+  }, [active, loading, error, openError, entries.length]);
   const activate = async (entry: ExplorerEntry) => {
     setOpenError(null);
     if (entry.kind === "directory") { onSearch(""); void load(entry.path); return; }
@@ -122,25 +126,27 @@ export function ExplorerPanel({ active, panelActive = active, onRequestActivate,
       {search && <button type="button" className="playlist-drawer__search-clear" aria-label={dict.playlist.clearSearch} onClick={() => onSearch("")}><X size={14} /></button>}
     </div>
     {(error || openError) && <p className="explorer-panel__message explorer-panel__message--error" role="alert">{openError || error}</p>}
-    <div className="explorer-panel__entries" aria-busy={loading}>
-      {loading && <div className="explorer-panel__message" role="status"><Loader2 size={17} className="spin-animation" />{text.loading}</div>}
-      {!loading && !entries.length && !error && <p className="explorer-panel__message">{search ? dict.playlist.nothingFound : text.empty}</p>}
-      {entries.map(entry => {
-        const current = isExplorerCurrentFile(entry, mediaInfo?.path ?? "");
-        const video = entry.kind === "video";
-        const percent = video ? watchHistory[entry.path]?.progress_percent ?? 0 : 0;
-        const Icon = current ? Play : percent >= 90 ? CheckCircle2 : icons[entry.kind];
-        return <button key={entry.path} type="button" className="explorer-panel__entry" title={entry.name} aria-current={current ? "true" : undefined}
-          draggable={entry.kind === "video" || entry.kind === "audio"} onDragStart={event => {
-            event.dataTransfer.setData("application/x-lmpv-media-paths", JSON.stringify([entry.path])); event.dataTransfer.effectAllowed = "copy";
-          }}
-          disabled={loading || opening !== null || entry.kind === "file"} onClick={() => void activate(entry)}>
-          <Icon size={17} fill={current ? "currentColor" : "none"} aria-hidden="true" className={`explorer-panel__entry-icon explorer-panel__entry-icon--${entry.kind}${!current && percent >= 90 ? " playlist-item__watched-icon" : ""}`} />
-          <span>{entry.name}</span>
-          {opening === entry.path && <Loader2 size={15} className="spin-animation" />}
-          {video && (current && active ? <LiveWatchProgressBar fallback={percent} /> : <WatchProgressBar percent={percent} />)}
-        </button>;
-      })}
+    <div className="scroll-surface playlist-drawer__list-surface">
+      <div className="explorer-panel__entries" aria-busy={loading}>
+        {loading && <div className="explorer-panel__message" role="status"><Loader2 size={17} className="spin-animation" />{text.loading}</div>}
+        {!loading && !entries.length && !error && <p className="explorer-panel__message">{search ? dict.playlist.nothingFound : text.empty}</p>}
+        {entries.map(entry => {
+          const current = isExplorerCurrentFile(entry, mediaInfo?.path ?? "");
+          const video = entry.kind === "video";
+          const percent = video ? watchHistory[entry.path]?.progress_percent ?? 0 : 0;
+          const Icon = current ? Play : percent >= 90 ? CheckCircle2 : icons[entry.kind];
+          return <button key={entry.path} type="button" className="explorer-panel__entry" title={entry.name} aria-current={current ? "true" : undefined}
+            draggable={entry.kind === "video" || entry.kind === "audio"} onDragStart={event => {
+              event.dataTransfer.setData("application/x-lmpv-media-paths", JSON.stringify([entry.path])); event.dataTransfer.effectAllowed = "copy";
+            }}
+            disabled={loading || opening !== null || entry.kind === "file"} onClick={() => void activate(entry)}>
+            <Icon size={17} fill={current ? "currentColor" : "none"} aria-hidden="true" className={`explorer-panel__entry-icon explorer-panel__entry-icon--${entry.kind}${!current && percent >= 90 ? " playlist-item__watched-icon" : ""}`} />
+            <span>{entry.name}</span>
+            {opening === entry.path && <Loader2 size={15} className="spin-animation" />}
+            {video && (current && active ? <LiveWatchProgressBar fallback={percent} /> : <WatchProgressBar percent={percent} />)}
+          </button>;
+        })}
+      </div>
     </div>
   </section>;
 }

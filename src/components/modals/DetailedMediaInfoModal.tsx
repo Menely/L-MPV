@@ -4,8 +4,6 @@ import { useOverlayDismiss } from "../../hooks/useOverlayDismiss";
 import {
   FileText,
   X,
-  Copy,
-  Check,
   Download,
   Search,
   Loader2,
@@ -14,6 +12,7 @@ import {
   ChevronUp,
   ChevronDown,
 } from "lucide-react";
+import { CopyCheckMorphIcon } from "../common/CopyCheckMorphIcon";
 import { usePlayerState } from "../../contexts/PlayerStateContext";
 import { parseMediaInfoLines } from "../../utils/mediaInfoParser";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -30,7 +29,7 @@ import { getCustomHotkeys, isKeyboardEventMatch } from "../../utils/hotkeyUtils"
 import {
   getSavedControlBarStyle,
   type ControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 
 interface DetailedMediaInfoModalProps {
   isOpen: boolean;
@@ -373,7 +372,7 @@ export function DetailedMediaInfoModal({
             aria-label={dict.detailedMediaInfoModal.copyReport}
             disabled={!baseReport.rawText}
             >
-            {copied ? <Check size={14} color="var(--success-text)" /> : <Copy size={14} />}
+            <CopyCheckMorphIcon copied={copied} size={15} />
           </button>
 
           {/* Экспорт в TXT */}
@@ -396,7 +395,7 @@ export function DetailedMediaInfoModal({
 
             aria-label={dict.detailedMediaInfoModal.close}
             >
-            <X size={16} strokeWidth={2} />
+            <X size={16} strokeWidth={2.4} />
           </button>
         </div>
       </div>

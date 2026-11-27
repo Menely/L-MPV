@@ -6,8 +6,9 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/controlBarStyle";
 import type { AppUpdaterController } from "../../../hooks/useAppUpdater";
+import { LiquidProgressFill } from "../../common/LiquidProgressFill";
 import { AppLogoIcon } from "./AppLogoIcon";
 import { UpdateInfo, formatBytes, normalizeVersion } from "./updateTypes";
 
@@ -38,9 +39,13 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   useEffect(() => {
     const syncStyle = () => setControlBarStyle(getSavedControlBarStyle());
     window.addEventListener("l-mpv-settings-changed", syncStyle);
+    window.addEventListener("l-mpv-control-bar-style-changed", syncStyle);
+    window.addEventListener("l-mpv-player-theme-changed", syncStyle);
     window.addEventListener("storage", syncStyle);
     return () => {
       window.removeEventListener("l-mpv-settings-changed", syncStyle);
+      window.removeEventListener("l-mpv-control-bar-style-changed", syncStyle);
+      window.removeEventListener("l-mpv-player-theme-changed", syncStyle);
       window.removeEventListener("storage", syncStyle);
     };
   }, []);
@@ -90,7 +95,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       <div className="update-toast__icon">
         <AppLogoIcon
           size={16}
-          color={isCapsule ? "var(--accent-text)" : "var(--on-accent)"}
+          color="var(--accent-text)"
         />
       </div>
       <div className="update-toast__title-text">
@@ -107,32 +112,33 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
       onClick={handleClose}
       aria-label={dict.updateModal.toastClose}
     >
-      <X size={15} />
+      <X size={15} strokeWidth={2.4} />
     </button>
   );
 
   const bodyContent = isDownloading ? (
     <div className="update-toast__progress">
-      <div className="update-toast__progress-meta">
-        <span>
-          {hasKnownTotal
-            ? `${formatBytes(updater.downloadedBytes, locale)} / ${formatBytes(
-                updater.totalBytes,
-                locale
-              )}`
-            : updater.downloadedBytes > 0
-            ? formatBytes(updater.downloadedBytes, locale)
-            : dict.updateModal.downloading}
-        </span>
-        {hasKnownTotal && (
-          <span className="update-toast__progress-pct">{progressRounded}%</span>
-        )}
-      </div>
       <div className="update-toast__progress-track">
-        <div
-          className="update-toast__progress-fill"
-          style={{ width: `${progressBarWidth}%` }}
+        <LiquidProgressFill
+          progress={progressBarWidth}
+          status="running"
+          className="track-liquid-fill--vivid"
         />
+        <div className="update-toast__progress-overlay">
+          <span className="update-toast__progress-bytes">
+            {hasKnownTotal
+              ? `${formatBytes(updater.downloadedBytes, locale)} / ${formatBytes(
+                  updater.totalBytes,
+                  locale
+                )}`
+              : updater.downloadedBytes > 0
+              ? formatBytes(updater.downloadedBytes, locale)
+              : dict.updateModal.downloading}
+          </span>
+          {hasKnownTotal && (
+            <span className="update-toast__progress-pct">{progressRounded}%</span>
+          )}
+        </div>
       </div>
     </div>
   ) : isReady ? (
@@ -225,7 +231,7 @@ export const UpdateToast: React.FC<UpdateToastProps> = ({
   }
 
   return (
-    <MotionSurface kind="popover" className="update-toast">
+    <MotionSurface kind="popover" className={`update-toast update-toast--${controlBarStyle}`}>
       <div className="update-toast__header">
         {headerInfoContent}
         {closeButton}

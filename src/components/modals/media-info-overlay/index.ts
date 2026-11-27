@@ -7,4 +7,5 @@ export * from "./MediaInfoAudioSection";
 export * from "./MediaInfoRenderingSection";
 export * from "./MediaInfoTracksSection";
 export * from "./mediaInfoOverlayUtils";
+export * from "./mediaInfoPreload";
 

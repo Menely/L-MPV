@@ -14,7 +14,31 @@ export const motionPresets = {
 export type MotionSurfaceKind = keyof typeof motionPresets;
 
 /** Leave positional transforms untouched for floating/pinned surfaces. */
-export function surfacePose(kind: MotionSurfaceKind, phase: "initial" | "visible" | "exit", allowed: boolean) {
+export function surfacePose(
+  kind: MotionSurfaceKind,
+  phase: "initial" | "visible" | "exit",
+  allowed: boolean,
+  fadeOnly = false,
+) {
+  if (fadeOnly) {
+    if (kind === "settingsBackdrop") {
+      return {
+        opacity: 1,
+        backgroundColor: phase === "visible" ? "rgba(0, 0, 0, 0.5)" : "rgba(0, 0, 0, 0)",
+      };
+    }
+    if (kind === "backdrop") {
+      return { opacity: phase === "visible" ? 1 : 0 };
+    }
+    if (kind === "dialog") {
+      return { opacity: phase === "visible" ? 1 : 0, y: 0 };
+    }
+    if (kind === "sidebar") {
+      return { opacity: phase === "visible" ? 1 : 0, x: 0 };
+    }
+    return { opacity: phase === "visible" ? 1 : 0, "--surface-y": "0px" };
+  }
+
   const pose: { opacity: number; backgroundColor?: string; x?: number; y?: number; "--surface-y"?: string } = { opacity: phase === "visible" ? 1 : 0 };
   if (kind === "settingsDialog") {
     // Keep glass/text opacity stable; move via the persistent individual translate.

@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, useState, type ReactNode, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useIsPresent } from "motion/react";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
-import { getSavedControlBarStyle } from "../../utils/controlBarStyleUtils";
-import "../../styles/navigation-popover.css";
+import { getActiveUiScale } from "../../theme/tokens";
+import { getSavedControlBarStyle } from "../../theme/controlBarStyle";
+import "../../styles/player/navigation-popover.css";
 
 interface Props {
   anchor: RefObject<HTMLElement | null>; onClose: () => void; children: ReactNode;

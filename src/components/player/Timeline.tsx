@@ -1,7 +1,7 @@
 import { isTimelinePreviewEnabled } from "../../utils/timelinePreviewPreference";
 import { supportsTimelineThumbnail, thumbnailWidth as pickThumbnailWidth } from "../../utils/timelineThumbnail";
 import { prewarmTimelineThumbnail, useTimelineStoryboard } from "../../hooks/useTimelineStoryboard";
-import { getActiveUiScale } from "../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../theme/tokens";
 import React, { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { usePlayerState, usePlayerProgress } from "../../contexts/PlayerStateContext";
 import { useTranslation } from "../../i18n/LanguageContext";
@@ -120,6 +120,28 @@ TimelineSegment.displayName = "TimelineSegment";
 // ─── Главный компонент ────────────────────────────────────────────────────────
 
 /**
+ * Проверяет, находится ли точка (clientX, clientY) под открытыми всплывающими окнами
+ * нижнего уровня (окно выбора дорожек/сабов/скорости, окно информации о файле Медиаинфо (I), окно глав).
+ * Подавляет нежелательное всплывание карточки TimelinePreview при ведении мыши снизу вверх к меню или взаимодействии с окнами.
+ */
+function isUnderBottomOverlay(clientX: number, clientY: number): boolean {
+  const overlays = document.querySelectorAll(
+    ".track-popover, .media-info-overlay, .chapters-modal-overlay, .chapters-modal-card"
+  );
+  for (let i = 0; i < overlays.length; i++) {
+    const el = overlays[i];
+    const rect = el.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) continue;
+    const inHorizontalRange = clientX >= rect.left - 14 && clientX <= rect.right + 14;
+    const belowOverlayTop = clientY >= rect.top - 10;
+    if (inHorizontalRange && belowOverlayTop) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
  * Высокопроизводительный таймлайн плеера L-MPV.
  *
  * Архитектура:
@@ -209,7 +231,21 @@ export const Timeline = React.memo(() => {
   // ─── Hover rAF-батчер ────────────────────────────────────────
   const [hoverInfo, setHoverInfo] = useState<{ ratio: number; time: number } | null>(null);
   const rafId = useRef<number | null>(null);
-  const pendingClientX = useRef<{ x: number; rect: DOMRect; drag: boolean } | null>(null);
+  const pendingClientX = useRef<{ x: number; y: number; rect: DOMRect; drag: boolean } | null>(null);
+
+  // Гасим превью таймлайна при открытии/переключении поповера дорожек
+  useEffect(() => {
+    const handlePopoverChange = () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      pendingClientX.current = null;
+      setHoverInfo(null);
+    };
+    window.addEventListener("l-mpv-toggle-popover", handlePopoverChange);
+    return () => window.removeEventListener("l-mpv-toggle-popover", handlePopoverChange);
+  }, []);
 
   const hoveredSegIndex = useMemo(() => {
     if (!hoverInfo || !hasChapters) return -1;
@@ -227,6 +263,10 @@ export const Timeline = React.memo(() => {
     rafId.current = null;
     const p = pendingClientX.current;
     if (!p || safeDuration <= 0) return;
+    if (!p.drag && isUnderBottomOverlay(p.x, p.y)) {
+      setHoverInfo(null);
+      return;
+    }
     const ratio = clientXToRatio(p.x, p.rect);
     const time = ratio * safeDuration;
     if (p.drag) {
@@ -242,8 +282,8 @@ export const Timeline = React.memo(() => {
     setHoverInfo({ ratio, time });
   };
 
-  const scheduleHover = useCallback((x: number, rect: DOMRect, drag: boolean) => {
-    pendingClientX.current = { x, rect, drag };
+  const scheduleHover = useCallback((x: number, y: number, rect: DOMRect, drag: boolean) => {
+    pendingClientX.current = { x, y, rect, drag };
     if (rafId.current === null) {
       rafId.current = requestAnimationFrame(applyHoverRef.current);
     }
@@ -309,8 +349,18 @@ export const Timeline = React.memo(() => {
 
   const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (safeDuration <= 0) return;
+    if (!isDragging.current && isUnderBottomOverlay(e.clientX, e.clientY)) {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+        rafId.current = null;
+      }
+      pendingClientX.current = null;
+      setHoverInfo(null);
+      return;
+    }
     scheduleHover(
       e.clientX,
+      e.clientY,
       cachedRectRef.current ?? e.currentTarget.getBoundingClientRect(),
       isDragging.current
     );
@@ -465,7 +515,7 @@ export const Timeline = React.memo(() => {
       >
       <AudioVisualizer placement="inside_timeline" />
 
-      {hoverInfo && (
+      {hoverInfo && !isUnderBottomOverlay(pendingClientX.current?.x ?? -999, pendingClientX.current?.y ?? -999) && (
         <TimelinePreview previewEnabled={previewEnabled} hoverInfo={hoverInfo} segments={segments} mediaPath={mediaPath}
           hasVideo={mediaInfo?.has_video ?? false} fps={mediaInfo?.fps ?? 0} thumbnailWidth={thumbnailWidth}
           videoTrack={selectedVideoTrack} />

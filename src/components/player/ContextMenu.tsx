@@ -6,7 +6,11 @@ import { showOsd } from "../../hooks/useOsd";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getSavedLayout, LAYOUT_CHANGED_EVENT, type LayoutEntry } from "../../utils/contextMenuLayout";
-import { ChevronRight, Download, Loader2, ExternalLink } from "lucide-react";
+import { ChevronRight, ExternalLink } from "lucide-react";
+import {
+  TrackDownloadActionButton,
+  TrackLiquidProgressFill,
+} from "./controls/track-popover/TrackDownloadVisuals";
 import { getCustomHotkeys } from "../../utils/hotkeyUtils";
 import {
   type TimeDisplayPosition,
@@ -27,7 +31,13 @@ import {
   type ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
+import {
+  type PlayerTheme,
+  getPlayerTheme,
+  setPlayerTheme,
+} from "../../theme/liquidGlass/preferences";
+import { notifyLiquidGlassAnimation, notifyLiquidGlassSync } from "../../theme/liquidGlass/LiquidGlassSync";
 import {
   loadUserPresets,
   applySettingsPreset,
@@ -59,6 +69,7 @@ import {
   loadExternalAudioTrack,
   loadExternalSubtitleTrack,
 } from "../../utils/externalTrackLoader";
+import { formatSpeedValue } from "./controls/SpeedPopover";
 
 interface ContextMenuProps {
   /** Координата X для отображения меню. */
@@ -89,6 +100,36 @@ function getUiScale(): number {
   return Number.isNaN(zoom) || zoom <= 0 ? 1 : zoom;
 }
 
+/**
+ * Вычисляет безопасный вертикальный диапазон (в CSS-пикселях с учётом zoom),
+ * чтобы контекстное меню и его подменю никогда не перекрывали верхний Titlebar
+ * и нижнюю панель управления плеера ни в теме L-MPV, ни в теме Liquid Glass.
+ */
+function getSafeVerticalBounds(zoom: number): { minY: number; maxY: number } {
+  if (typeof window === "undefined") return { minY: 8, maxY: 800 };
+  const cssInnerHeight = window.innerHeight / zoom;
+  const rootStyle = getComputedStyle(document.documentElement);
+
+  const titlebar = document.querySelector<HTMLElement>(".titlebar");
+  const titlebarHeight = titlebar ? Math.max(46, titlebar.offsetHeight) : 46;
+  const minY = titlebarHeight + 6;
+
+  const overlayBottomVar = parseFloat(rootStyle.getPropertyValue("--bottom-overlays-bottom")) || 0;
+  const wrapper = document.querySelector<HTMLElement>(".player-controls-wrapper");
+  const controls = wrapper?.querySelector<HTMLElement>(".player-controls");
+  let controlsReserved = 0;
+  if (wrapper && controls) {
+    const bottomBase = parseFloat(getComputedStyle(wrapper).bottom) || 0;
+    const strip = wrapper.querySelector<HTMLElement>(".waveform-activity-strip--visible");
+    const stripExtra = strip ? strip.offsetHeight + 8 : 0;
+    controlsReserved = bottomBase + controls.offsetHeight + stripExtra + 14;
+  }
+
+  const reservedBottom = Math.max(8, overlayBottomVar, controlsReserved);
+  const maxY = Math.max(minY + 120, cssInnerHeight - reservedBottom);
+  return { minY, maxY };
+}
+
 export function ContextMenu({
   x,
   y,
@@ -103,8 +144,13 @@ export function ContextMenu({
   const { dict } = useTranslation();
   const menuRef = useRef<HTMLDivElement>(null);
   const [activeSubmenu, setActiveSubmenu] = useState<string | null>(null);
+  const [activeNestedSubmenu, setActiveNestedSubmenu] = useState<string | null>(null);
   const closeTimerRef = useRef<number | null>(null);
   const openTimerRef = useRef<number | null>(null);
+  const nestedCloseTimerRef = useRef<number | null>(null);
+  const nestedOpenTimerRef = useRef<number | null>(null);
+  const styleSwitchGuardUntilRef = useRef<number>(0);
+  const prevOriginCoordsRef = useRef<{ x: number; y: number } | null>(null);
 
   const {
     mediaInfo,
@@ -115,7 +161,9 @@ export function ContextMenu({
     selectSubTrack,
     disableSubtitles,
     downloadingTrackKey,
+    trackDownloadState,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
   } = usePlayerState();
 
   const [currentSpeed, setCurrentSpeed] = useState<number>(1.0);
@@ -125,7 +173,18 @@ export function ContextMenu({
   const [ambientMode, setAmbientMode] = useState<AmbientMode>("off");
   const [currentTimePos, setCurrentTimePos] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
-  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [playerTheme, setPlayerThemeState] = useState<PlayerTheme>(() => getPlayerTheme());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle(getPlayerTheme()),
+  );
+  const lastClassicStyleRef = useRef<"modern" | "docked">(
+    controlBarStyle === "docked" ? "docked" : "modern",
+  );
+  useEffect(() => {
+    if (controlBarStyle !== "capsule") {
+      lastClassicStyleRef.current = controlBarStyle;
+    }
+  }, [controlBarStyle]);
   const [recentFiles, setRecentFiles] = useState<RecentFile[]>(() => getRecentFiles());
   const [menuLayout, setMenuLayout] = useState<LayoutEntry[]>(() => getSavedLayout());
 
@@ -233,11 +292,13 @@ export function ContextMenu({
       });
 
     const handleSettingsChanged = () => {
+      const nextTheme = getPlayerTheme();
+      setPlayerThemeState(nextTheme);
       setHotkeys(getCustomHotkeys());
       setHeatmapConfig(getHeatmapConfig());
       setCurrentTimePos(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle());
+      setControlBarStyle(getSavedControlBarStyle(nextTheme));
       setRecentFiles(getRecentFiles());
       setActivePresetId(getSavedActivePresetId());
       setUpscaleMode((localStorage.getItem("l-mpv-upscale-mode") as "off" | "ai") || "off");
@@ -307,17 +368,19 @@ export function ContextMenu({
     const cssX = x / zoom;
     const cssY = y / zoom;
     const cssInnerWidth = window.innerWidth / zoom;
-    const cssInnerHeight = window.innerHeight / zoom;
+    const { minY, maxY } = getSafeVerticalBounds(zoom);
 
     const estWidth = 220;
     const estHeight = 440;
 
-    const newX = cssX + estWidth> cssInnerWidth ? cssX - estWidth : cssX;
-    const newY = cssY + estHeight> cssInnerHeight ? cssY - estHeight : cssY;
+    const rawX = cssX + estWidth > cssInnerWidth - 8 ? cssX - estWidth : cssX;
+    const rawY = cssY + estHeight > maxY ? cssY - estHeight : cssY;
+    const clampedX = Math.max(8, Math.min(rawX, cssInnerWidth - estWidth - 8));
+    const clampedY = Math.max(minY, Math.min(rawY, maxY - estHeight));
 
     return {
-      x: Math.round(Math.max(0, newX)),
-      y: Math.round(Math.max(0, newY)),
+      x: Math.round(clampedX),
+      y: Math.round(clampedY),
     };
   });
 
@@ -327,22 +390,46 @@ export function ContextMenu({
       const rect = menuRef.current.getBoundingClientRect();
       const cssWidth = rect.width / zoom;
       const cssHeight = rect.height / zoom;
+      const cssInnerWidth = window.innerWidth / zoom;
+      const { minY, maxY } = getSafeVerticalBounds(zoom);
+
+      const coordsChanged =
+        !prevOriginCoordsRef.current ||
+        prevOriginCoordsRef.current.x !== x ||
+        prevOriginCoordsRef.current.y !== y;
+      prevOriginCoordsRef.current = { x, y };
+
+      if (!coordsChanged) {
+        // При смене стиля/темы прямо из меню сохраняем текущее положение окна,
+        // лишь мягко поджимая границы при росте высоты, чтобы меню не «прыгало» из-под курсора
+        setAdjustedPos((prev) => {
+          const clampedX = Math.max(8, Math.min(prev.x, cssInnerWidth - cssWidth - 8));
+          const clampedY = Math.max(minY, Math.min(prev.y, maxY - cssHeight));
+          if (Math.round(clampedX) === prev.x && Math.round(clampedY) === prev.y) {
+            return prev;
+          }
+          return { x: Math.round(clampedX), y: Math.round(clampedY) };
+        });
+        setMenuWidth(cssWidth);
+        setPositioned(true);
+        return;
+      }
+
       const cssX = x / zoom;
       const cssY = y / zoom;
-      const cssInnerWidth = window.innerWidth / zoom;
-      const cssInnerHeight = window.innerHeight / zoom;
-
-      const newX = cssX + cssWidth> cssInnerWidth ? cssX - cssWidth : cssX;
-      const newY = cssY + cssHeight> cssInnerHeight ? cssY - cssHeight : cssY;
+      const rawX = cssX + cssWidth > cssInnerWidth - 8 ? cssX - cssWidth : cssX;
+      const rawY = cssY + cssHeight > maxY ? cssY - cssHeight : cssY;
+      const clampedX = Math.max(8, Math.min(rawX, cssInnerWidth - cssWidth - 8));
+      const clampedY = Math.max(minY, Math.min(rawY, maxY - cssHeight));
 
       setAdjustedPos({
-        x: Math.round(Math.max(0, newX)),
-        y: Math.round(Math.max(0, newY)),
+        x: Math.round(clampedX),
+        y: Math.round(clampedY),
       });
       setMenuWidth(cssWidth);
       setPositioned(true);
     }
-  }, [x, y]);
+  }, [x, y, controlBarStyle]);
 
   // Инициализация скорости из стейта
   useEffect(() => {
@@ -382,7 +469,27 @@ export function ContextMenu({
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
+    if (nestedOpenTimerRef.current !== null) {
+      window.clearTimeout(nestedOpenTimerRef.current);
+      nestedOpenTimerRef.current = null;
+    }
+    if (nestedCloseTimerRef.current !== null) {
+      window.clearTimeout(nestedCloseTimerRef.current);
+      nestedCloseTimerRef.current = null;
+    }
   }, []);
+
+  useEffect(() => {
+    setActiveNestedSubmenu(null);
+    if (nestedOpenTimerRef.current !== null) {
+      window.clearTimeout(nestedOpenTimerRef.current);
+      nestedOpenTimerRef.current = null;
+    }
+    if (nestedCloseTimerRef.current !== null) {
+      window.clearTimeout(nestedCloseTimerRef.current);
+      nestedCloseTimerRef.current = null;
+    }
+  }, [activeSubmenu]);
 
   const { handleClose, isPresent } = useSurfaceDismiss({
     onClose,
@@ -440,21 +547,23 @@ export function ContextMenu({
     try {
       await invoke("set_speed", { speed });
       setCurrentSpeed(speed);
+      showOsd(dict.osd.speed(formatSpeedValue(speed)), { icon: "speed" });
     } catch (e) {
       console.error("Ошибка установки скорости воспроизведения:", e);
     }
-  }, []);
+  }, [dict.osd]);
 
   const handleSetFrameMode = useCallback(async (mode: "stretch" | "fit" | "fill") => {
     try {
       await invoke("set_frame_mode", { mode });
       setFrameMode(mode);
+      window.dispatchEvent(new Event("l-mpv-video-bounds-changed"));
       const labels = {
         stretch: dict.settings.cmenuUI.frameStretch,
         fit: dict.settings.cmenuUI.frameFit,
         fill: dict.settings.cmenuUI.frameFill,
       };
-      showOsd(dict.settings.cmenuUI.osdFrame(labels[mode]));
+      showOsd(dict.settings.cmenuUI.osdFrame(labels[mode]), { icon: "frame" });
     } catch (e) {
       console.error("Ошибка смены режима видеокадра:", e);
       showOsd(dict.settings.cmenuUI.errFrame(String(e)), { isError: true });
@@ -465,6 +574,7 @@ export function ContextMenu({
     try {
       await invoke("set_rotation", { degrees });
       window.dispatchEvent(new Event("l-mpv-preview-transform-changed"));
+      window.dispatchEvent(new Event("l-mpv-video-bounds-changed"));
       setCurrentRotation(degrees);
     } catch (e) {
       console.error("Ошибка установки поворота видео:", e);
@@ -483,7 +593,7 @@ export function ContextMenu({
         ambilight: dict.settings.cmenuUI.ambientAmbilight,
         color: dict.settings.cmenuUI.ambientColor,
       };
-      showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode));
+      showOsd(dict.settings.cmenuUI.osdAmbient(labels[updated.mode] || updated.mode), { icon: "ambient" });
       window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: updated }));
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
@@ -505,7 +615,7 @@ export function ContextMenu({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      showOsd(dict.settings.cmenuUI.osdScreenshot);
+      showOsd(dict.settings.cmenuUI.osdScreenshot, { icon: "screenshot" });
     } catch (e) {
       console.error("Ошибка при сохранении кадра:", e);
       showOsd(dict.settings.cmenuUI.osdScreenshotErr, { isError: true });
@@ -522,7 +632,7 @@ export function ContextMenu({
         1: dict.settings.cmenuUI.repeatOne,
         2: dict.settings.cmenuUI.repeatAll,
       } as const;
-      showOsd(dict.settings.cmenuUI.osdRepeat(labels[mode]));
+      showOsd(dict.settings.cmenuUI.osdRepeat(labels[mode]), { icon: "repeat" });
     } catch (e) {
       console.error("Ошибка установки режима повтора:", e);
       showOsd(dict.settings.cmenuUI.errRepeat(String(e)), { isError: true });
@@ -544,7 +654,7 @@ export function ContextMenu({
     try {
       await applySettingsPreset(preset);
       setActivePresetId(preset.id);
-      showOsd(dict.settings.cmenuUI.osdPreset(preset.name));
+      showOsd(dict.settings.cmenuUI.osdPreset(preset.name), { icon: "sparkles" });
     } catch (e) {
       console.error("Ошибка применения пресета:", e);
       showOsd(dict.settings.cmenuUI.osdPresetErr, { isError: true });
@@ -563,7 +673,7 @@ export function ContextMenu({
       await invoke("apply_upscale_settings", { settings: updated });
       setUpscaleMode("off");
       localStorage.setItem("l-mpv-upscale-mode", "off");
-      showOsd(dict.settings.cmenuUI.osdUpscaleOff);
+      showOsd(dict.settings.cmenuUI.osdUpscaleOff, { icon: "sparkles" });
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка выключения апскейлинга:", e);
@@ -585,7 +695,7 @@ export function ContextMenu({
       localStorage.setItem("l-mpv-upscale-mode", "ai");
       localStorage.setItem("l-mpv-upscale-selected-model", model.filename);
       localStorage.setItem("l-mpv-upscale-slot", String(model.slot));
-      showOsd(dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename));
+      showOsd(dict.settings.cmenuUI.osdUpscaleModel(model.display_name || model.filename), { icon: "sparkles" });
       window.dispatchEvent(new Event("l-mpv-settings-changed"));
     } catch (e) {
       console.error("Ошибка включения модели апскейлинга:", e);
@@ -627,11 +737,48 @@ export function ContextMenu({
 
   const handleSelectControlBarStyle = useCallback(
     (style: ControlBarStyle, label: string) => {
-      saveControlBarStyle(style);
+      styleSwitchGuardUntilRef.current = performance.now() + 260;
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      if (nestedCloseTimerRef.current !== null) {
+        window.clearTimeout(nestedCloseTimerRef.current);
+        nestedCloseTimerRef.current = null;
+      }
+      if (nestedOpenTimerRef.current !== null) {
+        window.clearTimeout(nestedOpenTimerRef.current);
+        nestedOpenTimerRef.current = null;
+      }
+      saveControlBarStyle(style, getPlayerTheme());
       setControlBarStyle(style);
       showOsd(dict.settings.cmenuUI.osdBarStyle(label));
     },
     [dict.settings.cmenuUI]
+  );
+
+  const handleSelectPlayerTheme = useCallback(
+    (theme: PlayerTheme, label: string) => {
+      styleSwitchGuardUntilRef.current = performance.now() + 260;
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+      if (nestedCloseTimerRef.current !== null) {
+        window.clearTimeout(nestedCloseTimerRef.current);
+        nestedCloseTimerRef.current = null;
+      }
+      if (nestedOpenTimerRef.current !== null) {
+        window.clearTimeout(nestedOpenTimerRef.current);
+        nestedOpenTimerRef.current = null;
+      }
+      setPlayerTheme(theme);
+      setPlayerThemeState(theme);
+      const nextStyle = getSavedControlBarStyle(theme);
+      setControlBarStyle(nextStyle);
+      showOsd(`${dict.settings.appearance.interfaceTheme}: ${label}`, { icon: "sparkles" });
+    },
+    [dict.settings.appearance.interfaceTheme]
   );
 
   // ── Обработчики тепловой карты (Activity Heatmap) ──
@@ -642,7 +789,8 @@ export function ContextMenu({
     showOsd(
       nextState
         ? dict.settings.cmenuUI.osdHeatmapOn
-        : dict.settings.cmenuUI.osdHeatmapOff
+        : dict.settings.cmenuUI.osdHeatmapOff,
+      { icon: "visualizer" }
     );
   }, [heatmapConfig.enabled, dict.settings.cmenuUI]);
 
@@ -685,6 +833,7 @@ export function ContextMenu({
         audioTracks,
         subTracks,
         downloadingTrackKey,
+        trackDownloadState,
         ambientMode,
         currentSpeed,
         currentRotation,
@@ -692,7 +841,9 @@ export function ContextMenu({
         repeatMode,
         currentTimePos,
         timeFormat,
+        playerTheme,
         controlBarStyle,
+        classicStyle: controlBarStyle !== "capsule" ? controlBarStyle : lastClassicStyleRef.current,
         userPresets,
         activePresetId,
         upscaleModels,
@@ -718,6 +869,7 @@ export function ContextMenu({
         handleSetRotation,
         handleSetAmbientMode,
         handleDownloadTrack,
+        handleCancelDownloadTrack,
         handleToggleAlwaysOnTop,
         handleTakeScreenshot,
         handleSetRepeatMode,
@@ -729,6 +881,7 @@ export function ContextMenu({
         handleToggleControlButton,
         handleSelectTimePosition,
         handleSelectTimeFormat,
+        handleSelectPlayerTheme,
         handleSelectControlBarStyle,
         heatmapConfig,
         handleToggleHeatmap,
@@ -743,6 +896,7 @@ export function ContextMenu({
       audioTracks,
       subTracks,
       downloadingTrackKey,
+      trackDownloadState,
       ambientMode,
       currentSpeed,
       currentRotation,
@@ -750,6 +904,7 @@ export function ContextMenu({
       repeatMode,
       currentTimePos,
       timeFormat,
+      playerTheme,
       controlBarStyle,
       userPresets,
       activePresetId,
@@ -776,6 +931,7 @@ export function ContextMenu({
       handleSetRotation,
       handleSetAmbientMode,
       handleDownloadTrack,
+      handleCancelDownloadTrack,
       handleToggleAlwaysOnTop,
       handleTakeScreenshot,
       handleSetRepeatMode,
@@ -787,6 +943,7 @@ export function ContextMenu({
       handleToggleControlButton,
       handleSelectTimePosition,
       handleSelectTimeFormat,
+      handleSelectPlayerTheme,
       handleSelectControlBarStyle,
       heatmapConfig,
       handleToggleHeatmap,
@@ -795,12 +952,51 @@ export function ContextMenu({
     ]
   );
 
+  useLayoutEffect(() => {
+    if (!positioned) return;
+    // Гарантируем, что открытое подменю также не пересекает верхний Titlebar и нижнюю панель управления
+    const submenuEl = menuRef.current?.querySelector<HTMLElement>(".context-menu__submenu");
+    if (submenuEl) {
+      submenuEl.style.transform = "";
+      const zoom = getUiScale();
+      const { minY, maxY } = getSafeVerticalBounds(zoom);
+      const subRect = submenuEl.getBoundingClientRect();
+      const subTopCss = subRect.top / zoom;
+      const subBottomCss = subRect.bottom / zoom;
+      let shiftY = 0;
+      if (subBottomCss > maxY) {
+        shiftY = maxY - subBottomCss;
+      }
+      if (subTopCss + shiftY < minY) {
+        shiftY = minY - subTopCss;
+      }
+      if (Math.abs(shiftY) > 0.5) {
+        submenuEl.style.transform = `translateY(${Math.round(shiftY)}px)`;
+      }
+    }
+    notifyLiquidGlassSync();
+    notifyLiquidGlassAnimation(180);
+    return () => {
+      queueMicrotask(() => {
+        notifyLiquidGlassSync();
+        notifyLiquidGlassAnimation(180);
+      });
+    };
+  }, [positioned, activeSubmenu, playerTheme, controlBarStyle, adjustedPos.x, adjustedPos.y, menuItems.length]);
+
   // Проверка близости к правому краю для открытия подменю влево.
   // Ширина меню — измеренная (а не константа), ширина подменю — оценка 220.
   const isRightScreenEdge = useMemo(() => {
     if (typeof window === "undefined") return false;
     const zoom = getUiScale();
-    return adjustedPos.x + menuWidth + 220> (window.innerWidth / zoom);
+    return adjustedPos.x + menuWidth + 220 > (window.innerWidth / zoom);
+  }, [adjustedPos.x, menuWidth]);
+
+  // Для вложенного подменю третьего уровня: проверяем, поместятся ли оба окна
+  const isRightScreenEdgeForNested = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const zoom = getUiScale();
+    return adjustedPos.x + menuWidth + 420 > (window.innerWidth / zoom);
   }, [adjustedPos.x, menuWidth]);
 
   // Красивая точка роста меню: origin следует за реальным флипом по X/Y
@@ -815,9 +1011,15 @@ export function ContextMenu({
     return `${vertical} ${horizontal}`;
   }, [adjustedPos.x, adjustedPos.y, x, y]);
 
+  const interactiveItemCount = useMemo(
+    () => menuItems.filter((it) => it.type !== "divider" && it.type !== "header").length,
+    [menuItems],
+  );
+
   // ─── Рендеринг пункта меню ────────────────────────
   const renderItem = useCallback(
-    (item: MenuItem, index: number, isSubmenuChild: boolean = false) => {
+    (item: MenuItem, index: number, depth: number = 0, currentInteractiveCount?: number) => {
+      const activeItemCount = currentInteractiveCount ?? interactiveItemCount;
       if (item.type === "divider") {
         return (
           <div
@@ -829,17 +1031,36 @@ export function ContextMenu({
                 window.clearTimeout(openTimerRef.current);
                 openTimerRef.current = null;
               }
-              if (!isSubmenuChild) {
+              if (depth === 0) {
                 if (closeTimerRef.current !== null) {
                   window.clearTimeout(closeTimerRef.current);
                 }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
                   closeTimerRef.current = null;
                 }, 250);
-              } else if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              } else if (depth === 1) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 150);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
               }
             }}
           />
@@ -869,17 +1090,36 @@ export function ContextMenu({
                 window.clearTimeout(openTimerRef.current);
                 openTimerRef.current = null;
               }
-              if (!isSubmenuChild) {
+              if (depth === 0) {
                 if (closeTimerRef.current !== null) {
                   window.clearTimeout(closeTimerRef.current);
                 }
                 closeTimerRef.current = window.setTimeout(() => {
                   setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
                   closeTimerRef.current = null;
                 }, 250);
-              } else if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              } else if (depth === 1) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 150);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
               }
             }}
             >
@@ -889,10 +1129,20 @@ export function ContextMenu({
               aria-checked={Boolean(item.active)}
               className={`context-menu__track-btn ${
                 item.active ? "context-menu__track-btn--active" : ""
+              } ${
+                item.isDownloading || item.isDownloadCompleted
+                  ? "context-menu__track-btn--liquid"
+                  : ""
               }`}
               onClick={item.action}
               title={item.title || item.label}
               >
+              {(item.isDownloading || item.isDownloadCompleted) && (
+                <TrackLiquidProgressFill
+                  progress={item.downloadProgress ?? 0}
+                  status={item.isDownloadCompleted ? "completed" : "running"}
+                />
+              )}
               <span className="context-menu__track-main">
                 <span className="context-menu__track-title">{item.label}</span>
                 {item.isExternal && (
@@ -912,76 +1162,122 @@ export function ContextMenu({
               </span>
             </button>
             {item.onDownload && (
-              <button
-                type="button"
-                className="track-download-btn"
-                aria-label={item.downloadTitle || dict.controls.downloadAudio}
-                title={item.downloadTitle || dict.controls.downloadAudio}
-                disabled={item.isDownloading}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  item.onDownload?.();
-                }}
-                >
-                {item.isDownloading ? (
-                  <Loader2 size={13} className="spin-animation" />
-                ) : (
-                  <Download size={13} />
-                )}
-              </button>
+              <TrackDownloadActionButton
+                downloadLabel={item.downloadTitle || dict.controls.downloadAudio}
+                cancelLabel={dict.controls.cancelDownload}
+                completedLabel={dict.controls.downloadCompleted}
+                status={
+                  item.isDownloading
+                    ? "running"
+                    : item.isDownloadCompleted
+                    ? "completed"
+                    : "idle"
+                }
+                progress={item.downloadProgress ?? 0}
+                iconSize={13}
+                onDownload={item.onDownload}
+                onCancel={item.onCancelDownload}
+              />
             )}
           </div>
         );
       }
 
       if (item.type === "submenu") {
-        const submenuId = `submenu-${index}`;
-        const isBottomHalf = index > menuItems.length / 2;
-        const isSubmenuOpen = activeSubmenu === submenuId;
+        const isNestedSubmenu = depth > 0;
+        const submenuId = item.id || (isNestedSubmenu ? `nested-submenu-${index}` : `submenu-${index}`);
+        const isBottomHalf = index > activeItemCount / 2;
+        const isSubmenuOpen = isNestedSubmenu
+          ? activeNestedSubmenu === submenuId
+          : activeSubmenu === submenuId;
+        const isLeftPosition = isNestedSubmenu ? isRightScreenEdgeForNested : isRightScreenEdge;
+
         return (
           <div
             key={submenuId}
             role="none"
             style={{
               position: "relative",
-              zIndex: isSubmenuOpen ? 100 : 1,
+              zIndex: isSubmenuOpen ? (isNestedSubmenu ? 200 : 100) : 1,
             }}
             onMouseEnter={() => {
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-                closeTimerRef.current = null;
+              if (isNestedSubmenu) {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                  nestedCloseTimerRef.current = null;
+                }
+                if (activeNestedSubmenu === submenuId) {
+                  if (nestedOpenTimerRef.current !== null) {
+                    window.clearTimeout(nestedOpenTimerRef.current);
+                    nestedOpenTimerRef.current = null;
+                  }
+                  return;
+                }
+                if (nestedOpenTimerRef.current !== null) {
+                  window.clearTimeout(nestedOpenTimerRef.current);
+                }
+                const delay = activeNestedSubmenu ? 120 : 40;
+                nestedOpenTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(submenuId);
+                  nestedOpenTimerRef.current = null;
+                }, delay);
+              } else {
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                  closeTimerRef.current = null;
+                }
+                if (activeSubmenu === submenuId) {
+                  if (openTimerRef.current !== null) {
+                    window.clearTimeout(openTimerRef.current);
+                    openTimerRef.current = null;
+                  }
+                  return;
+                }
+                if (openTimerRef.current !== null) {
+                  window.clearTimeout(openTimerRef.current);
+                }
+                const delay = activeSubmenu ? 150 : 50;
+                openTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(submenuId);
+                  setActiveNestedSubmenu(null);
+                  openTimerRef.current = null;
+                }, delay);
               }
-              if (activeSubmenu === submenuId) {
+            }}
+            onMouseLeave={() => {
+              if (performance.now() < styleSwitchGuardUntilRef.current) {
+                return;
+              }
+              if (isNestedSubmenu) {
+                if (nestedOpenTimerRef.current !== null) {
+                  window.clearTimeout(nestedOpenTimerRef.current);
+                  nestedOpenTimerRef.current = null;
+                }
+                if (nestedCloseTimerRef.current !== null) {
+                  window.clearTimeout(nestedCloseTimerRef.current);
+                }
+                nestedCloseTimerRef.current = window.setTimeout(() => {
+                  setActiveNestedSubmenu(null);
+                  nestedCloseTimerRef.current = null;
+                }, 200);
+              } else {
                 if (openTimerRef.current !== null) {
                   window.clearTimeout(openTimerRef.current);
                   openTimerRef.current = null;
                 }
-                return;
+                if (closeTimerRef.current !== null) {
+                  window.clearTimeout(closeTimerRef.current);
+                }
+                closeTimerRef.current = window.setTimeout(() => {
+                  setActiveSubmenu(null);
+                  setActiveNestedSubmenu(null);
+                  closeTimerRef.current = null;
+                }, 250);
               }
-              if (openTimerRef.current !== null) {
-                window.clearTimeout(openTimerRef.current);
-              }
-              // Защита безопасного перехода: если другое подменю уже открыто,
-              // переключаемся с небольшой задержкой (hover-intent 150мс),
-              // чтобы диагональный транзит мыши не ломал текущее открытое подменю
-              const delay = activeSubmenu ? 150 : 50;
-              openTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(submenuId);
-                openTimerRef.current = null;
-              }, delay);
-            }}
-            onMouseLeave={() => {
-              if (openTimerRef.current !== null) {
-                window.clearTimeout(openTimerRef.current);
-                openTimerRef.current = null;
-              }
-              if (closeTimerRef.current !== null) {
-                window.clearTimeout(closeTimerRef.current);
-              }
-              closeTimerRef.current = window.setTimeout(() => {
-                setActiveSubmenu(null);
-                closeTimerRef.current = null;
-              }, 250);
             }}
             >
             <button
@@ -990,17 +1286,22 @@ export function ContextMenu({
               aria-haspopup="menu"
               aria-expanded={isSubmenuOpen}
               className={`context-menu__item ${isSubmenuOpen ? "context-menu__item--submenu-open" : ""} ${
-                isRightScreenEdge ? "context-menu__item--submenu-left" : ""
-              }`}
+                item.active ? "context-menu__item--active" : ""
+              } ${isLeftPosition ? "context-menu__item--submenu-left" : ""}`}
               onClick={item.action}
               >
-              <span className="context-menu__item-icon">
-                {item.icon}
-              </span>
-              <span className="context-menu__item-label">
+              {item.icon && (
+                <span className="context-menu__item-icon">
+                  {item.icon}
+                </span>
+              )}
+              <span className="context-menu__item-label context-menu__item-label--truncate">
                 {item.label}
               </span>
-              <ChevronRight size={15} style={{ opacity: 0.5 }} />
+              {item.active && item.indicator === "dot" && (
+                <span className="context-menu__radio-dot" aria-hidden="true" style={{ marginRight: 6 }} />
+              )}
+              <ChevronRight size={15} style={{ opacity: 0.5, marginLeft: item.active && item.indicator === "dot" ? 0 : "auto" }} />
             </button>
 
             {isSubmenuOpen && item.children && (
@@ -1013,7 +1314,7 @@ export function ContextMenu({
                     : "context-menu__submenu--solid"
                 } ${
                   item.submenuClassName || ""
-                } ${isRightScreenEdge ? "context-menu__submenu--left" : ""} ${
+                } ${isLeftPosition ? "context-menu__submenu--left" : ""} ${
                   isBottomHalf ? "context-menu__submenu--bottom" : ""
                 }`}
                 onMouseEnter={() => {
@@ -1024,6 +1325,14 @@ export function ContextMenu({
                   if (openTimerRef.current !== null) {
                     window.clearTimeout(openTimerRef.current);
                     openTimerRef.current = null;
+                  }
+                  if (nestedCloseTimerRef.current !== null) {
+                    window.clearTimeout(nestedCloseTimerRef.current);
+                    nestedCloseTimerRef.current = null;
+                  }
+                  if (nestedOpenTimerRef.current !== null) {
+                    window.clearTimeout(nestedOpenTimerRef.current);
+                    nestedOpenTimerRef.current = null;
                   }
                 }}
                 >
@@ -1040,10 +1349,10 @@ export function ContextMenu({
                             {group.header}
                           </div>
                         )}
-                        {group.items.map((child, ci) => renderItem(child, ci, true))}
+                        {group.items.map((child, ci) => renderItem(child, ci, depth + 1, group.items.length))}
                       </div>
                     ))
-                  : item.children.map((child, ci) => renderItem(child, ci, true))}
+                  : item.children.map((child, ci) => renderItem(child, ci, depth + 1, item.children!.length))}
               </div>
             )}
           </div>
@@ -1072,17 +1381,36 @@ export function ContextMenu({
               window.clearTimeout(openTimerRef.current);
               openTimerRef.current = null;
             }
-            if (!isSubmenuChild) {
+            if (depth === 0) {
               if (closeTimerRef.current !== null) {
                 window.clearTimeout(closeTimerRef.current);
               }
               closeTimerRef.current = window.setTimeout(() => {
                 setActiveSubmenu(null);
+                setActiveNestedSubmenu(null);
                 closeTimerRef.current = null;
               }, 250);
-            } else if (closeTimerRef.current !== null) {
-              window.clearTimeout(closeTimerRef.current);
-              closeTimerRef.current = null;
+            } else if (depth === 1) {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
+              }
+              if (nestedCloseTimerRef.current !== null) {
+                window.clearTimeout(nestedCloseTimerRef.current);
+              }
+              nestedCloseTimerRef.current = window.setTimeout(() => {
+                setActiveNestedSubmenu(null);
+                nestedCloseTimerRef.current = null;
+              }, 150);
+            } else {
+              if (closeTimerRef.current !== null) {
+                window.clearTimeout(closeTimerRef.current);
+                closeTimerRef.current = null;
+              }
+              if (nestedCloseTimerRef.current !== null) {
+                window.clearTimeout(nestedCloseTimerRef.current);
+                nestedCloseTimerRef.current = null;
+              }
             }
           }}
           >
@@ -1109,7 +1437,7 @@ export function ContextMenu({
         </button>
       );
     },
-    [activeSubmenu, isRightScreenEdge, menuItems.length, dict.controls.downloadAudio, controlBarStyle]
+    [activeSubmenu, activeNestedSubmenu, isRightScreenEdge, isRightScreenEdgeForNested, interactiveItemCount, dict.controls.downloadAudio, controlBarStyle]
   );
 
   const isCapsule = controlBarStyle === "capsule";
@@ -1145,11 +1473,17 @@ export function ContextMenu({
               )}
               {group.items.map((item) => {
                 const itemIdx = renderedItemCount++;
-                return renderItem(item, itemIdx, false);
+                return renderItem(item, itemIdx, 0);
               })}
             </div>
           ))
-        : menuItems.map((item, index) => renderItem(item, index, false))}
+        : menuItems.map((item, rawIndex) => {
+            if (item.type === "divider" || item.type === "header") {
+              return renderItem(item, rawIndex, 0);
+            }
+            const itemIdx = renderedItemCount++;
+            return renderItem(item, itemIdx, 0);
+          })}
     </MotionSurface>
   );
 }

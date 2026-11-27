@@ -6,4 +6,7 @@ export * from "./track-popover";
 export * from "./SpeedPopover";
 export * from "./SpeedIcon";
 export * from "./AppPlayIcon";
-
+export * from "./PlayPauseMorphIcon";
+export * from "./VolumeMorphIcon";
+export * from "./FullscreenMorphIcon";
+export * from "./PinMorphIcon";

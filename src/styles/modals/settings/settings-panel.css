@@ -1,0 +1,460 @@
+:root {
+  --settings-panel-width: clamp(560px, 64vw, 720px);
+  --settings-panel-css-width: var(--settings-panel-width);
+  --player-controls-bottom: 12px;
+  --settings-panel-top-inset: calc(var(--radius-controls, 16px) * 0.5);
+  --settings-panel-left-inset: calc(var(--radius-controls, 16px) * 0.5);
+  --settings-panel-offset: 720px;
+  --settings-controls-left: 734px;
+  --settings-controls-width: calc(100% - 748px);
+  --settings-docked-left: 720px;
+  --settings-docked-width: calc(100% - 720px);
+}
+
+.settings-panel-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-panel);
+  pointer-events: none;
+  background: transparent;
+}
+
+.settings-side-panel {
+  position: fixed;
+  inset: var(--settings-panel-top-inset, calc(var(--radius-controls, 16px) * 0.5)) auto var(--player-controls-bottom, 12px) var(--settings-panel-left-inset, 0px);
+  width: var(--settings-panel-css-width);
+  z-index: var(--z-panel-in);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  pointer-events: auto;
+  background: var(--bg-glass, rgba(var(--bg-glass-rgb, 16, 19, 28), var(--ui-opacity, 0.88)));
+  border: 1px solid var(--border-default);
+  border-radius: var(--radius-surface);
+  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.35), 0 0 1px rgba(255, 255, 255, 0.08);
+  transform-origin: left center;
+  container-type: inline-size;
+  container-name: settings-shell;
+  transition: background 0.25s var(--ease-smooth),
+              box-shadow 0.25s var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth),
+              border-radius var(--t-spring) var(--ease-spring-smooth);
+}
+
+/* ─── Карточки опций в панели настроек ─── */
+.option-card {
+  position: relative;
+  background: var(--surface-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth);
+}
+
+/* Options inside a card carry their own hover/focus, not its outer frame. */
+
+.settings-side-panel__nav {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 54px;
+  padding: var(--space-5) 14px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  user-select: none;
+}
+
+.settings-side-panel__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.settings-side-panel__nav-title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: max-content;
+  margin-right: var(--space-5);
+  flex-shrink: 0;
+  font-size: var(--fs-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.settings-side-panel__nav-sep {
+  width: 1px;
+  height: 20px;
+  margin: 0 5px;
+  flex-shrink: 0;
+  background: var(--border);
+}
+
+.settings-side-panel__nav-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 1px solid transparent;
+  background-clip: padding-box;
+  box-sizing: border-box;
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth);
+}
+
+.settings-side-panel__nav-btn:hover {
+  background: var(--hover-veil);
+  color: var(--text-primary);
+}
+
+.settings-side-panel__nav-btn--active {
+  background: var(--surface-accent-subtle);
+  color: var(--accent-text);
+  border-color: var(--selection-frame);
+  box-shadow: var(--selection-shadow);
+}
+
+.settings-side-panel__nav-btn--active:hover {
+  background: var(--surface-accent-hover);
+  color: var(--accent-text);
+}
+
+.settings-side-panel__nav-btn svg {
+  display: block;
+  flex-shrink: 0;
+}
+
+.settings-side-panel__close {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: var(--radius-control);
+  transition: background var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-out);
+}
+
+.settings-side-panel__close:hover {
+  background: var(--action-hover-veil);
+  border-color: var(--border-pill-hover);
+  color: var(--text-primary);
+}
+
+.settings-side-panel__close:active {
+  transform: scale(0.9);
+}
+
+.settings-side-panel__scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: var(--settings-section-padding) 20px;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+  scrollbar-gutter: auto !important;
+  overscroll-behavior: contain;
+  overflow-anchor: none;
+  scroll-behavior: smooth;
+}
+
+.settings-side-panel__scroll::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* ─── Шапка навигации боковой панели: чистая компоновка без темной тени при скролле ─── */
+.settings-side-panel__nav {
+  position: relative;
+  z-index: 2;
+  box-shadow: none !important;
+}
+
+.settings-section-block {
+  position: relative;
+  min-width: 0;
+  padding-top: var(--space-4);
+  margin-bottom: var(--space-10);
+}
+
+.settings-section-anchor {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+  min-height: 0;
+  margin: 0 0 12px;
+  padding: 0 2px 10px;
+  color: var(--accent-text);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(var(--accent-rgb), 0.28);
+  border-radius: 0;
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.15;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.settings-section-content {
+  position: relative;
+  display: flow-root;
+  min-width: 0;
+  padding-top: 0;
+}
+.settings-section-block:last-child { margin-bottom: 0; }
+
+.settings-section-content > *:last-child,
+.settings-section-content > .modal__section > *:last-child {
+  margin-bottom: 0;
+}
+
+.settings-section-anchor > svg {
+  flex-shrink: 0;
+  color: var(--accent-text);
+}
+
+.settings-section-placeholder {
+  height: 180px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  background: linear-gradient(100deg, var(--surface-level-2), var(--surface-level-3), var(--surface-level-2));
+  opacity: 0.65;
+}
+
+.player-controls-wrapper,
+.player-controls-wrapper--docked {
+  transition: left 220ms var(--ease-out), width 220ms var(--ease-out), opacity var(--t-base) var(--ease-smooth), transform var(--t-base) var(--ease-out);
+}
+
+.titlebar__left,
+.titlebar__center {
+  transition: transform 220ms var(--ease-out);
+}
+
+body.settings-open .titlebar__left {
+  transform: translateX(var(--settings-panel-offset, 0px));
+}
+
+body.settings-open .titlebar__center {
+  transform: translateX(calc(-50% + var(--settings-panel-offset, 0px)));
+}
+
+body.settings-open .player-controls-wrapper {
+  left: var(--settings-controls-left);
+  width: var(--settings-controls-width);
+}
+
+body.settings-open .player-controls-wrapper--docked {
+  left: var(--settings-docked-left);
+  width: var(--settings-docked-width);
+}
+
+.settings-side-panel .settings-footer {
+  border-radius: 0 0 var(--radius-surface) var(--radius-surface);
+  flex-shrink: 0;
+}
+
+/* ─── Адаптация боковой панели настроек под стиль «Капсула» ─── */
+.settings-side-panel--capsule {
+  --settings-panel-left-inset: 12px;
+  --settings-panel-top-inset: 12px;
+}
+
+.settings-window-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.settings-window-choice-grid > * {
+  min-width: 0;
+}
+
+.settings-window-choice {
+  width: 100%;
+  gap: 0;
+  align-items: stretch;
+  min-width: 0;
+  margin: 0;
+  padding: var(--padding-card);
+  overflow: hidden;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+}
+
+.settings-window-choice .visual-bar-card__info {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.settings-window-choice .visual-bar-card__label,
+.settings-window-choice .visual-bar-card__desc {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-window-choice .visual-bar-card__label {
+  white-space: nowrap;
+}
+
+.settings-window-choice.visual-bar-card--active {
+  border-width: 1px !important;
+  box-shadow: inset 0 0 0 1.5px transparent !important;
+}
+
+.settings-window-choice__note {
+  margin-top: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+@container settings-shell (max-width: 480px) {
+  .settings-window-choice-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@container settings-shell (max-width: 480px) {
+  .settings-opacity-row {
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .settings-opacity-row > :nth-child(2) {
+    order: 3;
+    flex-basis: 100%;
+  }
+
+  .settings-opacity-row > :nth-child(3) {
+    margin-left: auto;
+  }
+
+  .settings-window-compact-grid,
+  .time-pos-compact-grid,
+  .time-format-compact-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .visual-bar-card--row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .visual-bar-card--row .visual-bar-preview {
+    width: 100%;
+  }
+}
+
+@container settings-shell (max-width: 620px) {
+  .settings-side-panel__scroll {
+    padding: var(--settings-section-padding) 14px;
+  }
+
+  .settings-side-panel__nav {
+    padding-inline: 10px;
+  }
+
+  .settings-side-panel__nav-title {
+    margin-right: var(--space-3);
+  }
+
+  .settings-side-panel__scroll .controls-and-time-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .settings-side-panel .settings-footer {
+    padding-inline: 10px;
+    gap: 8px;
+  }
+
+  .settings-side-panel .settings-footer__left {
+    gap: 8px;
+  }
+
+  .settings-side-panel .settings-footer__edition {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 768px) {
+  :root {
+    --settings-panel-width: 100vw;
+  }
+
+  body.settings-open .titlebar,
+  body.settings-open .player-controls-wrapper,
+  body.settings-open .player-controls-wrapper--docked {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+  }
+}
+
+@media (max-height: 360px) {
+  .settings-side-panel__nav {
+    min-height: 42px;
+    padding-block: 5px;
+  }
+
+  .settings-side-panel__nav-btn,
+  .settings-side-panel__close {
+    width: 30px;
+    height: 30px;
+  }
+
+  .settings-side-panel .settings-footer {
+    padding: var(--space-2) 10px;
+  }
+
+  .settings-footer__edition,
+  .settings-footer__title {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-side-panel {
+    animation: none;
+    transform: translateX(0);
+  }
+
+  .settings-side-panel__scroll {
+    scroll-behavior: auto;
+  }
+
+  .player-controls-wrapper,
+  .player-controls-wrapper--docked {
+    transition: none;
+  }
+
+  .titlebar__left,
+  .titlebar__center {
+    transition: none;
+  }
+}

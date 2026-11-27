@@ -1,8 +1,9 @@
-import { CapsuleControlsPreview } from "../components/CapsuleControlsPreview";
+import { PlayerAppearanceCard } from "../appearance/PlayerAppearanceCard";
+import { SettingsWindowCard } from "../appearance/SettingsWindowCard";
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useState, useCallback, useEffect } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, Clock, RotateCcw, PanelBottom, Timer, Zap, FolderOpen, Eye, Sun
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, RotateCcw, Zap, FolderOpen, Eye, Sun
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../../utils/animationUtils";
@@ -22,14 +23,10 @@ import {
   UI_FONT_PRESETS,
   CustomFontItem,
   registerCustomFont,
-  getSavedUiSettingsStyle,
-  saveUiSettingsStyle,
-  type UiSettingsStyle,
-  DEFAULT_UI_OPACITY,
-} from "../../../utils/uiThemeUtils";
-import { TimeDisplayPosition, TIME_POSITION_OPTIONS } from "../../../utils/timePositionUtils";
-import { TimeFormatMode, TIME_FORMAT_OPTIONS } from "../../../utils/timeFormatUtils";
-import { ControlBarStyle } from "../../../utils/controlBarStyleUtils";
+} from "../../../theme/tokens";
+import { TimeDisplayPosition } from "../../../utils/timePositionUtils";
+import { TimeFormatMode } from "../../../utils/timeFormatUtils";
+import { ControlBarStyle } from "../../../theme/controlBarStyle";
 import {
   saveSeekStepSeconds,
   saveSkipOpeningSeconds,
@@ -37,7 +34,7 @@ import {
 import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
-interface AppearanceSettingsTabProps {
+export interface AppearanceSettingsTabProps {
   activeColor?: string;
   setActiveColor?: (c: string) => void;
   uiRadius: { level: UiRadiusLevel, value: number };
@@ -84,11 +81,7 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     activeColor = "windows",
     uiRadius, saveUiRadius, setUiRadius,
     uiScale, saveUiScale, setUiScale,
-    uiOpacity, saveUiOpacity, setUiOpacity,
     uiFont, saveUiFont, setUiFont,
-    timePosition, saveTimePosition, setTimePosition,
-    timeFormat, saveTimeFormat, setTimeFormat,
-    controlBarStyle, saveControlBarStyle, setControlBarStyle,
     ambientSettings, updateAmbient,
     visibleButtons, setVisibleButtons,
     skipOpeningSeconds, setSkipOpeningSeconds,
@@ -106,18 +99,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
 
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
   const [customFonts, setCustomFonts] = useState<CustomFontItem[]>([]);
-
-  // ── Стиль окна настроек ───────────────────────────────────────────────────
-  const [settingsStyle, setSettingsStyle] = useState<UiSettingsStyle>(getSavedUiSettingsStyle);
-
-  useEffect(() => {
-    const handler = (e: Event) => {
-      const ce = e as CustomEvent<UiSettingsStyle>;
-      setSettingsStyle(ce.detail);
-    };
-    window.addEventListener("l-mpv-ui-settings-style-changed", handler);
-    return () => window.removeEventListener("l-mpv-ui-settings-style-changed", handler);
-  }, []);
 
   const loadFonts = useCallback(async () => {
     try {
@@ -184,161 +165,14 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 {/* ── Вспомогательные стили для подблоков настроек интерфейса ── */}
                 {(() => {
                   const cardStyle = optionCardStyle;
-                  const resetBtnStyle = optionResetBtnStyle;
                   const btnStyle = optionBtnStyle;
 
                   return (
                     <>
+                      <PlayerAppearanceCard {...props} />
                       <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-5)", marginBottom: "var(--space-5)" }}>
                         
-                        {/* ── Секция стекломорфизма: Прозрачность и Преломление ── */}
-                        {(() => {
-                          const renderSliderRow = (
-                            icon: React.ReactNode,
-                            label: string,
-                            value: number,
-                            min: number,
-                            max: number,
-                            step: number,
-                            displayStr: string,
-                            defaultValue: number,
-                            ariaLabel: string,
-                            _resetTitle: string,
-                            onChange: (val: number) => void,
-                            onReset: () => void,
-                          ) => {
-                            const pct = Math.max(0, Math.min(100, Math.round(((value - min) / (max - min)) * 100)));
-                            const isChanged = Math.abs(value - defaultValue)> (step < 0.05 ? 0.005 : 0.5);
 
-                            return (
-                              <div
-                                className="option-card settings-opacity-row"
-                                style={{
-                                  ...cardStyle,
-                                  flexDirection: "row",
-                                  alignItems: "center",
-                                  padding: "9px 14px",
-                                  gap: 14,
-                                }}
-                                >
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "var(--space-3)",
-                                    flexShrink: 0,
-                                    lineHeight: 1,
-                                    minWidth: 175,
-                                  }}
-                                  >
-                                  <SettingsIcon>{icon}</SettingsIcon>
-                                  <span
-                                    style={{
-                                      fontSize: "var(--fs-sm)",
-                                      fontWeight: 600,
-                                      color: "var(--text-primary)",
-                                      lineHeight: 1,
-                                      whiteSpace: "nowrap",
-                                    }}
-                                    >
-                                    {label}
-                                  </span>
-                                </div>
-
-                                <div
-                                  style={{
-                                    flex: 1,
-                                    display: "flex",
-                                    alignItems: "center",
-                                    minWidth: 0,
-                                    height: 20,
-                                  }}
-                                  >
-                                  <input
-                                    type="range"
-                                    min={min}
-                                    max={max}
-                                    step={step}
-                                    value={value}
-                                    onChange={(e) => onChange(parseFloat(e.target.value))}
-                                    className="ui-premium-slider"
-                                    style={{
-                                      "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${pct}%, rgba(255, 255, 255, 0.12) ${pct}%, rgba(255, 255, 255, 0.12) 100%)`,
-                                    } as React.CSSProperties}
-                                    aria-label={ariaLabel}
-                                  />
-                                </div>
-
-                                <div
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "var(--space-4)",
-                                    flexShrink: 0,
-                                    lineHeight: 1,
-                                  }}
-                                  >
-                                  <span
-                                    style={{
-                                      fontSize: "var(--fs-sm)",
-                                      fontWeight: 700,
-                                      color: "var(--accent-text)",
-                                      minWidth: 42,
-                                      textAlign: "right",
-                                      fontVariantNumeric: "tabular-nums",
-                                      lineHeight: 1,
-                                    }}
-                                    >
-                                    {displayStr}
-                                  </span>
-                                  <button
-                                    type="button"
-                                    onClick={onReset}
-                                    className="btn btn--secondary btn--sm"
-                                    style={{
-                                      ...resetBtnStyle,
-                                      opacity: isChanged ? 1 : 0,
-                                      visibility: isChanged ? "visible" : "hidden",
-                                      pointerEvents: isChanged ? "auto" : "none",
-                                      transform: isChanged ? "scale(1)" : "scale(0.85)",
-                                      transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                                    }}
-
-                                    tabIndex={isChanged ? 0 : -1}
-                                    >
-                                    <RotateCcw size={11} />
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          };
-
-                          return (
-                            <div className="col col-gap-4">
-                              {/* 1. Слайдер прозрачности */}
-                              {renderSliderRow(
-                                <SlidersHorizontal size={16} className="t-accent" />,
-                                dict.settings.appearance.opacityLabel,
-                                uiOpacity,
-                                0.10,
-                                1.00,
-                                0.01,
-                                `${Math.round(uiOpacity * 100)}%`,
-                                DEFAULT_UI_OPACITY,
-                                dict.settings.appearance.opacityAria,
-                                dict.settings.appearance.reset88,
-                                (val) => {
-                                  setUiOpacity(val);
-                                  saveUiOpacity(val);
-                                },
-                                () => {
-                                  setUiOpacity(DEFAULT_UI_OPACITY);
-                                  saveUiOpacity(DEFAULT_UI_OPACITY);
-                                }
-                              )}
-                            </div>
-                          );
-                        })()}
 
                         {/* ── Сетка из 3-х колонок ── */}
                         <div className="ui-ergonomics-grid">
@@ -690,295 +524,8 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                         </div>
                       </div>
 
-                      {/* ── Блок: Настройки интерфейса (слева стиль плеера, справа меню и время) ── */}
-                      <div className="controls-and-time-grid">
-                        {/* Левая колонка: Стиль плеера */}
-                        <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                          <div className="block-head">
-                            <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                              <SettingsIcon><PanelBottom size={14} className="t-accent no-shrink" /></SettingsIcon>
-                              <span className="t-label nowrap">
-                                {dict.settings.appearance.controlBarStyleTitle}
-                              </span>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setControlBarStyle("modern");
-                                saveControlBarStyle("modern");
-                              }}
-                              className="btn btn--secondary btn--sm"
-                              title={dict.settings.appearance.resetModern}
-                              aria-label={dict.settings.appearance.resetModern}
-                              style={{
-                                ...resetBtnStyle,
-                                opacity: controlBarStyle !== "modern" ? 1 : 0,
-                                visibility: controlBarStyle !== "modern" ? "visible" : "hidden",
-                                pointerEvents: controlBarStyle !== "modern" ? "auto" : "none",
-                                transform: controlBarStyle !== "modern" ? "scale(1)" : "scale(0.85)",
-                                transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                              }}
-                              tabIndex={controlBarStyle !== "modern" ? 0 : -1}
-                              >
-                              <RotateCcw size={11} />
-                            </button>
-                          </div>
 
-                          {/* Наглядные реалистичные превью плеера друг под другом */}
-                          <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-2)", flex: 1, justifyContent: "space-between" }}>
-                            {/* Капсула: общий dock с группами и отдельной строкой таймлайна */}
-                            <div
-                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "capsule" ? "visual-bar-card--active" : ""}`}
-                              style={{ padding: "10px 14px", flex: 1 }}
-                              onClick={() => {
-                                setControlBarStyle("capsule");
-                                saveControlBarStyle("capsule");
-                              }}
-                              >
-                              {/* Мини-превью плеера */}
-                              <CapsuleControlsPreview />
-
-                              <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">{dict.settings.appearance.styleCapsule}</span>
-                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleCapsuleDesc}</span>
-                              </div>
-                            </div>
-
-                            {/* 2: Модерн (Единая парящая капсула) */}
-                            <div
-                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "modern" || (controlBarStyle as string) === "floating" ? "visual-bar-card--active" : ""}`}
-                              style={{ padding: "10px 14px", flex: 1 }}
-                              onClick={() => {
-                                setControlBarStyle("modern");
-                                saveControlBarStyle("modern");
-                              }}
-                              >
-                              {/* Мини-превью плеера */}
-                              <div className="visual-bar-preview">
-                                <div className="visual-bar-preview__screen">
-                                  <div className="visual-bar-preview__glow" />
-                                  <div className="visual-bar-preview__floating-island">
-                                    <div className="visual-bar-preview__btn-play" />
-                                    <div className="visual-bar-preview__track">
-                                      <div className="visual-bar-preview__progress" style={{ width: "45%" }} />
-                                    </div>
-                                    <div className="visual-bar-preview__dot" />
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">{dict.settings.appearance.styleModern}</span>
-                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleModernDesc}</span>
-                              </div>
-                            </div>
-
-                            {/* 3: Классический */}
-                            <div
-                              className={`visual-bar-card visual-bar-card--row ${controlBarStyle === "docked" ? "visual-bar-card--active" : ""}`}
-                              style={{ padding: "10px 14px", flex: 1 }}
-                              onClick={() => {
-                                setControlBarStyle("docked");
-                                saveControlBarStyle("docked");
-                              }}
-                              >
-                              {/* Мини-превью плеера */}
-                              <div className="visual-bar-preview">
-                                <div className="visual-bar-preview__screen">
-                                  <div className="visual-bar-preview__glow" />
-                                  <div className="visual-bar-preview__docked-bar">
-                                    <div className="visual-bar-preview__docked-timeline">
-                                      <div className="visual-bar-preview__progress" style={{ width: "65%" }} />
-                                    </div>
-                                    <div className="visual-bar-preview__docked-controls">
-                                      <div className="visual-bar-preview__btn-play" />
-                                      <div className="visual-bar-preview__line" />
-                                      <div className="visual-bar-preview__dot" />
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="visual-bar-card__info">
-                                <span className="visual-bar-card__label">{dict.settings.appearance.styleClassic}</span>
-                                <span className="visual-bar-card__desc">{dict.settings.appearance.styleClassicDesc}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Правая колонка: Стиль окна настроек, Позиция времени и Формат времени */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-3)", flex: 1, minWidth: 0, justifyContent: "space-between" }}>
-                          {/* 1: Стиль меню настроек */}
-                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                            <div className="block-head">
-                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <SettingsIcon><SlidersHorizontal size={14} className="t-accent no-shrink" /></SettingsIcon>
-                                <span className="t-label nowrap">
-                                  {dict.settings.appearance.settingsWindow.title}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => saveUiSettingsStyle("modal")}
-                                className="btn btn--secondary btn--sm"
-                                title={dict.settings.appearance.settingsWindow.resetTitle}
-                                aria-label={dict.settings.appearance.settingsWindow.resetTitle}
-                                style={{
-                                  ...resetBtnStyle,
-                                  opacity: settingsStyle !== "modal" ? 1 : 0,
-                                  visibility: settingsStyle !== "modal" ? "visible" : "hidden",
-                                  pointerEvents: settingsStyle !== "modal" ? "auto" : "none",
-                                  transform: settingsStyle !== "modal" ? "scale(1)" : "scale(0.85)",
-                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                                }}
-                                tabIndex={settingsStyle !== "modal" ? 0 : -1}
-                                >
-                                <RotateCcw size={11} />
-                              </button>
-                            </div>
-
-                            <div className="settings-window-compact-grid">
-                              <button
-                                type="button"
-                                className={`compact-segment-btn ${settingsStyle === "sidebar" ? "compact-segment-btn--active" : ""}`}
-                                onClick={() => saveUiSettingsStyle("sidebar")}
-                                style={{ height: 28 }}
-                                >
-                                {dict.settings.appearance.settingsWindow.sidebar}
-                              </button>
-                              <button
-                                type="button"
-                                className={`compact-segment-btn ${settingsStyle === "modal" ? "compact-segment-btn--active" : ""}`}
-                                onClick={() => saveUiSettingsStyle("modal")}
-                                style={{ height: 28 }}
-                                >
-                                {dict.settings.appearance.settingsWindow.modal}
-                              </button>
-                            </div>
-                          </div>
-
-                          {/* 2: Позиция времени */}
-                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                            <div className="block-head">
-                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <SettingsIcon><Clock size={14} className="t-accent no-shrink" /></SettingsIcon>
-                                <span className="t-label nowrap">
-                                  {dict.settings.appearance.timePositionTitle}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTimePosition("timeline_right");
-                                  saveTimePosition("timeline_right");
-                                }}
-                                className="btn btn--secondary btn--sm"
-                                style={{
-                                  ...resetBtnStyle,
-                                  opacity: timePosition !== "timeline_right" ? 1 : 0,
-                                  visibility: timePosition !== "timeline_right" ? "visible" : "hidden",
-                                  pointerEvents: timePosition !== "timeline_right" ? "auto" : "none",
-                                  transform: timePosition !== "timeline_right" ? "scale(1)" : "scale(0.85)",
-                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                                }}
-                                tabIndex={timePosition !== "timeline_right" ? 0 : -1}
-                                >
-                                <RotateCcw size={11} />
-                              </button>
-                            </div>
-
-                            {/* Компактные сегментные кнопки позиций времени */}
-                            <div className="time-pos-compact-grid">
-                              {TIME_POSITION_OPTIONS.map((posOption) => {
-                                const isSel = timePosition === posOption.id;
-                                const shortLabel =
-                                  posOption.id === "timeline_left"
-                                    ? dict.settings.appearance.timePosLeft
-                                    : posOption.id === "timeline_right"
-                                    ? dict.settings.appearance.timePosRight
-                                    : posOption.id === "volume_right"
-                                    ? dict.settings.appearance.timePosSound
-                                    : posOption.id === "toolbar_right"
-                                    ? dict.settings.appearance.timePosToolbar
-                                    : posOption.id === "timeline_floating_center"
-                                    ? dict.settings.appearance.timePosCenter
-                                    : "Titlebar";
-                                return (
-                                  <button
-                                    key={posOption.id}
-                                    type="button"
-                                    className={`compact-segment-btn ${isSel ? "compact-segment-btn--active" : ""}`}
-                                    onClick={() => {
-                                      setTimePosition(posOption.id);
-                                      saveTimePosition(posOption.id);
-                                    }}
-                                    title={`${posOption.label}: ${posOption.desc}`}
-                                    style={{ height: 28 }}
-                                    >
-                                    {shortLabel}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-
-                          {/* 3: Формат отображения времени */}
-                          <div className="option-card" style={{ ...cardStyle, margin: "var(--space-0)", display: "flex", flexDirection: "column", gap: "var(--space-3)" }}>
-                            <div className="block-head">
-                              <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", minWidth: 0 }}>
-                                <SettingsIcon><Timer size={14} className="t-accent no-shrink" /></SettingsIcon>
-                                <span className="t-label nowrap">
-                                  {dict.settings.appearance.timeFormatTitle}
-                                </span>
-                              </div>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setTimeFormat("elapsed_total");
-                                  saveTimeFormat("elapsed_total");
-                                }}
-                                className="btn btn--secondary btn--sm"
-                                style={{
-                                  ...resetBtnStyle,
-                                  opacity: timeFormat !== "elapsed_total" ? 1 : 0,
-                                  visibility: timeFormat !== "elapsed_total" ? "visible" : "hidden",
-                                  pointerEvents: timeFormat !== "elapsed_total" ? "auto" : "none",
-                                  transform: timeFormat !== "elapsed_total" ? "scale(1)" : "scale(0.85)",
-                                  transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                                }}
-                                tabIndex={timeFormat !== "elapsed_total" ? 0 : -1}
-                                >
-                                <RotateCcw size={11} />
-                              </button>
-                            </div>
-
-                            {/* 4 компактные сегментные кнопки с примерами тайминга */}
-                            <div className="time-format-compact-grid">
-                              {TIME_FORMAT_OPTIONS.map((formatOption) => {
-                                const isSel = timeFormat === formatOption.id;
-                                return (
-                                  <button
-                                    key={formatOption.id}
-                                    type="button"
-                                    className={`compact-segment-btn compact-segment-btn--mono ${
-                                      isSel ? "compact-segment-btn--active" : ""
-                                    }`}
-                                    onClick={() => {
-                                      setTimeFormat(formatOption.id);
-                                      saveTimeFormat(formatOption.id);
-                                    }}
-                                    title={`${formatOption.label} — ${formatOption.desc}`}
-                                    style={{ height: 28 }}
-                                    >
-                                    {formatOption.id === "finish_time" ? dict.settings.appearance.timeFormatEndsAt("22:15") : formatOption.example}
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
+                      <SettingsWindowCard />
                     </>
                   );
                 })()}
@@ -1157,19 +704,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                           <button
                             type="button"
                             onClick={() => updateAmbient({ blur_radius: bDef }, true)}
-                            className="btn btn--secondary btn--sm"
-                            style={{
-                              ...optionResetBtnStyle,
-                              opacity: isDefault ? 0 : 1,
-                              visibility: isDefault ? "hidden" : "visible",
-                              pointerEvents: isDefault ? "none" : "auto",
-                              transform: isDefault ? "scale(0.85)" : "scale(1)",
-                              transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                            }}
-
+                            className="ui-reset-btn"
+                            data-reset-hidden={isDefault}
+                            disabled={isDefault}
                             tabIndex={isDefault ? -1 : 0}
-                            >
-                            <RotateCcw size={11} />
+                            aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                          >
+                            <RotateCcw size={16} />
                           </button>
                         </div>
                       </div>

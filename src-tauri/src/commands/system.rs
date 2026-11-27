@@ -25,7 +25,7 @@ pub fn take_screenshot(
     // PNG has no 10/12-bit storage: preserve those sources in a 16-bit container.
     // Unknown depth stays high precision rather than silently losing color information.
     state.mpv.set_property_string("screenshot-high-bit-depth", if depth == "8-bit" { "no" } else { "yes" })?;
-    state.mpv.command("screenshot video")
+    state.mpv.capture_clean_frame("screenshot video")
 }
 
 /// Копирование текущего кадра в буфер обмена Windows.
@@ -42,7 +42,7 @@ pub async fn copy_frame_to_clipboard(
 
     let _ = std::fs::remove_file(&temp_path);
 
-    state.mpv.command(&format!(
+    state.mpv.capture_clean_frame(&format!(
         "screenshot-to-file \"{}\" video",
         safe_path
     ))?;
@@ -65,7 +65,10 @@ pub async fn copy_frame_to_clipboard(
         );
     }
 
-    match std::fs::read(&temp_path) {
+    let read_result = std::fs::read(&temp_path);
+    let _ = std::fs::remove_file(&temp_path);
+
+    match read_result {
         Ok(bytes) => {
             if let Ok(img) =
                 image::load_from_memory(&bytes)
@@ -226,6 +229,25 @@ pub fn update_taskbar_progress(
 ) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        use tauri::Manager;
+        use windows::Win32::System::Com::{
+            CoCreateInstance, CoInitializeEx, CLSCTX_ALL,
+            COINIT_APARTMENTTHREADED,
+        };
+        use windows::Win32::UI::Shell::{
+            ITaskbarList3, TaskbarList, TBPF_NOPROGRESS,
+            TBPF_NORMAL, TBPF_PAUSED,
+        };
+
+        let window = app
+            .get_webview_window("main")
+            .ok_or("Нет окна")?;
+        // Не обращаемся к ITaskbarList3, пока главное окно скрыто (WS_VISIBLE == 0):
+        // кнопка панели задач ещё не создана и кэширование состояния сломало бы первичную отрисовку.
+        if !window.is_visible().unwrap_or(false) {
+            return Ok(());
+        }
+
         // Дискретный шаг (0 - 1000, т.е. с точностью до 0.1%)
         let discrete_progress = if progress <= 0.001 {
             0
@@ -246,18 +268,6 @@ pub fn update_taskbar_progress(
             *last = (discrete_progress, paused);
         }
 
-        use tauri::Manager;
-        use windows::Win32::System::Com::{
-            CoCreateInstance, CLSCTX_ALL,
-        };
-        use windows::Win32::UI::Shell::{
-            ITaskbarList3, TaskbarList, TBPF_NOPROGRESS,
-            TBPF_NORMAL, TBPF_PAUSED,
-        };
-
-        let window = app
-            .get_webview_window("main")
-            .ok_or("Нет окна")?;
         let hwnd_val = window
             .hwnd()
             .map_err(|e| e.to_string())?
@@ -267,37 +277,58 @@ pub fn update_taskbar_progress(
         );
 
         unsafe {
-            if let Ok(taskbar) =
-                CoCreateInstance::<_, ITaskbarList3>(
-                    &TaskbarList,
-                    None,
-                    CLSCTX_ALL,
-                )
-            {
-                let max = 10000;
-                let current =
-                    (progress * max as f64) as u64;
-
-                if discrete_progress == 0
-                    || discrete_progress == 1000
-                {
-                    let _ = taskbar.SetProgressState(
-                        hwnd,
-                        TBPF_NOPROGRESS,
-                    );
-                } else {
-                    let state = if paused {
-                        TBPF_PAUSED
-                    } else {
-                        TBPF_NORMAL
-                    };
-                    let _ = taskbar
-                        .SetProgressState(hwnd, state);
-                    let _ = taskbar.SetProgressValue(
-                        hwnd, current, max,
-                    );
-                }
+            thread_local! {
+                static TASKBAR_CACHE: std::cell::RefCell<Option<ITaskbarList3>> =
+                    const { std::cell::RefCell::new(None) };
             }
+
+            TASKBAR_CACHE.with(|cell| {
+                let mut slot = cell.borrow_mut();
+                if slot.is_none() {
+                    let _ = CoInitializeEx(
+                        None,
+                        COINIT_APARTMENTTHREADED,
+                    );
+                    if let Ok(instance) = CoCreateInstance::<_, ITaskbarList3>(
+                        &TaskbarList,
+                        None,
+                        CLSCTX_ALL,
+                    ) {
+                        if instance.HrInit().is_ok() {
+                            *slot = Some(instance);
+                        }
+                    }
+                }
+
+                if let Some(taskbar) = slot.as_ref() {
+                    let max = 10000;
+                    let current =
+                        (progress * max as f64) as u64;
+
+                    let ok = if discrete_progress == 0
+                        || discrete_progress == 1000
+                    {
+                        taskbar
+                            .SetProgressState(hwnd, TBPF_NOPROGRESS)
+                            .is_ok()
+                    } else {
+                        let state = if paused {
+                            TBPF_PAUSED
+                        } else {
+                            TBPF_NORMAL
+                        };
+                        taskbar.SetProgressState(hwnd, state).is_ok()
+                            && taskbar
+                                .SetProgressValue(hwnd, current, max)
+                                .is_ok()
+                    };
+
+                    // При перезапуске explorer.exe сбрасываем кэш, чтобы пересоздать COM-указатель на следующем шаге.
+                    if !ok {
+                        *slot = None;
+                    }
+                }
+            });
         }
     }
     Ok(())

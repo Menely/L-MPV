@@ -1,7 +1,10 @@
 import React from "react";
 import { MotionSurface } from "../../../motion/MotionSurface";
-import type { TrackInfo } from "../../../../contexts/PlayerStateContext";
-import type { ControlBarStyle } from "../../../../utils/controlBarStyleUtils";
+import type {
+  TrackDownloadState,
+  TrackInfo,
+} from "../../../../contexts/PlayerStateContext";
+import type { ControlBarStyle } from "../../../../theme/controlBarStyle";
 import { useTranslation } from "../../../../i18n/LanguageContext";
 import { truncateMiddle } from "../../../../utils/textUtils";
 import { TrackPopoverHeader } from "./TrackPopoverHeader";
@@ -23,6 +26,8 @@ export interface TrackPopoversProps {
   tracks: TrackInfo[];
   /** Ключ скачиваемой дорожки (`audio-<id>` / `sub-<id>`). */
   downloadingTrackKey: string | null;
+  /** Детальное состояние скачивания дорожки (проценты и статус завершения). */
+  trackDownloadState?: TrackDownloadState | null;
   /** Переключение аудиодорожки. */
   onSelectAudioTrack: (id: number) => void;
   /** Переключение субтитров (-1 — отключить). */
@@ -31,6 +36,8 @@ export interface TrackPopoversProps {
   onClose: (immediate?: boolean) => void;
   /** Скачивание дорожки. */
   onDownloadTrack: (track: TrackInfo) => void;
+  /** Отмена активного скачивания дорожки. */
+  onCancelDownloadTrack?: (trackKey: string) => void;
   /** Отключение субтитров. */
   onDisableSubtitles?: () => void;
   /** Открытие окна поиска субтитров. */
@@ -50,10 +57,12 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
   controlBarStyle,
   tracks,
   downloadingTrackKey,
+  trackDownloadState,
   onSelectAudioTrack,
   onSelectSubTrack,
   onClose,
   onDownloadTrack,
+  onCancelDownloadTrack,
   onDisableSubtitles,
   onOpenSubtitlesSearch,
 }) => {
@@ -133,31 +142,48 @@ export const TrackPopovers: React.FC<TrackPopoversProps> = ({
         </div>
       )}
 
-      <div className="track-popover__list">
-        {isAudio && kindTracks.length === 0 && (
-          <div className="track-popover__empty">
-            {dict.controls.noAudioTracks}
-          </div>
-        )}
-        {kindTracks.map((t) => (
-          <TrackRow
-            key={t.id}
-            label={getLabel(t)}
-            fullTitle={getFullTitle(t)}
-            isActive={t.selected}
-            isExternal={Boolean(t.external)}
-            externalTooltip={dict.controls.externalTrackTooltip}
-            itemRef={t.selected ? activeTrackItemRef : undefined}
-            onSelect={() => select(t.id)}
-            downloadLabel={
-              isAudio
-                ? dict.controls.downloadAudio
-                : dict.controls.downloadSubtitle
-            }
-            isDownloading={downloadingTrackKey === `${t.type}-${t.id}`}
-            onDownload={() => onDownloadTrack(t)}
-          />
-        ))}
+      <div className="scroll-surface track-popover__list-surface">
+        <div className="track-popover__list">
+          {isAudio && kindTracks.length === 0 && (
+            <div className="track-popover__empty">
+              {dict.controls.noAudioTracks}
+            </div>
+          )}
+          {kindTracks.map((t) => {
+            const rowKey = `${t.type}-${t.id}`;
+            const isMatched = trackDownloadState?.trackKey === rowKey;
+            const isDownloading =
+              (isMatched && trackDownloadState?.status === "running") ||
+              downloadingTrackKey === rowKey;
+            const isCompleted =
+              isMatched && trackDownloadState?.status === "completed";
+
+            return (
+              <TrackRow
+                key={t.id}
+                label={getLabel(t)}
+                fullTitle={getFullTitle(t)}
+                isActive={t.selected}
+                isExternal={Boolean(t.external)}
+                externalTooltip={dict.controls.externalTrackTooltip}
+                itemRef={t.selected ? activeTrackItemRef : undefined}
+                onSelect={() => select(t.id)}
+                downloadLabel={
+                  isAudio
+                    ? dict.controls.downloadAudio
+                    : dict.controls.downloadSubtitle
+                }
+                cancelLabel={dict.controls.cancelDownload}
+                completedLabel={dict.controls.downloadCompleted}
+                isDownloading={isDownloading}
+                isCompleted={isCompleted}
+                downloadProgress={isMatched ? trackDownloadState?.progress ?? 0 : 0}
+                onDownload={() => onDownloadTrack(t)}
+                onCancelDownload={() => onCancelDownloadTrack?.(rowKey)}
+              />
+            );
+          })}
+        </div>
       </div>
     </MotionSurface>
   );

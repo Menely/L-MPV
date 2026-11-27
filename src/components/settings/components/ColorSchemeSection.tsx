@@ -1,9 +1,8 @@
 import { AnimatePresence } from "motion/react";
 import { SettingsIcon } from "./SettingsIcon";
 import { ColorSwatch, ColorSwatchGrid } from "./ColorSwatch";
-import { optionResetBtnStyle } from "./optionCardStyles";
 import { useTranslation } from "../../../i18n/LanguageContext";
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useSyncExternalStore } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import {
   Palette,
@@ -28,9 +27,17 @@ import {
   GlowIntensity,
   getGlowIntensity,
   saveGlowIntensity,
-} from "../../../utils/colorUtils";
+} from "../../../theme/colors";
+import {
+  DEFAULT_GLASS_TINT,
+  getGlassTint,
+  getPlayerTheme as getInterfaceTheme,
+  saveGlassTint,
+  subscribePlayerTheme,
+  type GlassTintId,
+} from "../../../theme/liquidGlass/preferences";
 import { ColorPickerModal } from "../../modals/ColorPickerModal";
-import { onColor } from "../../../utils/colorMath";
+import { onColor } from "../../../theme/colorMath";
 
 interface ColorSchemeSectionProps {
   /** Опциональный callback при изменении акцентного цвета */
@@ -78,7 +85,10 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
   onAccentChange,
 }) => {
   const { dict } = useTranslation();
+  const interfaceTheme = useSyncExternalStore(subscribePlayerTheme, getInterfaceTheme);
+  const isGlassTheme = interfaceTheme === "glass";
   const [playerTheme, setPlayerTheme] = useState<PlayerThemeId>(() => getSavedPlayerTheme());
+  const [glassTint, setGlassTint] = useState<GlassTintId>(() => getGlassTint());
   const [activeColor, setActiveColor] = useState<string>(() => {
     try {
       return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
@@ -106,6 +116,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
     };
     const handleSettingsSync = () => {
       setPlayerTheme(getSavedPlayerTheme());
+      setGlassTint(getGlassTint());
       setGlowIntensity(getGlowIntensity());
       setCustomColors(getCustomColors());
       try {
@@ -113,23 +124,38 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
         setActiveColor(savedAccent);
       } catch {}
     };
+    const handleGlassTintChanged = (e: Event) => {
+      const customEvent = e as CustomEvent<GlassTintId>;
+      if (customEvent.detail) {
+        setGlassTint(customEvent.detail);
+      }
+    };
 
     window.addEventListener("l-mpv-player-theme-changed", handleThemeChanged);
+    window.addEventListener("l-mpv-glass-tint-changed", handleGlassTintChanged);
     window.addEventListener("l-mpv-glow-changed", handleGlowChanged);
     window.addEventListener("l-mpv-settings-changed", handleSettingsSync);
 
     return () => {
       window.removeEventListener("l-mpv-player-theme-changed", handleThemeChanged);
+      window.removeEventListener("l-mpv-glass-tint-changed", handleGlassTintChanged);
       window.removeEventListener("l-mpv-glow-changed", handleGlowChanged);
       window.removeEventListener("l-mpv-settings-changed", handleSettingsSync);
     };
   }, []);
 
-  // Выбор темы оформления плеера
-  const handleSelectTheme = useCallback((themeKey: PlayerThemeId) => {
-    setPlayerTheme(themeKey);
-    savePlayerTheme(themeKey);
-  }, []);
+  // Выбор темы оформления плеера (или тонировки в режиме Liquid Glass)
+  const handleSelectTheme = useCallback((themeKey: GlassTintId) => {
+    if (isGlassTheme) {
+      setGlassTint(themeKey);
+      saveGlassTint(themeKey);
+      return;
+    }
+    if (themeKey !== "transparent") {
+      setPlayerTheme(themeKey);
+      savePlayerTheme(themeKey);
+    }
+  }, [isGlassTheme]);
 
   // Выбор акцентного цвета
   const handleSelectAccentColor = useCallback((hex: string) => {
@@ -196,9 +222,20 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
     transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
   };
 
+  const activePlayerSelection: GlassTintId = isGlassTheme ? glassTint : playerTheme;
+  const defaultPlayerSelection: GlassTintId = isGlassTheme ? DEFAULT_GLASS_TINT : DEFAULT_PLAYER_THEME;
+  const activePlayerThemeForDots: PlayerThemeId =
+    isGlassTheme && glassTint !== "transparent" ? glassTint : playerTheme;
+  const activeThemeLabel =
+    activePlayerSelection === "transparent"
+      ? dict.settings.appearance.colorScheme.playerThemes.transparent || "Прозрачный"
+      : dict.settings.appearance.colorScheme.playerThemes[activePlayerSelection] ||
+        PLAYER_THEMES[activePlayerSelection]?.name ||
+        "Dark Graphite";
+
   return (
     <>
-      {/* ── Блок 1: Цвет самого плеера (Тема оформления) ── */}
+      {/* ── Блок 1: Цвет самого плеера (Тема оформления / Тонировка Liquid Glass) ── */}
       <div style={{ ...cardStyle, marginBottom: "var(--space-5)" }} className="theme-card">
         <div className="player-themes-header">
           <div className="row-center row-gap-3">
@@ -208,29 +245,44 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
             </span>
           </div>
           <div className="player-themes-header__right">
+            {(() => {
+              const isDefaultTheme = activePlayerSelection === defaultPlayerSelection;
+              return (
+                <button
+                  type="button"
+                  onClick={() => handleSelectTheme(defaultPlayerSelection)}
+                  className="ui-reset-btn"
+                  data-reset-hidden={isDefaultTheme}
+                  disabled={isDefaultTheme}
+                  tabIndex={isDefaultTheme ? -1 : 0}
+                  aria-label={dict.settings.appearance.colorScheme.resetTheme}
+                >
+                  <RotateCcw size={16} />
+                </button>
+              );
+            })()}
             <span className="t-label-accent">
-              {dict.settings.appearance.colorScheme.playerThemes[playerTheme] || PLAYER_THEMES[playerTheme]?.name || "Dark Graphite"}
+              {activeThemeLabel}
             </span>
-            {playerTheme !== DEFAULT_PLAYER_THEME && (
-              <button
-                type="button"
-                onClick={() => handleSelectTheme(DEFAULT_PLAYER_THEME)}
-                className="btn btn--secondary btn--sm"
-                title={dict.settings.appearance.colorScheme.resetTheme}
-                aria-label={dict.settings.appearance.colorScheme.resetTheme}
-                style={optionResetBtnStyle}
-              >
-                <RotateCcw size={11} />
-              </button>
-            )}
           </div>
         </div>
 
         {/* Палитра тем оформления плеера */}
         <div className="player-themes-selector">
+          {isGlassTheme && (
+            <ColorSwatch
+              key="transparent"
+              type="button"
+              className="color-circle--transparent"
+              onClick={() => handleSelectTheme("transparent")}
+              selected={glassTint === "transparent"}
+              title={dict.settings.appearance.colorScheme.playerThemes.transparent || "Прозрачный"}
+              aria-label={dict.settings.appearance.colorScheme.playerThemes.transparent || "Прозрачный"}
+            />
+          )}
           {(Object.keys(PLAYER_THEMES) as PlayerThemeId[]).map((themeKey) => {
             const theme = PLAYER_THEMES[themeKey];
-            const isSel = playerTheme === themeKey;
+            const isSel = activePlayerSelection === themeKey;
             const themeName =
               dict.settings.appearance.colorScheme.playerThemes[themeKey] ||
               theme.name;
@@ -273,7 +325,7 @@ export const ColorSchemeSection: React.FC<ColorSchemeSectionProps> = ({
               <ColorSwatchGrid>
                 {presets.map((hex) => {
                   const isActive = activeColor.toLowerCase() === hex.toLowerCase();
-                  const isRec = PLAYER_THEMES[playerTheme]?.recommendedAccents?.some(
+                  const isRec = PLAYER_THEMES[activePlayerThemeForDots]?.recommendedAccents?.some(
                     (recHex) => recHex.toLowerCase() === hex.toLowerCase()
                   );
                   return (

@@ -2,10 +2,11 @@ import { memo, useLayoutEffect, useRef, useState } from "react";
 import { Image as ImageIcon } from "lucide-react";
 import { useTimelineThumbnail } from "../../../hooks/useTimelineThumbnail";
 import { supportsTimelineThumbnail, timelinePreviewLeft } from "../../../utils/timelineThumbnail";
-import { getActiveUiScale } from "../../../utils/uiThemeUtils";
+import { getActiveUiScale } from "../../../theme/tokens";
 import { formatTime } from "../../../utils/timeUtils";
+import { notifyLiquidGlassSync } from "../../../theme/liquidGlass/LiquidGlassSync";
 import type { TimelineSegmentData } from "../Timeline";
-import "../../../styles/controls/timeline-preview.css";
+import "../../../styles/player/controls/timeline-preview.css";
 
 interface Props {
   hoverInfo: { ratio: number; time: number };
@@ -69,9 +70,23 @@ export const TimelinePreview = memo(function TimelinePreview({ hoverInfo, segmen
   }, [showFrame, showChapter]);
 
   const left = timelinePreviewLeft(hoverInfo.ratio, geometry.railLeft, geometry.railWidth, geometry.cardWidth, geometry.viewportWidth, geometry.scale);
+  const isMeasured = geometry.railWidth > 0 && geometry.cardWidth > 0;
+
+  useLayoutEffect(() => {
+    if (!isMeasured) return;
+    notifyLiquidGlassSync();
+    return () => {
+      queueMicrotask(notifyLiquidGlassSync);
+    };
+  }, [isMeasured, left, geometry.shiftY, showFrame, showChapter]);
+
   return (
     <div ref={card} className={`timeline-preview-card ${showChapter ? "timeline-preview-card--with-chapter" : ""} ${showFrame ? "timeline-preview-card--with-frame" : ""}`}
-      style={{ left: `${left}px`, transform: `translate(-50%, ${geometry.shiftY}px)` }}>
+      style={{
+        left: `${left}px`,
+        transform: `translate(-50%, ${geometry.shiftY}px)`,
+        visibility: isMeasured ? "visible" : "hidden",
+      }}>
       {showFrame && <div className="timeline-preview-card__frame" aria-hidden="true">
         {frame.src ? <img src={frame.src} alt="" draggable={false} onError={frame.onImageError} /> : <ImageIcon size={22} />}
         {frame.pending && <span className="timeline-preview-card__loading" />}

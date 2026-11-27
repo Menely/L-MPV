@@ -15,6 +15,7 @@ use crate::audio_filter::{audio_filter_chain, AudioNormalizeMode};
 
 pub(crate) mod preview;
 mod preview_image;
+mod frame_capture;
 
 // ─── Определения FFI для libmpv C API ───────────────────
 
@@ -453,6 +454,19 @@ impl MpvManager {
                 &icc_cache_path,
             );
 
+            // Портативный каталог сохранения состояния просмотра (watch-later)
+            let watch_later_dir = cache_dir.join("watch_later");
+            let _ = std::fs::create_dir_all(&watch_later_dir);
+            let watch_later_path = watch_later_dir
+                .to_string_lossy()
+                .replace('\\', "/");
+            Self::set_option(
+                &api,
+                handle,
+                "watch-later-directory",
+                &watch_later_path,
+            );
+
             // Настройка логирования MPV в отдельный файл (сохраняет только ошибки)
             let log_file = portable_dir
                 .join("logs")
@@ -547,7 +561,28 @@ impl MpvManager {
             // Явно фиксируем дефолты, чтобы пользовательский mpv.conf не смог
             // их переопределить и сломать синхронизацию при открытии файла.
             Self::set_option(&api, handle, "initial-audio-sync", "yes"); // Ждать выровненного A/V перед первым кадром
-            Self::set_option(&api, handle, "video-sync", "audio"); // Видео синхронизируется по аудиочасам
+            let use_display_sync = saved_settings
+                .ui
+                .player_interface_theme
+                .as_deref()
+                == Some("glass");
+            Self::set_option(
+                &api,
+                handle,
+                "video-sync",
+                if use_display_sync {
+                    "display-resample"
+                } else {
+                    "audio"
+                },
+            ); // В теме Liquid Glass рендер синхронизируется с частотой монитора
+            Self::set_option(
+                &api,
+                handle,
+                "blend-subtitles",
+                if use_display_sync { "yes" } else { "no" },
+            ); // В теме Liquid Glass субтитры композитятся до OUTPUT-шейдера стекла, оставаясь под стеклянными окнами
+            Self::set_option(&api, handle, "interpolation", "no"); // Сохраняем оригинальную плавность кадров без интерполяции
             Self::set_option(&api, handle, "hr-seek", "yes"); // Точный seek для идеальной синхронизации аудио и видео после перемотки (и при старте с позиции)
 
             // ─── Субтитры и экранные надписи (Pristine Subtitle & Signs Rendering) ───
@@ -579,13 +614,21 @@ impl MpvManager {
             // ─── Поведение при конце файла ──────────────
             Self::set_option(&api, handle, "keep-open", "yes");
 
-            // ─── Масштабирование без тяжелых фильтров ───
+            // ─── Масштабирование и эталонная цветопередача без искажений ───
             Self::set_option(&api, handle, "auto-window-resize", "no");
+            Self::set_option(&api, handle, "scaler-resizes-only", "yes"); // 1:1 без фильтрации при совпадении разрешений
             Self::set_option(&api, handle, "scale", "spline36");
             Self::set_option(&api, handle, "cscale", "spline36");
             Self::set_option(&api, handle, "dscale", "mitchell");
             Self::set_option(&api, handle, "correct-downscaling", "yes");
             Self::set_option(&api, handle, "linear-downscaling", "yes");
+            Self::set_option(&api, handle, "sigmoid-upscaling", "yes"); // Подавление ореолов контрастных границ без мыла
+            Self::set_option(&api, handle, "sharpen", "0"); // Нулевая искусственная резкость
+            Self::set_option(&api, handle, "brightness", "0");
+            Self::set_option(&api, handle, "contrast", "0");
+            Self::set_option(&api, handle, "saturation", "0");
+            Self::set_option(&api, handle, "gamma", "0");
+            Self::set_option(&api, handle, "hue", "0");
             Self::set_option(&api, handle, "deband", "no"); // Отключаем дебандинг для 0% просадок FPS при обычном воспроизведении
 
             // ─── Переопределение пользовательскими настройками поверх дефолтов ───
@@ -994,7 +1037,7 @@ impl MpvManager {
     where
         F: FnOnce(&[u8], usize, usize, isize) -> Result<R, String>,
     {
-        self.with_handle(|handle| {
+        self.with_clean_frame(|handle| {
             let command = CString::new("screenshot-raw")
                 .map_err(|error| format!("Ошибка CString: {}", error))?;
             let flags =
@@ -2252,5 +2295,50 @@ mod tests {
         assert_eq!(resolve_audio_channel_count("0", "6"), "6");
         assert_eq!(resolve_audio_channel_count("0", "0"), "");
         assert_eq!(resolve_audio_channel_count("", ""), "");
+    }
+
+    #[test]
+    fn neutral_video_fidelity_options_are_accepted_by_libmpv() {
+        let manifest_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if !manifest_dir.join("libmpv-2.dll").exists() {
+            return;
+        }
+        unsafe {
+            let api = MpvManager::load_mpv_api(&manifest_dir).unwrap();
+            let handle = (api.create)();
+            assert!(!handle.is_null());
+            let options = [
+                ("vo", "null"),
+                ("ao", "null"),
+                ("terminal", "no"),
+                ("scaler-resizes-only", "yes"),
+                ("scale", "spline36"),
+                ("cscale", "spline36"),
+                ("dscale", "mitchell"),
+                ("correct-downscaling", "yes"),
+                ("linear-downscaling", "yes"),
+                ("sigmoid-upscaling", "yes"),
+                ("sharpen", "0"),
+                ("brightness", "0"),
+                ("contrast", "0"),
+                ("saturation", "0"),
+                ("gamma", "0"),
+                ("hue", "0"),
+                ("deband", "no"),
+                ("interpolation", "no"),
+                ("target-colorspace-hint", "yes"),
+                ("tone-mapping", "auto"),
+                ("hdr-compute-peak", "yes"),
+                ("gamut-mapping-mode", "perceptual"),
+            ];
+            for (k, v) in options {
+                let ck = CString::new(k).unwrap();
+                let cv = CString::new(v).unwrap();
+                let rc = (api.set_option_string)(handle, ck.as_ptr(), cv.as_ptr());
+                assert!(rc >= 0, "libmpv rejected option {k}={v}: code {rc}");
+            }
+            assert_eq!((api.initialize)(handle), 0);
+            (api.destroy)(handle);
+        }
     }
 }

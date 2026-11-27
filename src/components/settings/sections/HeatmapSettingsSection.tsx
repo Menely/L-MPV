@@ -35,7 +35,6 @@ import {
   optionBlockTitleStyle,
   optionBlockTitleTextStyle,
   optionValueBadgeStyle,
-  optionResetBtnStyle,
 } from "../components/optionCardStyles";
 import {
   HeatmapConfig,
@@ -440,22 +439,14 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
           </span>
           <button
             type="button"
-            disabled={controlsLocked}
+            disabled={controlsLocked || isDefault}
             onClick={params.onReset}
-            className="btn btn--secondary btn--sm"
-            style={{
-              ...optionResetBtnStyle,
-              opacity: isDefault ? 0 : 1,
-              visibility: isDefault ? "hidden" : "visible",
-              pointerEvents: isDefault ? "none" : "auto",
-              transform: isDefault ? "scale(0.85)" : "scale(1)",
-              transition:
-                "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-            }}
-
-            tabIndex={isDefault ? -1 : 0}
+            className="ui-reset-btn"
+            data-reset-hidden={isDefault}
+            tabIndex={controlsLocked || isDefault ? -1 : 0}
+            aria-label={params.label}
           >
-            <RotateCcw size={11} />
+            <RotateCcw size={16} />
           </button>
         </div>
       </div>
@@ -479,15 +470,10 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
         {/* ── Интерактивный живой предпросмотр рельефа ── */}
         <div
           className="option-card"
-          title={
-            dict.settings.appearance.heatmap?.sectionDesc ||
-            "Наведите курсор на полосу рельефа для интерактивного предпросмотра"
-          }
           style={{
             ...optionCardStyle,
-            padding: "9px 14px",
-            background: "rgba(0, 0, 0, 0.28)",
-            gap: 8,
+            padding: "7px 12px",
+            gap: 6,
           }}
         >
           <div style={optionBlockHeaderStyle}>
@@ -504,31 +490,42 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
             </span>
           </div>
 
+          {/* Компактный фиксированный контейнер превью: ровно под максимальную высоту 38px */}
           <div
-            onMouseMove={handlePreviewMouseMove}
-            onMouseLeave={handlePreviewMouseLeave}
             style={{
               width: "100%",
-              // Keep the drawable area equal to the player; account for the frame.
-              height: config.height + 2,
-              borderRadius: "var(--radius-sm, 6px)",
-              background: "var(--surface-level-2)",
-              border: "1px solid rgba(255, 255, 255, 0.06)",
-              overflow: "hidden",
-              position: "relative",
-              cursor: "crosshair",
-              opacity: config.enabled ? 1 : 0.45,
-              transition: "opacity var(--t-fast) var(--ease-smooth)",
+              height: MAX_HEATMAP_HEIGHT + 2,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
             }}
           >
-            <canvas
-              ref={canvasRef}
+            <div
+              onMouseMove={handlePreviewMouseMove}
+              onMouseLeave={handlePreviewMouseLeave}
               style={{
                 width: "100%",
-                height: "100%",
-                display: "block",
+                // Полоса рельефа масштабируется по высоте согласно настройке
+                height: config.height + 2,
+                borderRadius: "var(--radius-sm, 6px)",
+                background: "var(--surface-level-2)",
+                border: "1px solid rgba(255, 255, 255, 0.06)",
+                overflow: "hidden",
+                position: "relative",
+                cursor: "crosshair",
+                opacity: config.enabled ? 1 : 0.45,
+                transition: "opacity var(--t-fast) var(--ease-smooth)",
               }}
-            />
+            >
+              <canvas
+                ref={canvasRef}
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  display: "block",
+                }}
+              />
+            </div>
           </div>
         </div>
 
@@ -554,22 +551,28 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                 </span>
               </div>
               <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                {(() => {
+                  const isDefaultPalette =
+                    config.palette === DEFAULT_HEATMAP_CONFIG.palette;
+                  return (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        updateConfig({ palette: DEFAULT_HEATMAP_CONFIG.palette })
+                      }
+                      className="ui-reset-btn"
+                      data-reset-hidden={isDefaultPalette}
+                      disabled={isDefaultPalette}
+                      tabIndex={isDefaultPalette ? -1 : 0}
+                      aria-label="Сбросить палитру спектра"
+                    >
+                      <RotateCcw size={16} />
+                    </button>
+                  );
+                })()}
                 <span style={optionValueBadgeStyle}>
                   {paletteItems.find((p) => p.id === config.palette)?.label}
                 </span>
-                {config.palette !== DEFAULT_HEATMAP_CONFIG.palette && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      updateConfig({ palette: DEFAULT_HEATMAP_CONFIG.palette })
-                    }
-                    className="btn btn--secondary btn--sm"
-                    style={optionResetBtnStyle}
-                    aria-label="Сбросить палитру спектра"
-                  >
-                    <RotateCcw size={11} />
-                  </button>
-                )}
               </div>
             </div>
 
@@ -674,36 +677,20 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       dataSource: DEFAULT_HEATMAP_CONFIG.dataSource,
                     })
                   }
-                  className="btn btn--secondary btn--sm"
-                  style={{
-                    ...optionResetBtnStyle,
-                    opacity:
-                      config.dataSource !== DEFAULT_HEATMAP_CONFIG.dataSource
-                        ? 1
-                        : 0,
-                    visibility:
-                      config.dataSource !== DEFAULT_HEATMAP_CONFIG.dataSource
-                        ? "visible"
-                        : "hidden",
-                    pointerEvents:
-                      config.dataSource !== DEFAULT_HEATMAP_CONFIG.dataSource
-                        ? "auto"
-                        : "none",
-                    transform:
-                      config.dataSource !== DEFAULT_HEATMAP_CONFIG.dataSource
-                        ? "scale(1)"
-                        : "scale(0.85)",
-                    transition:
-                      "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                  }}
-
+                  className="ui-reset-btn"
+                  data-reset-hidden={
+                    config.dataSource === DEFAULT_HEATMAP_CONFIG.dataSource
+                  }
+                  disabled={
+                    config.dataSource === DEFAULT_HEATMAP_CONFIG.dataSource
+                  }
                   tabIndex={
                     config.dataSource !== DEFAULT_HEATMAP_CONFIG.dataSource
                       ? 0
                       : -1
                   }
                 >
-                  <RotateCcw size={11} />
+                  <RotateCcw size={16} />
                 </button>
               </div>
 
@@ -783,36 +770,20 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                       placement: DEFAULT_HEATMAP_CONFIG.placement,
                     })
                   }
-                  className="btn btn--secondary btn--sm"
-                  style={{
-                    ...optionResetBtnStyle,
-                    opacity:
-                      config.placement !== DEFAULT_HEATMAP_CONFIG.placement
-                        ? 1
-                        : 0,
-                    visibility:
-                      config.placement !== DEFAULT_HEATMAP_CONFIG.placement
-                        ? "visible"
-                        : "hidden",
-                    pointerEvents:
-                      config.placement !== DEFAULT_HEATMAP_CONFIG.placement
-                        ? "auto"
-                        : "none",
-                    transform:
-                      config.placement !== DEFAULT_HEATMAP_CONFIG.placement
-                        ? "scale(1)"
-                        : "scale(0.85)",
-                    transition:
-                      "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                  }}
-
+                  className="ui-reset-btn"
+                  data-reset-hidden={
+                    config.placement === DEFAULT_HEATMAP_CONFIG.placement
+                  }
+                  disabled={
+                    config.placement === DEFAULT_HEATMAP_CONFIG.placement
+                  }
                   tabIndex={
                     config.placement !== DEFAULT_HEATMAP_CONFIG.placement
                       ? 0
                       : -1
                   }
                 >
-                  <RotateCcw size={11} />
+                  <RotateCcw size={16} />
                 </button>
               </div>
 
@@ -865,32 +836,14 @@ export const HeatmapSettingsSection: React.FC<HeatmapSettingsSectionProps> = ({
                   onClick={() =>
                     updateConfig({ style: DEFAULT_HEATMAP_CONFIG.style })
                   }
-                  className="btn btn--secondary btn--sm"
-                  style={{
-                    ...optionResetBtnStyle,
-                    opacity:
-                      config.style !== DEFAULT_HEATMAP_CONFIG.style ? 1 : 0,
-                    visibility:
-                      config.style !== DEFAULT_HEATMAP_CONFIG.style
-                        ? "visible"
-                        : "hidden",
-                    pointerEvents:
-                      config.style !== DEFAULT_HEATMAP_CONFIG.style
-                        ? "auto"
-                        : "none",
-                    transform:
-                      config.style !== DEFAULT_HEATMAP_CONFIG.style
-                        ? "scale(1)"
-                        : "scale(0.85)",
-                    transition:
-                      "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-                  }}
-
+                  className="ui-reset-btn"
+                  data-reset-hidden={config.style === DEFAULT_HEATMAP_CONFIG.style}
+                  disabled={config.style === DEFAULT_HEATMAP_CONFIG.style}
                   tabIndex={
                     config.style !== DEFAULT_HEATMAP_CONFIG.style ? 0 : -1
                   }
                 >
-                  <RotateCcw size={11} />
+                  <RotateCcw size={16} />
                 </button>
               </div>
 

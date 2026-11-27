@@ -1,0 +1,701 @@
+/* ─── Окно MediaInfo: стиль «Капсула» (островная архитектура) ────────────
+   Корневой контейнер прозрачен, интерфейс разделяется на парящие
+   независимые карточки-островки с системным зазором 6px, глобальной
+   прозрачностью (--bg-glass), мягкими тенями (--shadow-elevated)
+   и адаптивным скруглением углов (--radius-controls, 16px).
+   Никаких дешевых неоновых свечений, размытий текста или лишних подложек.
+──────────────────────────────────────────────────────────────────────────── */
+
+/* ─── 1. Автономное изолированное окно MediaInfo (Shift+F10) ─────────────── */
+.mediainfo-standalone.mediainfo-standalone--capsule {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 8px !important;
+  gap: 6px !important;
+  box-sizing: border-box !important;
+  display: flex !important;
+  flex-direction: column !important;
+  height: 100% !important;
+  width: 100% !important;
+  overflow: hidden !important;
+}
+
+/* Общий базовый стиль для всех парящих островков окна MediaInfo */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left,
+.mediainfo-standalone--capsule .mediainfo-standalone__window-controls,
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper,
+.mediainfo-standalone--capsule .mediainfo-standalone__actions,
+.mediainfo-standalone--capsule .mediainfo-standalone__tabs-bar,
+.mediainfo-standalone--capsule .mediainfo-standalone__body {
+  background: var(--bg-glass, rgba(16, 19, 28, 0.94)) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+  transition: border-color var(--t-fast) var(--ease-smooth),
+              box-shadow var(--t-fast) var(--ease-smooth),
+              background var(--t-fast) var(--ease-smooth) !important;
+}
+
+/* ── Ряд 1: Верхняя панель (Шапка) ───────────────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  height: auto !important;
+  min-height: auto !important;
+  flex-shrink: 0 !important;
+  cursor: default !important;
+}
+
+/* Островок 1: Информация о файле */
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  cursor: grab !important;
+  user-select: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:active {
+  cursor: grabbing !important;
+}
+
+/* Чистая иконка без подложек и рамок */
+.mediainfo-standalone--capsule .mediainfo-standalone__icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  color: var(--accent-text) !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__filename {
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 500 !important;
+  color: var(--text-primary, #ffffff) !important;
+  white-space: nowrap !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+}
+
+/* Островок 2: Управление окном (Pin, Свернуть, Развернуть, Закрыть) */
+.mediainfo-standalone--capsule .mediainfo-standalone__window-controls {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn {
+  width: 32px !important;
+  height: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  background: transparent !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  box-sizing: border-box !important;
+  transition: background-color var(--t-fast) var(--ease-smooth),
+              color var(--t-fast) var(--ease-smooth),
+              border-color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn:hover {
+  background: var(--window-control-hover) !important;
+  color: var(--accent-text) !important;
+}
+
+/* Активное состояние кнопки Always on Top */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--selection-frame) !important;
+}
+
+/* Кнопка закрытия окна */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--active:hover {
+  background: var(--surface-accent-hover) !important;
+  color: var(--accent-text) !important;
+  border-color: var(--selection-frame) !important;
+}
+
+/* Кнопка закрытия окна */
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close {
+  display: grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  margin: auto !important;
+  transform-origin: 50% 50% !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__control-btn--close:hover {
+  background: #e81123 !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+/* ── Ряд 2: Панель поиска и действий ─────────────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__toolbar {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  flex-shrink: 0 !important;
+}
+
+/* Островок 3: Поле поиска по свойствам */
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper {
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 0 12px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex: 1 1 auto !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:hover {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__titlebar-left:active {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper:hover {
+  border-color: var(--border-pill-hover) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-wrapper:focus-within {
+  border-color: var(--selection-frame) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.05) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-icon {
+  color: var(--text-muted, #64748b) !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-input {
+  border: none !important;
+  outline: none !important;
+  background: transparent !important;
+  color: var(--text-primary, #ffffff) !important;
+  font-size: var(--fs-xs, 12px) !important;
+  width: 100% !important;
+  padding: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-stats {
+  display: flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__search-count {
+  font-size: var(--fs-2xs, 11px) !important;
+  color: var(--accent-text) !important;
+  font-weight: 600 !important;
+  padding: 2px 8px !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.14) !important;
+  border-radius: var(--radius-pill, 9999px) !important;
+  line-height: 1.2 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__btn-icon {
+  width: 20px !important;
+  height: 20px !important;
+  border-radius: var(--radius-control) !important;
+}
+
+/* Островок 4: Кнопки действий (Язык, Копировать, Экспорт) — без вложенных рамок */
+.mediainfo-standalone--capsule .mediainfo-standalone__actions {
+  width: 160px !important;
+  min-width: 160px !important;
+  max-width: 160px !important;
+  height: 42px !important;
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 4px !important;
+  flex-shrink: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn {
+  flex: 1 1 auto !important;
+  width: auto !important;
+  min-width: 56px !important;
+  height: 32px !important;
+  padding: 0 8px !important;
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 500 !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--text-secondary, #cbd5e1) !important;
+  cursor: pointer !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 5px !important;
+  box-sizing: border-box !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
+  box-shadow: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--icon {
+  flex: 0 0 32px !important;
+  width: 32px !important;
+  min-width: 32px !important;
+  max-width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  justify-content: center !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  box-sizing: border-box !important;
+  background: transparent !important;
+  border: 1px solid transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--icon:hover:not(:disabled) {
+  background: var(--action-hover-veil) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn:hover:not(:disabled) {
+  background: var(--action-hover-veil) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+  font-weight: 600 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__action-btn--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover);
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+}
+
+/* ── Ряд 3: Островок чипов категорий (Tabs Bar без матрёшки рамок) ─────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__tabs-bar {
+  min-height: 40px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 6px !important;
+  flex-shrink: 0 !important;
+  margin: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__tabs-list {
+  gap: 2px !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip {
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  border: 1px solid transparent !important;
+  background: transparent;
+  color: var(--text-secondary, #cbd5e1) !important;
+  font-size: var(--fs-2xs, 11px) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+  gap: 6px !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip:hover,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip:hover {
+  background: var(--hover-veil-float) !important;
+  color: #ffffff !important;
+  border-color: transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip--active {
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active:hover:not(:disabled),
+.mediainfo-floating-window--capsule .mediainfo-tab-chip--active:hover:not(:disabled) {
+  background: var(--surface-accent-hover);
+  color: var(--accent-text) !important;
+  border-color: transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip__label,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip__label {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip__badge,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip__badge {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  height: 17px !important;
+  min-width: 17px !important;
+  padding: 0 5px !important;
+  box-sizing: border-box !important;
+  border-radius: var(--radius-pill, 9999px) !important;
+  font-size: var(--fs-3xs, 9.5px) !important;
+  font-weight: 600 !important;
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--text-muted, #94a3b8) !important;
+  line-height: 1 !important;
+  font-variant-numeric: tabular-nums !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-chip--active .mediainfo-tab-chip__badge,
+.mediainfo-floating-window--capsule .mediainfo-tab-chip--active .mediainfo-tab-chip__badge {
+  background: var(--surface-accent-subtle) !important;
+  color: var(--accent-text) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-action-btn,
+.mediainfo-floating-window--capsule .mediainfo-tab-action-btn {
+  height: 30px !important;
+  padding: 0 10px !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  font-size: var(--fs-2xs, 11px) !important;
+  font-weight: 500 !important;
+  line-height: 1 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-action-btn:hover,
+.mediainfo-floating-window--capsule .mediainfo-tab-action-btn:hover {
+  background: var(--action-hover-veil) !important;
+  color: var(--text-primary, #ffffff) !important;
+  border-color: transparent !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-tab-action-btn > span,
+.mediainfo-floating-window--capsule .mediainfo-tab-action-btn > span {
+  display: inline-flex !important;
+  align-items: center !important;
+  line-height: 1 !important;
+}
+
+/* ── Ряд 4: Островок контента (Тело отчёта) ───────────────────────────────── */
+.mediainfo-standalone--capsule .mediainfo-standalone__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 12px 14px !important;
+  overflow-y: auto !important;
+  overflow-x: auto !important;
+  scrollbar-gutter: stable !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section {
+  margin-bottom: 12px !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section:last-child {
+  margin-bottom: 0 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__header {
+  margin-top: 14px !important;
+  margin-bottom: 6px !important;
+  padding-bottom: 0 !important;
+  border-bottom: none !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section:first-child .mediainfo-section__header {
+  margin-top: 0 !important;
+}
+
+/* Интерактивный триггер сворачивания секции */
+.mediainfo-standalone--capsule .mediainfo-section__collapse-trigger {
+  background: var(--surface-level-2) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-control) !important;
+  padding: 5px 10px !important;
+  gap: 8px !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__collapse-trigger:hover {
+  background: var(--hover-veil-float) !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__title {
+  color: var(--accent-text) !important;
+  font-size: var(--fs-xs, 12px) !important;
+  font-weight: 700 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__count-badge {
+  background: var(--surface-level-3) !important;
+  border-radius: var(--radius-xs) !important;
+  color: var(--text-muted, #94a3b8) !important;
+  font-size: var(--fs-2xs, 10px) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__match-badge {
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.25) !important;
+  color: var(--accent-text) !important;
+  border-radius: var(--radius-xs) !important;
+  font-size: var(--fs-3xs, 9px) !important;
+  font-weight: 600 !important;
+}
+
+/* Кнопка копирования секции (только иконка) */
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn {
+  width: 24px !important;
+  height: 24px !important;
+  padding: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: var(--radius-control) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  background: var(--surface-level-3) !important;
+  color: var(--text-secondary, #94a3b8) !important;
+  transition: background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn:hover {
+  background: var(--hover-veil-float) !important;
+  color: #ffffff !important;
+  border-color: var(--border-pill-hover) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-section__copy-btn--copied {
+  background: rgba(74, 222, 128, 0.16) !important;
+  color: var(--success-text) !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+/* Строки свойств */
+.mediainfo-standalone--capsule .mediainfo-row {
+  border-radius: var(--radius-xs) !important;
+  padding: 2px 6px !important;
+  margin: 1px 0 !important;
+  transition: background var(--t-fast) var(--ease-smooth) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row:hover {
+  background: var(--hover-veil-float) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row__colon {
+  color: var(--accent-text) !important;
+  opacity: 0.65 !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row--match {
+  background: var(--surface-accent-subtle) !important;
+  color: #ffffff !important;
+  border-radius: var(--radius-xs) !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-row--match-current {
+  background: var(--surface-accent-hover) !important;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+/* Отключение градиентного затемнения при скролле */
+.mediainfo-standalone [data-scroll-fade],
+.mediainfo-floating-window [data-scroll-fade],
+.mediainfo-standalone__body,
+.mediainfo-floating-window__body,
+.mediainfo-standalone__tabs-list {
+  mask-image: none !important;
+  -webkit-mask-image: none !important;
+}
+
+/* Drag and Drop оверлей в капсульном режиме */
+.mediainfo-standalone--capsule .mediainfo-standalone__drag-overlay {
+  border-radius: var(--radius-controls, 16px) !important;
+  padding: 12px !important;
+}
+
+.mediainfo-standalone--capsule .mediainfo-standalone__drag-box {
+  border-radius: var(--radius-controls, 16px) !important;
+  background: rgba(var(--accent-rgb, 127, 199, 255), 0.05) !important;
+}
+
+/* ─── 2. Модальное плавающее окно MediaInfo (в плеере) ──────────────────── */
+.mediainfo-floating-window.mediainfo-floating-window--capsule {
+  background: transparent !important;
+  background-color: transparent !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  padding: 0 !important;
+  gap: 6px !important;
+  overflow: visible !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header-left,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__actions,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__search-bar,
+.mediainfo-floating-window--capsule .mediainfo-standalone__tabs-bar,
+.mediainfo-floating-window--capsule .mediainfo-floating-window__body {
+  background: var(--bg-glass, rgba(16, 19, 28, 0.94)) !important;
+  border: 1px solid var(--border-pill, rgba(255, 255, 255, 0.08)) !important;
+  border-radius: var(--radius-controls, 16px) !important;
+  box-shadow: var(--shadow-elevated, 0 8px 24px rgba(0, 0, 0, 0.35)) !important;
+  backdrop-filter: blur(20px) !important;
+  -webkit-backdrop-filter: blur(20px) !important;
+  box-sizing: border-box !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header {
+  background: transparent !important;
+  border: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  gap: 6px !important;
+  height: auto !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__header-left {
+  flex: 1 1 auto !important;
+  min-height: 42px !important;
+  padding: 0 14px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__icon {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  color: var(--accent-text) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__actions {
+  min-height: 42px !important;
+  padding: 4px 6px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 4px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn {
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn--lang {
+  width: auto !important;
+  padding: 0 9px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-standalone__tabs-bar {
+  border-bottom: none !important;
+  padding: 4px 6px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-tab-chip,
+.mediainfo-floating-window--capsule .mediainfo-tab-action-btn {
+  border-radius: max(0px, calc(var(--radius-controls, 16px) - 5px)) !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn--close {
+  display: grid !important;
+  place-items: center !important;
+  line-height: 0 !important;
+  padding: 0 !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__btn--close svg {
+  width: 16px !important;
+  height: 16px !important;
+  display: block !important;
+  margin: auto !important;
+  transform-origin: 50% 50% !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__search-bar {
+  min-height: 40px !important;
+  padding: 0 12px !important;
+}
+
+.mediainfo-floating-window--capsule .mediainfo-floating-window__body {
+  flex: 1 1 auto !important;
+  min-height: 0 !important;
+  padding: 12px 14px !important;
+}

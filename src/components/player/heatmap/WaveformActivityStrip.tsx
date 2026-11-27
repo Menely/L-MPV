@@ -19,6 +19,7 @@ import { usePlayerState, usePlayerProgress } from "../../../contexts/PlayerState
 import { useTranslation } from "../../../i18n/LanguageContext";
 import { createHeatmapDisplayCache } from "./heatmapDisplay";
 import { getVisualizerConfig } from "../AudioVisualizer";
+import { notifyLiquidGlassSync } from "../../../theme/liquidGlass/LiquidGlassSync";
 import {
   timelineScrubSync,
   TimelineScrubState,
@@ -568,6 +569,15 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
     return () => { window.dispatchEvent(new Event("l-mpv-timeline-layout-changed")); };
   }, [heatmapConfig.enabled, isVisible, isAboveTimeline, isAboveVisualizer]);
 
+  const badgeVisible = Boolean(hoverMetrics && hoverRatio !== null);
+  useLayoutEffect(() => {
+    if (!badgeVisible) return;
+    notifyLiquidGlassSync();
+    return () => {
+      queueMicrotask(notifyLiquidGlassSync);
+    };
+  }, [badgeVisible, hoverRatio]);
+
   if (!heatmapConfig.enabled) {
     return null;
   }
@@ -590,7 +600,7 @@ export const WaveformActivityStrip: React.FC<WaveformActivityStripProps> = React
         isAboveVisualizer ? "waveform-activity-strip--above-visualizer" : ""
       } ${className}`}
       style={{
-        height: `${heatmapConfig.height || 24}px`,
+        height: `${heatmapConfig.height || 34}px`,
         opacity: isVisible ? heatmapConfig.opacity : 0,
       }}
       onPointerEnter={handlePointerEnter}

@@ -12,12 +12,6 @@ import {
   Redo,
   SkipBack,
   SkipForward,
-  Pause,
-  Volume1,
-  Volume2,
-  VolumeX,
-  Maximize,
-  Minimize as MinimizeIcon,
   AudioLines,
   Subtitles,
   Info,
@@ -26,13 +20,11 @@ import {
   Repeat,
   Repeat1,
   Shuffle,
-  Pin,
   Loader2,
   FastForward,
   FileText,
   AudioWaveform,
   MoreHorizontal,
-
 } from "lucide-react";
 import { Timeline } from "./Timeline";
 import {
@@ -65,7 +57,8 @@ import {
 import {
   ControlBarStyle,
   getSavedControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
+import { getPlayerTheme, type PlayerTheme } from "../../theme/liquidGlass/preferences";
 import {
   type UtilityButtonId,
   getSavedUtilityCards,
@@ -79,7 +72,16 @@ import {
   DockedControlsLayout,
   TrackPopovers,
 } from "./controls";
-import { SpeedPopover, formatSpeedValue, SPEED_PRESETS, SpeedIcon, AppPlayIcon } from "./controls";
+import {
+  SpeedPopover,
+  formatSpeedValue,
+  SPEED_PRESETS,
+  SpeedIcon,
+  PlayPauseMorphIcon,
+  VolumeMorphIcon,
+  FullscreenMorphIcon,
+  PinMorphIcon,
+} from "./controls";
 import { ControlsOverflow, type OverflowAction } from "./controls/ControlsOverflow";
 
 export function PlayerControls({
@@ -125,9 +127,11 @@ export function PlayerControls({
     isFullscreen,
     toggleFullscreen,
     downloadingTrackKey,
+    trackDownloadState,
     isAudioDownloading,
     isSubDownloading,
     handleDownloadTrack,
+    handleCancelDownloadTrack,
   } = usePlayerState();
   const volume = contextVolume;
   const [isControlsHovered, setIsControlsHovered] = useState(false);
@@ -189,7 +193,10 @@ export function PlayerControls({
   const [hotkeys, setHotkeys] = useState<Record<string, string[]>>(() => getCustomHotkeys());
   const [timePosition, setTimePosition] = useState<TimeDisplayPosition>(() => getSavedTimePosition());
   const [timeFormat, setTimeFormat] = useState<TimeFormatMode>(() => getSavedTimeFormat());
-  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() => getSavedControlBarStyle());
+  const [playerTheme, setPlayerThemeState] = useState<PlayerTheme>(() => getPlayerTheme());
+  const [controlBarStyle, setControlBarStyle] = useState<ControlBarStyle>(() =>
+    getSavedControlBarStyle(getPlayerTheme()),
+  );
   const [utilityCards, setUtilityCards] = useState<UtilityButtonId[][]>(() => getSavedUtilityCards());
 
 
@@ -214,13 +221,17 @@ export function PlayerControls({
       setHotkeys(getCustomHotkeys());
       setTimePosition(getSavedTimePosition());
       setTimeFormat(getSavedTimeFormat());
-      setControlBarStyle(getSavedControlBarStyle());
+      const activeTheme = getPlayerTheme();
+      setPlayerThemeState(activeTheme);
+      setControlBarStyle(getSavedControlBarStyle(activeTheme));
       setUtilityCards(getSavedUtilityCards());
     };
     window.addEventListener('l-mpv-settings-changed', updateSetting);
+    window.addEventListener('l-mpv-player-theme-changed', updateSetting);
     window.addEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
     return () => {
       window.removeEventListener('l-mpv-settings-changed', updateSetting);
+      window.removeEventListener('l-mpv-player-theme-changed', updateSetting);
       window.removeEventListener(UTILITY_CARDS_CHANGED_EVENT, updateSetting);
     };
   }, []);
@@ -248,11 +259,16 @@ export function PlayerControls({
       const controlsHeight = el.offsetHeight;
       // Зазор между панелью управления и всплывающими окнами (совпадает с 14px поповера дорожек)
       const GAP = 14;
-       const totalBottom = Math.max(76, Math.round(bottomBase + controlsHeight + GAP));
+       const controlsTop = Math.round(bottomBase + controlsHeight);
+       const totalBottom = Math.max(76, controlsTop + GAP);
 
        document.documentElement.style.setProperty(
          "--player-controls-bottom",
          `${bottomBase}px`
+       );
+       document.documentElement.style.setProperty(
+         "--player-controls-top",
+         `${controlsTop}px`
        );
        document.documentElement.style.setProperty(
          "--bottom-overlays-bottom",
@@ -272,6 +288,7 @@ export function PlayerControls({
       resizeObserver.disconnect();
        window.removeEventListener("resize", updateControlsOffset);
        document.documentElement.style.removeProperty("--player-controls-bottom");
+       document.documentElement.style.removeProperty("--player-controls-top");
        document.documentElement.style.removeProperty("--bottom-overlays-bottom");
     };
   }, [controlBarStyle]);
@@ -460,7 +477,7 @@ export function PlayerControls({
   const handleTakeScreenshot = useCallback(async () => {
     try {
       await invoke("take_screenshot");
-      showOsd(dict.osd.frameSaved);
+      showOsd(dict.osd.frameSaved, { icon: "screenshot" });
     } catch {
       showOsd(dict.osd.frameError, { isError: true });
     }
@@ -610,7 +627,7 @@ export function PlayerControls({
           ? {
               id: "always-on-top",
               label: dict.controls.alwaysOnTop,
-              icon: <Pin size={18} />,
+              icon: <PinMorphIcon pinned={isAlwaysOnTop} size={18} />,
               priority: "medium",
               onSelect: handleToggleAlwaysOnTop,
               active: isAlwaysOnTop,
@@ -666,18 +683,20 @@ export function PlayerControls({
   const renderTrackPopovers = () => (
     <AnimatePresence custom={immediateExit} onExitComplete={onExitComplete}>
       {(activePopover === "audio" || activePopover === "sub") && <TrackPopovers
-        key="tracks"
+        key={activePopover}
         displayedPopover={activePopover}
         popoverRef={popoverRef}
         activeTrackItemRef={activeTrackItemRef}
         controlBarStyle={controlBarStyle}
         tracks={tracks}
         downloadingTrackKey={downloadingTrackKey}
+        trackDownloadState={trackDownloadState}
         onSelectAudioTrack={selectAudioTrack}
         onSelectSubTrack={selectSubTrack}
         onDisableSubtitles={disableSubtitles}
         onClose={closePopover}
         onDownloadTrack={handleDownloadTrack}
+        onCancelDownloadTrack={handleCancelDownloadTrack}
         onOpenSubtitlesSearch={onOpenSubtitlesSearch}
       />}
       {activePopover === "speed" && (
@@ -819,13 +838,7 @@ export function PlayerControls({
         id="btn-volume"
         aria-label={volume === 0 ? dict.controls.unmute : dict.controls.mute}
       >
-        {volume === 0 ? (
-          <VolumeX key="vol-x" size={18} />
-        ) : volume < 50 ? (
-          <Volume1 key="vol-1" size={18} />
-        ) : (
-          <Volume2 key="vol-2" size={18} />
-        )}
+        <VolumeMorphIcon volume={volume} size={19} />
       </button>
       <div className="volume-slider__expandable">
         <input
@@ -892,11 +905,7 @@ export function PlayerControls({
         id="btn-play-pause"
         aria-label={paused ? dict.controls.play : dict.controls.pause}
       >
-        {paused ? (
-          <AppPlayIcon key="play-icon" size={28} className="control-btn__app-play-icon" />
-        ) : (
-          <Pause key="pause-icon" size={22} fill="currentColor" />
-        )}
+        <PlayPauseMorphIcon paused={paused} theme={playerTheme} />
       </button>
 
       {visibleButtons.seekButtons !== false && (
@@ -943,11 +952,7 @@ export function PlayerControls({
         id="btn-fullscreen"
         aria-label={isFullscreen ? dict.controls.exitFullscreen : dict.controls.fullscreen}
       >
-        {isFullscreen ? (
-          <MinimizeIcon size={24} />
-        ) : (
-          <Maximize size={24} />
-        )}
+        <FullscreenMorphIcon isFullscreen={isFullscreen} size={20} />
       </button>
     ) : null
   );
@@ -955,11 +960,11 @@ export function PlayerControls({
   const handleSetSpeed = useCallback(async (newSpeed: number) => {
     try {
       await invoke("set_speed", { speed: newSpeed });
-      showOsd(formatSpeedValue(newSpeed));
+      showOsd(dict.osd.speed(formatSpeedValue(newSpeed)), { icon: "speed" });
     } catch (e) {
       console.error("Ошибка при установке скорости воспроизведения:", e);
     }
-  }, []);
+  }, [dict.osd]);
 
   const handleSpeedButtonClick = useCallback(
     (e: React.MouseEvent) => {
@@ -1078,7 +1083,7 @@ export function PlayerControls({
             aria-label={dict.controls.alwaysOnTop}
             onClick={handleToggleAlwaysOnTop}
           >
-            <Pin size={18} />
+            <PinMorphIcon pinned={isAlwaysOnTop} size={18} />
           </button>
         ) : null;
       case "info":
@@ -1212,10 +1217,21 @@ export function PlayerControls({
   };
 
   const renderUtilityIslands = (toolbarRightTimeNode?: React.ReactNode) => {
+    // Если кнопка скорости не закреплена в настройках, но временно отображается (скорость != 1.0x
+    // или открыто меню скорости), в стиле «Капсула» она выносится в самостоятельную карточку,
+    // а не подмешивается внутрь общей карточки утилит.
+    const isAutoStandaloneSpeed = visibleButtons.speed !== true && isSpeedButtonShown();
+    const speedCardNode = isAutoStandaloneSpeed ? (
+      <div key="utility-island-auto-speed" className="controls-island controls-island--speed">
+        {renderSpeedButtonContent()}
+      </div>
+    ) : null;
+
     const activeCards = utilityCards
       .map((cardIds, cardIdx) => ({
         cardIdx,
         items: cardIds
+          .filter((id) => !(isAutoStandaloneSpeed && id === "speed"))
           .map((id) => ({ id, node: renderUtilityButtonById(id) }))
           .filter((item): item is { id: UtilityButtonId; node: React.ReactNode } => item.node !== null),
       }))
@@ -1223,16 +1239,19 @@ export function PlayerControls({
 
     if (activeCards.length === 0) {
       return (
-        <div
-          className={
-            toolbarRightTimeNode
-              ? "controls-island controls-island--utilities"
-              : "controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only"
-          }
-        >
-          {toolbarRightTimeNode}
-          {renderMoreButton()}
-        </div>
+        <>
+          {speedCardNode}
+          <div
+            className={
+              toolbarRightTimeNode
+                ? "controls-island controls-island--utilities"
+                : "controls-island controls-island--fullscreen controls-island--single-icon controls-island--more-only"
+            }
+          >
+            {toolbarRightTimeNode}
+            {renderMoreButton()}
+          </div>
+        </>
       );
     }
 
@@ -1244,9 +1263,12 @@ export function PlayerControls({
 
     return (
       <>
+        {speedCardNode}
         {activeCards.map((card, idx) => {
           const hasTime = Boolean(toolbarRightTimeNode) && idx === timeCardIdx;
           const hasMore = idx === moreCardIdx;
+          const isStandaloneSpeedCard =
+            card.items.length === 1 && !hasTime && !hasMore && card.items[0].id === "speed";
           const isSingleIcon =
             card.items.length === 1 &&
             !hasTime &&
@@ -1268,7 +1290,9 @@ export function PlayerControls({
 
           const islandClass = isSingleIcon
             ? "controls-island controls-island--fullscreen controls-island--single-icon"
-            : "controls-island controls-island--utilities";
+            : isStandaloneSpeedCard
+              ? "controls-island controls-island--speed"
+              : "controls-island controls-island--utilities";
 
           const responsiveClass = allLowPriority
             ? "controls-island--only-low"

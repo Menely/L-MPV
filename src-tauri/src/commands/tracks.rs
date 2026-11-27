@@ -291,15 +291,257 @@ fn resolve_ffmpeg_path() -> Result<PathBuf, String> {
 
 // ─── Извлечение дорожек через FFmpeg ────────────────────
 
+/// Полезная нагрузка события прогресса извлечения дорожки через FFmpeg.
+#[derive(Clone, serde::Serialize)]
+pub struct TrackExtractProgress {
+    /// Уникальный ключ дорожки (`audio-<id>` или `sub-<id>`).
+    pub track_key: String,
+    /// Текущий прогресс в процентах (0..100).
+    pub progress: f64,
+    /// Статус операции (`running`, `completed`, `cancelled`, `error`).
+    pub status: String,
+}
+
+/// Контроллер отмены активного процесса извлечения дорожки.
+struct ActiveExtractControl {
+    cancelled: std::sync::Arc<std::sync::atomic::AtomicBool>,
+    abort_handle: Option<tokio::task::AbortHandle>,
+}
+
+/// Глобальный реестр активных задач извлечения дорожек.
+static ACTIVE_TRACK_EXTRACTS: OnceLock<
+    std::sync::Mutex<std::collections::HashMap<String, ActiveExtractControl>>,
+> = OnceLock::new();
+
+/// RAII-страж для гарантированной очистки записи об активном извлечении.
+struct ExtractGuard {
+    key: Option<String>,
+}
+
+impl Drop for ExtractGuard {
+    fn drop(&mut self) {
+        if let Some(ref k) = self.key {
+            if let Some(map) = ACTIVE_TRACK_EXTRACTS.get() {
+                if let Ok(mut guard) = map.lock() {
+                    guard.remove(k);
+                }
+            }
+        }
+    }
+}
+
+/// Отправка события прогресса извлечения на фронтенд.
+fn emit_extract_progress(
+    app: &tauri::AppHandle,
+    track_key: Option<&String>,
+    progress: f64,
+    status: &str,
+) {
+    if let Some(key) = track_key {
+        use tauri::Emitter;
+        let _ = app.emit(
+            "track-extract-progress",
+            TrackExtractProgress {
+                track_key: key.clone(),
+                progress: progress.clamp(0.0, 100.0),
+                status: status.to_string(),
+            },
+        );
+    }
+}
+
+/// Разбор текущей временной позиции из вывода FFmpeg `-progress pipe:1`.
+fn parse_ffmpeg_progress_secs(line: &str) -> Option<f64> {
+    if let Some(val) = line.strip_prefix("out_time=") {
+        let trimmed = val.trim();
+        if trimmed == "N/A" || trimmed.starts_with('-') {
+            return None;
+        }
+        let mut parts = trimmed.split(':');
+        let h: f64 = parts.next()?.parse().ok()?;
+        let m: f64 = parts.next()?.parse().ok()?;
+        let s: f64 = parts.next()?.parse().ok()?;
+        return Some(h * 3600.0 + m * 60.0 + s);
+    }
+    if let Some(val) = line.strip_prefix("out_time_us=") {
+        let us: i64 = val.trim().parse().ok()?;
+        if us >= 0 {
+            return Some(us as f64 / 1_000_000.0);
+        }
+    }
+    None
+}
+
+/// Сохранение `AbortHandle` текущей задачи FFmpeg в глобальный реестр отмены.
+fn set_active_extract_abort(
+    track_key: Option<&String>,
+    abort_handle: Option<tokio::task::AbortHandle>,
+) {
+    if let Some(key) = track_key {
+        if let Some(map) = ACTIVE_TRACK_EXTRACTS.get() {
+            if let Ok(mut guard) = map.lock() {
+                if let Some(ctrl) = guard.get_mut(key) {
+                    ctrl.abort_handle = abort_handle;
+                }
+            }
+        }
+    }
+}
+
+/// Асинхронный запуск FFmpeg с чтением прогресса и поддержкой отмены.
+#[allow(clippy::too_many_arguments)]
+async fn run_ffmpeg_with_progress(
+    ffmpeg_path: &Path,
+    args: &[String],
+    timeout_secs: u64,
+    app: &tauri::AppHandle,
+    track_key: Option<&String>,
+    total_duration_secs: Option<f64>,
+    cancel_flag: &std::sync::Arc<std::sync::atomic::AtomicBool>,
+    target_path: &str,
+) -> Result<(bool, String), String> {
+    use std::sync::atomic::Ordering;
+    use tokio::io::{AsyncBufReadExt, AsyncReadExt};
+
+    if cancel_flag.load(Ordering::SeqCst) {
+        emit_extract_progress(app, track_key, 0.0, "cancelled");
+        return Err("Извлечение дорожки отменено пользователем.".to_string());
+    }
+
+    let mut cmd = tokio::process::Command::new(ffmpeg_path);
+    cmd.args(args);
+    cmd.args(["-nostats", "-progress", "pipe:1"]);
+    cmd.stdin(std::process::Stdio::null());
+    cmd.stdout(std::process::Stdio::piped());
+    cmd.stderr(std::process::Stdio::piped());
+    cmd.kill_on_drop(true);
+
+    #[cfg(target_os = "windows")]
+    {
+        const CREATE_NO_WINDOW: u32 = 0x08000000;
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?;
+
+    let stdout = child.stdout.take();
+    let stderr = child.stderr.take();
+    let app_clone = app.clone();
+    let key_clone = track_key.cloned();
+
+    let task = tokio::spawn(async move {
+        // Дренируем stderr в отдельной задаче, чтобы исключить блокировку буфера.
+        let stderr_handle = tokio::spawn(async move {
+            let mut buf = String::new();
+            if let Some(mut err_pipe) = stderr {
+                let _ = err_pipe.read_to_string(&mut buf).await;
+            }
+            buf
+        });
+
+        let mut last_emitted_pct = 0.0_f64;
+
+        if let Some(out_pipe) = stdout {
+            let mut lines = tokio::io::BufReader::new(out_pipe).lines();
+            while let Ok(Some(line)) = lines.next_line().await {
+                if let Some(secs) = parse_ffmpeg_progress_secs(&line) {
+                    if let Some(dur) = total_duration_secs {
+                        if dur > 0.1 {
+                            let pct = ((secs / dur) * 100.0).clamp(1.0, 99.0);
+                            if pct >= last_emitted_pct + 0.5 {
+                                last_emitted_pct = pct;
+                                emit_extract_progress(
+                                    &app_clone,
+                                    key_clone.as_ref(),
+                                    pct,
+                                    "running",
+                                );
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        let status = child
+            .wait()
+            .await
+            .map_err(|e| format!("Ошибка ожидания завершения FFmpeg: {}", e))?;
+        let err_log = stderr_handle.await.unwrap_or_default();
+        Ok::<(bool, String), String>((status.success(), err_log))
+    });
+
+    let abort_handle = task.abort_handle();
+    set_active_extract_abort(track_key, Some(abort_handle.clone()));
+
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_secs(timeout_secs),
+        task,
+    )
+    .await;
+
+    set_active_extract_abort(track_key, None);
+
+    match outcome {
+        Err(_) => {
+            abort_handle.abort();
+            let _ = std::fs::remove_file(target_path);
+            emit_extract_progress(app, track_key, 0.0, "error");
+            Err(format!(
+                "Время извлечения дорожки через FFmpeg истекло (таймаут {} сек). Процесс остановлен.",
+                timeout_secs
+            ))
+        }
+        Ok(Err(_join_err)) => {
+            let _ = std::fs::remove_file(target_path);
+            emit_extract_progress(app, track_key, 0.0, "cancelled");
+            Err("Извлечение дорожки отменено пользователем.".to_string())
+        }
+        Ok(Ok(res)) => {
+            if cancel_flag.load(Ordering::SeqCst) {
+                let _ = std::fs::remove_file(target_path);
+                emit_extract_progress(app, track_key, 0.0, "cancelled");
+                return Err("Извлечение дорожки отменено пользователем.".to_string());
+            }
+            res
+        }
+    }
+}
+
+/// Отмена активного извлечения дорожки по ключу.
+#[tauri::command]
+pub async fn cancel_track_extract(track_key: String) -> Result<bool, String> {
+    if let Some(map) = ACTIVE_TRACK_EXTRACTS.get() {
+        if let Ok(guard) = map.lock() {
+            if let Some(ctrl) = guard.get(&track_key) {
+                ctrl.cancelled
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                if let Some(ref handle) = ctrl.abort_handle {
+                    handle.abort();
+                }
+                return Ok(true);
+            }
+        }
+    }
+    Ok(false)
+}
+
 /// Извлечение аудиодорожки или субтитров в отдельный файл с помощью встроенного FFmpeg.
 #[tauri::command]
+#[allow(clippy::too_many_arguments)]
 pub async fn extract_track(
+    app: tauri::AppHandle,
+    state: State<'_, PlayerState>,
     video_path: String,
     track_type: String,
     track_index: i64,
     ff_index: Option<i64>,
     external_filename: Option<String>,
     target_path: String,
+    track_key: Option<String>,
+    duration_sec: Option<f64>,
 ) -> Result<String, String> {
     // Если извлекается аудиодорожка с расширением .aac, автоматически упаковываем в контейнер .m4a
     let effective_target_path = if track_type == "audio"
@@ -313,8 +555,48 @@ pub async fn extract_track(
         target_path
     };
 
+    let cancel_flag =
+        std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+
+    // Регистрация задачи в глобальном реестре отмены
+    if let Some(ref key) = track_key {
+        let map = ACTIVE_TRACK_EXTRACTS.get_or_init(|| {
+            std::sync::Mutex::new(std::collections::HashMap::new())
+        });
+        if let Ok(mut guard) = map.lock() {
+            guard.insert(
+                key.clone(),
+                ActiveExtractControl {
+                    cancelled: cancel_flag.clone(),
+                    abort_handle: None,
+                },
+            );
+        }
+    }
+    let _guard = ExtractGuard {
+        key: track_key.clone(),
+    };
+
+    emit_extract_progress(&app, track_key.as_ref(), 0.0, "running");
+
+    // Определяем общую длительность для точного расчёта процентов прогресса
+    let resolved_duration = match duration_sec {
+        Some(d) if d.is_finite() && d > 0.1 => Some(d),
+        _ => state
+            .mpv
+            .get_property_double("duration")
+            .ok()
+            .filter(|d| d.is_finite() && *d > 0.1),
+    };
+
     // Определение пути к встроенному исполняемому файлу ffmpeg
-    let ffmpeg_path = resolve_ffmpeg_path()?;
+    let ffmpeg_path = match resolve_ffmpeg_path() {
+        Ok(p) => p,
+        Err(e) => {
+            emit_extract_progress(&app, track_key.as_ref(), 0.0, "error");
+            return Err(e);
+        }
+    };
 
     // Создание родительской директории, если она отсутствует
     if let Some(parent) =
@@ -339,60 +621,45 @@ pub async fn extract_track(
                         .to_lowercase()
                         .ends_with(".m4a")
                 {
-                    let mut cmd =
-                        tokio::process::Command::new(
-                            &ffmpeg_path,
-                        );
-                    cmd.args([
-                        "-y",
-                        "-i",
-                        &resolved_str,
-                        "-c",
-                        "copy",
+                    let args = vec![
+                        "-y".to_string(),
+                        "-i".to_string(),
+                        resolved_str.clone(),
+                        "-c".to_string(),
+                        "copy".to_string(),
+                        effective_target_path.clone(),
+                    ];
+                    if let Ok((true, _)) = run_ffmpeg_with_progress(
+                        &ffmpeg_path,
+                        &args,
+                        60,
+                        &app,
+                        track_key.as_ref(),
+                        resolved_duration,
+                        &cancel_flag,
                         &effective_target_path,
-                    ]);
-                    cmd.kill_on_drop(true);
-                    #[cfg(target_os = "windows")]
-                    {
-                        const CREATE_NO_WINDOW: u32 =
-                            0x08000000;
-                        cmd.creation_flags(
-                            CREATE_NO_WINDOW,
-                        );
-                    }
-                    let out = tokio::time::timeout(
-                        std::time::Duration::from_secs(60),
-                        cmd.output(),
                     )
                     .await
-                    .map_err(|_| {
-                        "Таймаут упаковки AAC в M4A через FFmpeg (60 сек). Процесс остановлен."
-                            .to_string()
-                    })?
-                    .map_err(|e| {
-                        format!(
-                            "Не удалось запустить \
-                             FFmpeg: {}",
-                            e
-                        )
-                    })?;
-                    if out.status.success() {
-                        return Ok(
-                            effective_target_path,
-                        );
+                    {
+                        emit_extract_progress(&app, track_key.as_ref(), 100.0, "completed");
+                        return Ok(effective_target_path);
+                    }
+                    if cancel_flag.load(std::sync::atomic::Ordering::SeqCst) {
+                        return Err("Извлечение дорожки отменено пользователем.".to_string());
                     }
                 }
 
-                std::fs::copy(&resolved, &effective_target_path)
-                    .map_err(|e| {
-                        format!(
-                            "Ошибка копирования \
-                             внешнего файла: {}",
-                            e
-                        )
-                    })?;
+                if let Err(e) = std::fs::copy(&resolved, &effective_target_path) {
+                    emit_extract_progress(&app, track_key.as_ref(), 0.0, "error");
+                    return Err(format!(
+                        "Ошибка копирования внешнего файла: {}",
+                        e
+                    ));
+                }
+                emit_extract_progress(&app, track_key.as_ref(), 100.0, "completed");
                 return Ok(effective_target_path);
             } else {
+                emit_extract_progress(&app, track_key.as_ref(), 0.0, "error");
                 return Err(format!(
                     "Файл внешней дорожки не найден: {}",
                     ext_path
@@ -407,6 +674,7 @@ pub async fn extract_track(
     if !is_remote {
         let vpath = std::path::Path::new(&video_path);
         if !vpath.exists() {
+            emit_extract_progress(&app, track_key.as_ref(), 0.0, "error");
             return Err(format!(
                 "Исходный видеофайл не найден: {}",
                 video_path
@@ -430,69 +698,66 @@ pub async fn extract_track(
     };
 
     // Попытка 1: Прямое копирование потока (-c copy)
-    let mut cmd = tokio::process::Command::new(&ffmpeg_path);
-    cmd.args([
-        "-y",
-        "-i",
-        &video_path,
-        "-map",
-        &stream_specifier,
-        "-c",
-        "copy",
+    let copy_args = vec![
+        "-y".to_string(),
+        "-i".to_string(),
+        video_path.clone(),
+        "-map".to_string(),
+        stream_specifier.clone(),
+        "-c".to_string(),
+        "copy".to_string(),
+        effective_target_path.clone(),
+    ];
+
+    let (mut success, mut err_log) = run_ffmpeg_with_progress(
+        &ffmpeg_path,
+        &copy_args,
+        120,
+        &app,
+        track_key.as_ref(),
+        resolved_duration,
+        &cancel_flag,
         &effective_target_path,
-    ]);
-    cmd.kill_on_drop(true);
-
-    #[cfg(target_os = "windows")]
-    {
-        const CREATE_NO_WINDOW: u32 = 0x08000000;
-        cmd.creation_flags(CREATE_NO_WINDOW);
-    }
-
-    let mut output = match tokio::time::timeout(std::time::Duration::from_secs(60), cmd.output()).await {
-        Ok(res) => res.map_err(|e| format!("Не удалось запустить FFmpeg: {}", e))?,
-        Err(_) => {
-            return Err("Время извлечения дорожки через FFmpeg истекло (таймаут 60 сек). Процесс остановлен.".to_string());
-        }
-    };
+    )
+    .await?;
 
     // Попытка 2 (Fallback): Если прямое копирование потока завершилось ошибкой,
     // пробуем извлечь с автоматической конвертацией FFmpeg
-    if !output.status.success() {
-        let mut retry_cmd = tokio::process::Command::new(&ffmpeg_path);
-        retry_cmd.args([
-            "-y",
-            "-i",
-            &video_path,
-            "-map",
-            &stream_specifier,
-            "-threads",
-            "0",
+    if !success {
+        let retry_args = vec![
+            "-y".to_string(),
+            "-i".to_string(),
+            video_path.clone(),
+            "-map".to_string(),
+            stream_specifier,
+            "-threads".to_string(),
+            "0".to_string(),
+            effective_target_path.clone(),
+        ];
+        match run_ffmpeg_with_progress(
+            &ffmpeg_path,
+            &retry_args,
+            180,
+            &app,
+            track_key.as_ref(),
+            resolved_duration,
+            &cancel_flag,
             &effective_target_path,
-        ]);
-        retry_cmd.kill_on_drop(true);
-        #[cfg(target_os = "windows")]
+        )
+        .await
         {
-            const CREATE_NO_WINDOW: u32 = 0x08000000;
-            retry_cmd.creation_flags(CREATE_NO_WINDOW);
-        }
-
-        match tokio::time::timeout(std::time::Duration::from_secs(120), retry_cmd.output()).await {
-            Ok(Ok(retry_output)) => {
-                output = retry_output;
+            Ok((retry_success, retry_err)) => {
+                success = retry_success;
+                if !retry_err.is_empty() {
+                    err_log = retry_err;
+                }
             }
-            Ok(Err(e)) => {
-                eprintln!("[L-MPV] Не удалось запустить повторную конвертацию FFmpeg: {}", e);
-            }
-            Err(_) => {
-                return Err("Время перекодирования дорожки через FFmpeg истекло (таймаут 120 сек).".to_string());
-            }
+            Err(e) => return Err(e),
         }
     }
 
-    if !output.status.success() {
-        let err_log =
-            String::from_utf8_lossy(&output.stderr);
+    if !success {
+        emit_extract_progress(&app, track_key.as_ref(), 0.0, "error");
         let last_err = err_log
             .lines()
             .rev()
@@ -509,6 +774,7 @@ pub async fn extract_track(
         return Err(format!("Ошибка FFmpeg: {}", last_err));
     }
 
+    emit_extract_progress(&app, track_key.as_ref(), 100.0, "completed");
     Ok(effective_target_path)
 }
 

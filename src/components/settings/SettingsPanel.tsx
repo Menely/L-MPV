@@ -1,17 +1,16 @@
-import { SettingsUpdateAction } from "./components/SettingsUpdateAction";
+import { SettingsFooter } from "./components/SettingsFooter";
 import { MotionSurface } from "../motion/MotionSurface";
 import { SelectionRail } from "../motion/SelectionRail";
 import { useSurfaceDismiss } from "../motion/useSurfaceDismiss";
+import { notifyLiquidGlassAnimation } from "../../theme/liquidGlass/LiquidGlassSync";
 import { applyAmbientPreview, saveAmbientSettings } from "../../utils/ambientPreviewQueue";
 import { useState, useEffect, useLayoutEffect, useRef, useCallback, memo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openUrl } from "@tauri-apps/plugin-opener";
 import {
   Keyboard,
   SlidersHorizontal,
   Palette,
-  Loader2,
   Sparkles,
   Layers,
   X,
@@ -33,7 +32,7 @@ import {
   ControlBarStyle,
   getSavedControlBarStyle,
   saveControlBarStyle,
-} from "../../utils/controlBarStyleUtils";
+} from "../../theme/controlBarStyle";
 import {
   createDefaultAmbientSettings,
   normalizeAmbientSettings,
@@ -76,41 +75,7 @@ import {
   getSavedUiFont,
   saveUiFont,
   getActiveUiScale,
-} from "../../utils/uiThemeUtils";
-/**
- * Векторная иконка GitHub для ссылки на репозиторий.
- */
-const GithubIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={`${className} block`}
-    >
-    <path
-      fillRule="evenodd"
-      clipRule="evenodd"
-      d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.53 1.032 1.53 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"
-    />
-  </svg>
-  );
-
-/**
- * Векторная иконка Telegram для ссылки на сообщество.
- */
-const TelegramIcon: React.FC<{ size?: number; className?: string }> = ({ size = 16, className }) => (
-  <svg
-    width={size}
-    height={size}
-    viewBox="0 0 24 24"
-    fill="currentColor"
-    className={`${className} block`}
-    >
-    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.12.03-1.96 1.25-5.54 3.69-.52.36-1 .54-1.42.53-.47-.01-1.37-.26-2.03-.48-.82-.27-1.47-.42-1.42-.88.03-.24.37-.49 1.02-.75 4.02-1.75 6.7-2.9 8.04-3.46 3.83-1.6 4.62-1.88 5.14-1.89.11 0 .37.03.54.17.14.12.18.28.2.4.02.12.01.24 0 .35z" />
-  </svg>
-  );
-
+} from "../../theme/tokens";
 export type { AmbientSettings } from "../../utils/ambientSettingsUtils";
 
 interface SettingsPanelProps {
@@ -195,7 +160,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   const [autoLoadTracks, setAutoLoadTracks] = useState<boolean>(false);
   const [autoSelectExternalAudio, setAutoSelectExternalAudio] = useState<boolean>(false);
   const [playNextOnEnd, setPlayNextOnEnd] = useState<boolean>(true);
-  const [appVersion, setAppVersion] = useState<string>("2.7.6");
+  const [appVersion, setAppVersion] = useState<string>("2.8.0");
   const [visibleButtons, setVisibleButtons] = useState<Record<string, boolean>>({});
   const [skipOpeningSeconds, setSkipOpeningSeconds] = useState<number>(() => getSavedSkipOpeningSeconds());
   const [seekStepSeconds, setSeekStepSeconds] = useState<number>(() => getSavedSeekStepSeconds());
@@ -519,6 +484,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
   }, []);
 
   const toggleSection = useCallback((id: string) => {
+    notifyLiquidGlassAnimation(280);
     setOpenSections((prev) => {
       if (prev[id]) {
         return {};
@@ -939,51 +905,18 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
     </>
   );
 
-  const renderFooterContent = () => (
-    <>
-      <div className="settings-footer__left">
-        <div className="settings-footer__icons">
-          <button
-            type="button"
-            onClick={() => openUrl("https://github.com/Menely/L-MPV")}
-            className="settings-footer__icon-btn hover-bright"
-            title={dict.settings.integration.githubTooltip}
-          >
-            <GithubIcon size={19} />
-          </button>
-
-          <button
-            type="button"
-            onClick={() => openUrl("https://t.me/+pI8qa9mSkINkYmFi")}
-            className="settings-footer__icon-btn hover-bright"
-            title={dict.settings.integration.telegramTooltip}
-          >
-            <TelegramIcon size={19} />
-          </button>
-        </div>
-
-        <span className="settings-footer__title">L-MPV</span>
-
-        <button
-          type="button"
-          onClick={handleShowVersionInfo}
-          disabled={isLoadingVersionInfo || isCheckingUpdate}
-          className="settings-footer__btn settings-footer__btn--version"
-        >
-          {isLoadingVersionInfo && <Loader2 size={11} className="animate-spin" />}
-          <span>v{appVersion}</span>
-        </button>
-
-        <SettingsUpdateAction
-          checking={isCheckingUpdate || isLoadingVersionInfo}
-          status={updateStatus}
-          hasUpdate={foundUpdate?.has_update === true}
-          onCheck={handleCheckForUpdates}
-          onShowUpdate={foundUpdate && onShowUpdate ? () => onShowUpdate(foundUpdate) : undefined}
-        />
-      </div>
-      <span className="settings-footer__edition">{dict.settings.integration.portableEdition}</span>
-    </>
+  const footerElement = (
+    <SettingsFooter
+      isCapsule={isCapsule}
+      appVersion={appVersion}
+      isLoadingVersionInfo={isLoadingVersionInfo}
+      isCheckingUpdate={isCheckingUpdate}
+      updateStatus={updateStatus}
+      foundUpdate={foundUpdate}
+      onShowVersionInfo={handleShowVersionInfo}
+      onCheckForUpdates={handleCheckForUpdates}
+      onShowUpdate={onShowUpdate}
+    />
   );
 
   return (
@@ -1039,7 +972,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
                   onClick={handleClose}
                   aria-label={dict.settings.close}
                 >
-                  <X size={20} />
+                  <X size={20} strokeWidth={2.4} />
                 </button>
               </div>
             </div>
@@ -1051,10 +984,8 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
               </div>
             </div>
 
-            {/* Карточка 3: Футер с версией приложения и проверкой обновлений */}
-            <div className="settings-card settings-card--footer">
-              {renderFooterContent()}
-            </div>
+            {/* Нижний ряд: 4 карточки-островка футера */}
+            {footerElement}
           </>
         ) : (
           <>
@@ -1085,7 +1016,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
                 onClick={handleClose}
                 aria-label={dict.settings.close}
               >
-                <X size={18} />
+                <X size={18} strokeWidth={2.4} />
               </button>
             </SelectionRail>
 
@@ -1093,9 +1024,7 @@ export function SettingsPanel({ onClose, onShowUpdate }: SettingsPanelProps) {
               {renderSections()}
             </div>
 
-            <div className="settings-footer">
-              {renderFooterContent()}
-            </div>
+            {footerElement}
           </>
         )}
       </MotionSurface>
