@@ -1,6 +1,7 @@
 import { useState, useRef, memo, useCallback } from "react";
 import { RotateCcw } from "lucide-react";
-import { optionCardStyle, optionResetBtnStyle } from "../components/optionCardStyles";
+import { optionCardStyle } from "../components/optionCardStyles";
+import { SettingsIcon } from "../components/SettingsIcon";
 
 export interface VerticalSliderProps {
   value: number;
@@ -202,7 +203,7 @@ export interface AmbientTuneRowProps {
   onReset: () => void;
 }
 
-/** Горизонтальный премиум-ряд подсветки (яркость/насыщенность): иконка + слайдер + бейдж + условный сброс. */
+/** Горизонтальный ряд настройки подсветки: иконка + слайдер + значение + условный сброс. */
 export const AmbientTuneRow = memo(function AmbientTuneRow({
   icon,
   label,
@@ -220,10 +221,10 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
   const pct = Math.round(((value - min) / (max - min)) * 100);
   const isDefault = value === def;
   return (
-    <div style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 7, flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ display: "flex", color: "var(--accent)" }}>{icon}</span>
-        <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
+    <div className="option-card" style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
+        <SettingsIcon>{icon}</SettingsIcon>
+        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
           {label}
         </span>
       </div>
@@ -242,26 +243,21 @@ export const AmbientTuneRow = memo(function AmbientTuneRow({
           aria-label={ariaLabel}
         />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0, lineHeight: 1 }}>
-        <span style={{ fontSize: "0.80rem", fontWeight: 700, color: "var(--accent)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
+        <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent-text)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
           {value} {unit}
         </span>
         <button
           type="button"
           onClick={onReset}
-          className="btn btn--secondary btn--sm"
-          style={{
-            ...optionResetBtnStyle,
-            opacity: isDefault ? 0 : 1,
-            visibility: isDefault ? "hidden" : "visible",
-            pointerEvents: isDefault ? "none" : "auto",
-            transform: isDefault ? "scale(0.85)" : "scale(1)",
-            transition: "opacity var(--t-fast) var(--ease-smooth), transform var(--t-fast) var(--ease-smooth), visibility var(--t-fast) var(--ease-smooth)",
-          }}
+          className="ui-reset-btn"
+          data-reset-hidden={isDefault}
+          disabled={isDefault}
           title={resetTitle}
+          aria-label={resetTitle}
           tabIndex={isDefault ? -1 : 0}
         >
-          <RotateCcw size={11} />
+          <RotateCcw size={16} />
         </button>
       </div>
     </div>

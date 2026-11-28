@@ -3,17 +3,18 @@ import { SettingsWindowCard } from "../appearance/SettingsWindowCard";
 import { SettingsIcon } from "../components/SettingsIcon";
 import { useState, useCallback, useEffect } from "react";
 import {
-  Palette, Type, Maximize2, SlidersHorizontal, Square, Sparkles, RotateCcw, Zap, FolderOpen, Eye, Sun
+  Palette, Type, Maximize2, SlidersHorizontal, Square, Zap, FolderOpen, Eye
 } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { setAnimationsEnabled as applyAnimationsEnabledToDom } from "../../../utils/animationUtils";
 import { AccordionSection } from "../components/AccordionSection";
 import { ColorSchemeSection } from "../components/ColorSchemeSection";
+import { AmbientSettingsSection } from "../sections/AmbientSettingsSection";
 import { VisualizerSettingsSection } from "../sections/VisualizerSettingsSection";
 import { HeatmapSettingsSection } from "../sections/HeatmapSettingsSection";
 import { ControlButtonsSettings } from "../components/ControlButtonsSettings";
 import { optionCardStyle, optionResetBtnStyle, optionBtnStyle, optionBtnClassName } from "../components/optionCardStyles";
-import { VerticalSlider, AmbientTuneRow } from "../appearance/ambientPrimitives";
+import { VerticalSlider } from "../appearance/ambientPrimitives";
 import {
   UiRadiusLevel,
   UiScaleMode,
@@ -31,12 +32,9 @@ import {
   saveSeekStepSeconds,
   saveSkipOpeningSeconds,
 } from "../../../utils/seekUtils";
-import type { AmbientMode } from "../../../utils/ambientSettingsUtils";
 import type { AmbientSettings } from "../../modals/SettingsModal";
 
 export interface AppearanceSettingsTabProps {
-  activeColor?: string;
-  setActiveColor?: (c: string) => void;
   uiRadius: { level: UiRadiusLevel, value: number };
   saveUiRadius: (level: UiRadiusLevel, value: number) => void;
   setUiRadius: (r: { level: UiRadiusLevel, value: number }) => void;
@@ -70,7 +68,6 @@ export interface AppearanceSettingsTabProps {
   setAnimationsEnabled: (v: boolean) => void;
   openSections: Record<string, boolean>;
   onToggleSection: (id: string) => void;
-  getEffectiveAccentColor?: (color?: string) => string;
 }
 
 import { useTranslation } from "../../../i18n/LanguageContext";
@@ -78,7 +75,6 @@ import { useTranslation } from "../../../i18n/LanguageContext";
 export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
   const { dict } = useTranslation();
   const {
-    activeColor = "windows",
     uiRadius, saveUiRadius, setUiRadius,
     uiScale, saveUiScale, setUiScale,
     uiFont, saveUiFont, setUiFont,
@@ -88,13 +84,6 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
     seekStepSeconds, setSeekStepSeconds,
     animationsEnabled, setAnimationsEnabled,
     openSections, onToggleSection: toggleSection,
-    getEffectiveAccentColor = () => {
-      try {
-        return localStorage.getItem("l-mpv-accent-color") || "#7fc7ff";
-      } catch {
-        return "#7fc7ff";
-      }
-    }
   } = props;
 
   // ── Пользовательские шрифты из папки fonts/ ─────────────────────────────
@@ -607,348 +596,13 @@ export function AppearanceSettingsTab(props: AppearanceSettingsTabProps) {
                 />
               </AccordionSection>
 
-              {/* 6. Размытие черных полос (Blur) */}
-              <AccordionSection
+              {/* 6. Размытие чёрных полос (Ambient / AmbiLight) */}
+              <AmbientSettingsSection
                 isOpen={!!openSections["app_ambient"]}
                 onToggle={() => toggleSection("app_ambient")}
-                icon={<Sun size={18} />}
-                title={dict.settings.appearance.ambientSection}
-              >
-                <div style={{ display: "flex", flexDirection: "column", gap: "var(--space-6)" }}>
-                  {/* Переключатель режимов: Выкл, Ambient, AmbiLight, Цветной фон */}
-                  <div
-                    className="radius-segmented theme-card"
-                    style={{
-                      display: "grid",
-                      gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                      gap: "var(--space-4)",
-                      padding: "var(--segment-padding)",
-                      background: "var(--surface-card)",
-                      borderRadius: "var(--segment-radius)",
-                      border: "1px solid var(--border)",
-                    }}
-                    >
-                    {[
-                      { id: "off", label: dict.settings.appearance.ambientOff },
-                      { id: "blur", label: dict.settings.appearance.ambientBlur },
-                      { id: "ambilight", label: dict.settings.appearance.ambientAmbilight },
-                      { id: "color", label: dict.settings.appearance.ambientColor },
-                    ].map((item) => {
-                      const isSel = ambientSettings.mode === item.id;
-                      return (
-                          <button
-                            key={item.id}
-                            onClick={() => updateAmbient({ mode: item.id as AmbientMode }, true)}
-                            type="button"
-                            aria-pressed={isSel}
-                            className={`ambient-choice${isSel ? " ambient-choice--active" : ""}`}
-                          style={{
-                            display: "flex",
-                            flexDirection: "column",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "var(--space-1)",
-                            padding: "10px 6px",
-                            borderRadius: "var(--segment-inner-radius)",
-                            border: isSel ? "1px solid var(--selection-frame)" : "1px solid rgba(255, 255, 255, 0.06)",
-                            cursor: "pointer",
-                            background: isSel ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
-                            color: isSel ? "var(--text-primary)" : "var(--text-secondary)",
-                            boxShadow: isSel
-                              ? "var(--selection-shadow)"
-                              : "none",
-                            transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                          }}
-                          >
-                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600 }}>{item.label}</span>
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Настройка радиуса размытия (для классического Ambient и прокачанного AmbiLight) */}
-                  {(ambientSettings.mode === "blur" || ambientSettings.mode === "ambilight") && (() => {
-                    const bMin = 5;
-                    const bMax = 150;
-                    const bDef = 100;
-                    const bVal = ambientSettings.blur_radius;
-                    const bPct = Math.round(((bVal - bMin) / (bMax - bMin)) * 100);
-                    const isDefault = bVal === bDef;
-                    return (
-                      <div className="option-card" style={{ ...optionCardStyle, flexDirection: "row", alignItems: "center", padding: "10px 14px", gap: 14 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-3)", flexShrink: 0, lineHeight: 1 }}>
-                          <SettingsIcon><Sparkles size={15} className="t-accent" /></SettingsIcon>
-                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 600, color: "var(--text-primary)", lineHeight: 1, whiteSpace: "nowrap" }}>
-                            {dict.settings.appearance.ambientLight.blurRadius}
-                          </span>
-                        </div>
-                        <div style={{ flex: 1, display: "flex", alignItems: "center", minWidth: 0, height: 20 }}>
-                          <input
-                            type="range"
-                            min={bMin}
-                            max={bMax}
-                            step={5}
-                            value={bVal}
-                            onChange={(e) => updateAmbient({ blur_radius: parseInt(e.target.value, 10) }, false)}
-                            className="ui-premium-slider"
-                            style={{
-                              "--track-fill": `linear-gradient(to right, var(--accent) 0%, var(--accent) ${bPct}%, rgba(255, 255, 255, 0.12) ${bPct}%, rgba(255, 255, 255, 0.12) 100%)`,
-                            } as React.CSSProperties}
-                            aria-label={dict.settings.appearance.ambientRadiusAria}
-                          />
-                        </div>
-                        <div style={{ display: "flex", alignItems: "center", gap: "var(--space-4)", flexShrink: 0, lineHeight: 1 }}>
-                          <span style={{ fontSize: "var(--fs-sm)", fontWeight: 700, color: "var(--accent-text)", minWidth: 44, textAlign: "left", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>
-                            {bVal} px
-                          </span>
-                          <button
-                            type="button"
-                            onClick={() => updateAmbient({ blur_radius: bDef }, true)}
-                            className="ui-reset-btn"
-                            data-reset-hidden={isDefault}
-                            disabled={isDefault}
-                            tabIndex={isDefault ? -1 : 0}
-                            aria-label={dict.settings.appearance.colorScheme.resetTheme}
-                          >
-                            <RotateCcw size={16} />
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })()}
-
-                  {/* Дополнительные кинематографичные параметры AmbiLight (Spread, Fade, Edge Shadow, Directions, HDR) */}
-                  {ambientSettings.mode === "ambilight" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <AmbientTuneRow
-                        icon={<SlidersHorizontal size={15} />}
-                        label={dict.settings.appearance.ambientSpread}
-                        value={ambientSettings.spread ?? 100}
-                        min={10}
-                        max={100}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100pct}
-                        ariaLabel={dict.settings.appearance.ambientSpreadAria}
-                        onChange={(v) => updateAmbient({ spread: v }, false)}
-                        onReset={() => updateAmbient({ spread: 100 }, true)}
-                      />
-                      <AmbientTuneRow
-                        icon={<Sparkles size={15} />}
-                        label={dict.settings.appearance.ambientFade}
-                        value={ambientSettings.fade ?? 100}
-                        min={0}
-                        max={100}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100pct}
-                        ariaLabel={dict.settings.appearance.ambientFadeAria}
-                        onChange={(v) => updateAmbient({ fade: v }, false)}
-                        onReset={() => updateAmbient({ fade: 100 }, true)}
-                      />
-                      <AmbientTuneRow
-                        icon={<Sparkles size={15} />}
-                        label={dict.settings.appearance.ambientDebanding}
-                        value={ambientSettings.debanding ?? 40}
-                        min={0}
-                        max={100}
-                        step={5}
-                        def={40}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset40pct}
-                        ariaLabel={dict.settings.appearance.ambientDebandingAria}
-                        onChange={(v) => updateAmbient({ debanding: v }, false)}
-                        onReset={() => updateAmbient({ debanding: 40 }, true)}
-                      />
-                      {/* Активные направления подсветки полос */}
-                      <div style={{ ...optionCardStyle, flexDirection: "column", gap: 8, padding: "10px 14px" }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                            {dict.settings.appearance.ambientDirections}
-                          </span>
-                        </div>
-                        <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 6 }}>
-                          {[
-                            { key: "direction_top", label: dict.settings.appearance.ambientDirTop, val: ambientSettings.direction_top },
-                            { key: "direction_bottom", label: dict.settings.appearance.ambientDirBottom, val: ambientSettings.direction_bottom },
-                            { key: "direction_left", label: dict.settings.appearance.ambientDirLeft, val: ambientSettings.direction_left },
-                            { key: "direction_right", label: dict.settings.appearance.ambientDirRight, val: ambientSettings.direction_right },
-                          ].map((dir) => (
-                            <button
-                              key={dir.key}
-                              type="button"
-                              onClick={() => updateAmbient({ [dir.key]: !dir.val }, true)}
-                              style={{
-                                padding: "6px 10px",
-                                borderRadius: "var(--radius-sm)",
-                                fontSize: "0.78rem",
-                                fontWeight: 600,
-                                border: dir.val ? "1.5px solid var(--accent)" : "1px solid rgba(255, 255, 255, 0.08)",
-                                background: dir.val ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)" : "transparent",
-                                color: dir.val ? "var(--text-primary)" : "var(--text-muted)",
-                                cursor: "pointer",
-                                transition: "all var(--t-fast) var(--ease-smooth)",
-                              }}
-                            >
-                              {dir.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Комфортный режим для HDR */}
-                      <label
-                        style={{
-                          ...optionCardStyle,
-                          flexDirection: "row",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "10px 14px",
-                          cursor: "pointer",
-                        }}
-                      >
-                        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                          <span style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--text-primary)" }}>
-                            {dict.settings.appearance.ambientHdrDim}
-                          </span>
-                          <span style={{ fontSize: "0.74rem", color: "var(--text-muted)" }}>
-                            {dict.settings.appearance.ambientHdrDimDesc}
-                          </span>
-                        </div>
-                        <input
-                          type="checkbox"
-                          checked={ambientSettings.hdr_dim}
-                          onChange={(e) => updateAmbient({ hdr_dim: e.target.checked }, true)}
-                          style={{ cursor: "pointer", width: 16, height: 16, accentColor: "var(--accent)" }}
-                        />
-                      </label>
-                    </div>
-                  )}
-
-                  {/* Яркость/насыщенность (режим color) */}
-                  {ambientSettings.mode === "color" && (
-                    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                      <AmbientTuneRow
-                        icon={<Sparkles size={15} />}
-
-                        label={dict.settings.appearance.ambientBrightness}
-                        value={ambientSettings.brightness ?? 100}
-                        min={20}
-                        max={150}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100pct}
-                        ariaLabel={dict.settings.appearance.ambientBrightnessAria}
-                        onChange={(v) => updateAmbient({ brightness: v }, false)}
-                        onReset={() => updateAmbient({ brightness: 100 }, true)}
-                      />
-                      <AmbientTuneRow
-                        icon={<Palette size={15} />}
-                        label={dict.settings.appearance.ambientSaturation}
-                        value={ambientSettings.saturation ?? 100}
-                        min={0}
-                        max={150}
-                        step={5}
-                        def={100}
-                        unit="%"
-                        resetTitle={dict.settings.appearance.reset100Percent}
-                        ariaLabel={dict.settings.appearance.ambientSaturationAria}
-                        onChange={(v) => updateAmbient({ saturation: v }, false)}
-                        onReset={() => updateAmbient({ saturation: 100 }, true)}
-                      />
-                    </div>
-                  )}
-
-                  {/* Настройка цвета (только для режима color) */}
-                  {ambientSettings.mode === "color" && (
-                    <div
-                      style={{
-                        display: "flex",
-                        flexDirection: "column",
-                        gap: 10,
-                        padding: "12px 14px",
-                        borderRadius: "var(--radius-md)",
-                        background: "rgba(255, 255, 255, 0.03)",
-                        border: "1px solid var(--border)",
-                      }}
-                    >
-                      <span style={{ fontSize: "0.82rem", color: "var(--text-secondary)", fontWeight: 500 }}>
-                        {dict.settings.appearance.ambientLight.color}
-                      </span>
-                      <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-                        {(() => {
-                          const isThemeMatch =
-                            ambientSettings.color.toLowerCase() ===
-                            getEffectiveAccentColor().toLowerCase();
-                          return (
-                            <button
-                              onClick={() => updateAmbient({ color: getEffectiveAccentColor() }, true)}
-                              title={dict.settings.appearance.ambientColorUseAccent}
-                              style={{
-                                padding: "6px 12px",
-                                borderRadius: "var(--radius-sm)",
-                                border: isThemeMatch
-                                  ? "1.5px solid var(--accent)"
-                                  : "1px solid var(--border)",
-                                background: isThemeMatch
-                                  ? "rgba(var(--accent-rgb, 127, 199, 255), 0.16)"
-                                  : "var(--accent-glass)",
-                                color: isThemeMatch
-                                  ? "var(--text-primary)"
-                                  : "var(--accent)",
-                                boxShadow: isThemeMatch
-                                  ? "0 0 8px rgba(var(--accent-rgb, 127, 199, 255), 0.35), inset 0 0 0 1.5px var(--accent)"
-                                  : "none",
-                                fontSize: "0.78rem",
-                                fontWeight: 600,
-                                cursor: "pointer",
-                                transition: "background-color var(--t-fast) var(--ease-smooth), border-color var(--t-fast) var(--ease-smooth), color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                              }}
-                            >
-                              {dict.settings.appearance.ambientColorAsTheme(activeColor === "windows" ? "Windows" : activeColor)}
-                            </button>
-                          );
-                        })()}
-
-                        {["#141923", "#1f2937", "#241e38", "#2d1c24", "#132a24", "#0a192f"].map((hex) => (
-                          <button
-                            key={hex}
-                            onClick={() => updateAmbient({ color: hex }, true)}
-                            style={{
-                              width: 26,
-                              height: 26,
-                              borderRadius: "50%",
-                              backgroundColor: hex,
-                              border: ambientSettings.color === hex ? "2px solid white" : "1px solid var(--border)",
-                              cursor: "pointer",
-                              boxShadow: ambientSettings.color === hex ? `0 0 10px ${hex}` : "none",
-                              transition: "border-color var(--t-fast) var(--ease-smooth), box-shadow var(--t-fast) var(--ease-smooth)",
-                            }}
-                          />
-                        ))}
-
-                        <input
-                          type="color"
-                          value={ambientSettings.color.startsWith("#") ? ambientSettings.color : "#7fc7ff"}
-                          onChange={(e) => updateAmbient({ color: e.target.value }, false)}
-                          title={dict.settings.appearance.ambientColorCustom}
-                          style={{
-                            width: 28,
-                            height: 28,
-                            borderRadius: "50%",
-                            border: "none",
-                            cursor: "pointer",
-                            background: "none",
-                          }}
-                        />
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </AccordionSection>
+                ambientSettings={ambientSettings}
+                updateAmbient={updateAmbient}
+              />
 
             </div>
     </>

@@ -59,7 +59,8 @@ import {
   isSubtitleTrackPath,
 } from "./utils/externalTrackLoader";
 import { resetSettingsViewSession } from "./components/settings/lib/settingsViewSession";
-import { AmbientOverlay } from "./components/player/AmbientOverlay";
+import { AmbientOverlay } from "./components/player/ambient";
+import type { AmbientMode } from "./utils/ambientSettingsUtils";
 import {
   useSettingsModulePreload,
 } from "./components/settings/lib/settingsModulePreload";
@@ -965,11 +966,10 @@ function App() {
       case "toggleAmbient":
         try {
           const res = normalizeAmbientSettings(await toggleAmbientMode());
-          const labels: Record<string, string> = {
+          const labels: Record<AmbientMode, string> = {
             off: dict.settings.cmenuUI.ambientOff,
             blur: dict.settings.cmenuUI.ambientBlur,
             ambilight: dict.settings.cmenuUI.ambientAmbilight,
-            color: dict.settings.cmenuUI.ambientColor,
           };
           triggerOsd(dict.osd.ambientMode(labels[res.mode] || res.mode), 2000, false, "ambient");
           window.dispatchEvent(new CustomEvent("l-mpv-ambient-changed", { detail: res }));
@@ -1410,6 +1410,7 @@ function App() {
           hasMedia={hasMedia}
           isFullscreen={isFullscreen}
           mediaPath={mediaInfo?.path}
+          videoReady={Boolean(mediaInfo?.video_ready)}
         />
 
         {!hasMedia && <EmptyScreen />}

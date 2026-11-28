@@ -267,6 +267,7 @@ pub fn run() {
             commands::get_ambient_layout,
             commands::get_ambient_settings,
             commands::apply_ambient_preview,
+            commands::sync_ambient_bars,
             commands::set_ambient_settings,
             commands::toggle_ambient_mode,
             // Автоподхват дорожек и метаданные

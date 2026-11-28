@@ -137,10 +137,12 @@ pub fn get_ambient_layout(state: State<'_, PlayerState>) -> Result<AmbientLayout
     let ml = state.mpv.get_property_double("osd-dimensions/ml").unwrap_or(0.0);
     let mr = state.mpv.get_property_double("osd-dimensions/mr").unwrap_or(0.0);
     
-    // Определение HDR: проверка гаммы pq/hlg или цветового пространства bt.2020
+    // Определение HDR: проверка реальной кривой переноса видеопотока (PQ/HLG)
     let gamma = state.mpv.get_property_string("video-params/gamma").unwrap_or_default();
-    let is_hdr = gamma.eq_ignore_ascii_case("pq") || gamma.eq_ignore_ascii_case("hlg") || 
-                 state.mpv.get_property_string("target-colorspace-hint").unwrap_or_default() == "yes";
+    let is_hdr = matches!(
+        gamma.trim().to_ascii_lowercase().as_str(),
+        "pq" | "smpte2084" | "hlg" | "arib-std-b67"
+    );
                  
     Ok(AmbientLayout {
         w, h, mt, mb, ml, mr, is_hdr
@@ -164,6 +166,12 @@ pub fn apply_ambient_preview(
     settings: AmbientSettings,
 ) -> Result<(), String> {
     state.ambient_controller.apply(&settings)
+}
+
+/// Синхронизирует активность GPU-подсветки с текущими отступами полос кадра.
+#[tauri::command]
+pub fn sync_ambient_bars(state: State<'_, PlayerState>) -> Result<(), String> {
+    state.ambient_controller.sync_for_layout()
 }
 
 /// Установка и сохранение настроек подсветки полос (Blur).

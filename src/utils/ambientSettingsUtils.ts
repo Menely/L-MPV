@@ -1,4 +1,4 @@
-export type AmbientMode = "off" | "blur" | "ambilight" | "color";
+export type AmbientMode = "off" | "blur" | "ambilight";
 
 export interface AmbientSettings {
   mode: AmbientMode;
@@ -74,7 +74,7 @@ function readBoolean(value: unknown, fallback: boolean): boolean {
 }
 
 function readMode(value: unknown): AmbientMode {
-  return value === "blur" || value === "ambilight" || value === "color"
+  return value === "blur" || value === "ambilight"
     ? value
     : "off";
 }
@@ -102,7 +102,7 @@ export function normalizeAmbientSettings(value: unknown): AmbientSettings {
     color: readColor(source.color),
     brightness: brightness === 0 ? DEFAULT_AMBIENT_SETTINGS.brightness : Math.round(clamp(brightness, 20, 150, DEFAULT_AMBIENT_SETTINGS.brightness)),
     saturation: Math.round(clamp(readNumber(source.saturation, DEFAULT_AMBIENT_SETTINGS.saturation), 0, 150, DEFAULT_AMBIENT_SETTINGS.saturation)),
-    spread: Math.round(clamp(readNumber(source.spread, DEFAULT_AMBIENT_SETTINGS.spread), 10, 100, DEFAULT_AMBIENT_SETTINGS.spread)),
+    spread: DEFAULT_AMBIENT_SETTINGS.spread,
     fade: Math.round(clamp(readNumber(source.fade, DEFAULT_AMBIENT_SETTINGS.fade), 0, 100, DEFAULT_AMBIENT_SETTINGS.fade)),
     debanding: Math.round(clamp(readNumber(source.debanding, DEFAULT_AMBIENT_SETTINGS.debanding), 0, 100, DEFAULT_AMBIENT_SETTINGS.debanding)),
     softness: Math.round(clamp(readNumber(source.softness, DEFAULT_AMBIENT_SETTINGS.softness), 0, 100, DEFAULT_AMBIENT_SETTINGS.softness)),

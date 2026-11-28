@@ -97,11 +97,3 @@
   image-rendering: auto;
 }
 
-.ambient-debanding-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-repeat: repeat;
-  mix-blend-mode: normal;
-}
-

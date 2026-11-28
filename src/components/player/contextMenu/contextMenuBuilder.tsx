@@ -540,14 +540,6 @@ export function buildContextMenuItems(params: ContextMenuBuilderParams): MenuIte
           indicator: "dot",
           action: () => handleSetAmbientMode("ambilight" as AmbientMode),
         },
-        {
-          type: "item",
-          label: (dict.settings.cmenuUI as any).ambColor ?? "Color",
-          active: ambientMode === "color",
-          indicator: "dot",
-          action: () => handleSetAmbientMode("color" as AmbientMode),
-        },
-
       ],
     }),
 
